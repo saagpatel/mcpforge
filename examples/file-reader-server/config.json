@@ -1,0 +1,11 @@
+{
+	"mcpServers": {
+		"file-reader-server": {
+			"command": "uv",
+			"args": ["run", "server.py"],
+			"env": {
+				"FILES_ROOT": "/path/to/allowed/directory"
+			}
+		}
+	}
+}

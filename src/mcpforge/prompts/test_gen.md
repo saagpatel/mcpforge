@@ -14,28 +14,30 @@ The output must begin with the module docstring or the first `import` statement.
 FastMCP 3.x provides an in-process test client that does not require starting an HTTP server:
 
 ```python
-from fastmcp import FastMCP
-from fastmcp.client import FastMCPClient
-
-# Import the mcp instance directly from the generated server
+from fastmcp import Client
 from server import mcp
 
 async def test_something():
-    async with mcp.test_client() as client:
+    async with Client(mcp) as client:
         result = await client.call_tool("tool_name", {"param": "value"})
-        assert result.content[0].text == "expected"
+        assert result.data == {"expected": "value"}
 ```
+
+Key points:
+- Import `Client` from `fastmcp` (NOT `FastMCPClient`, NOT `mcp.test_client()`)
+- `result.data` contains the tool's return value (NOT `result.content[0].text`)
+- No `@pytest.mark.asyncio` decorator needed — `asyncio_mode = "auto"` in pyproject.toml handles it
 
 ## Test Requirements
 
 1. **Import the server's mcp instance** directly: `from server import mcp`
-2. **Use `async with mcp.test_client() as client`** for every test.
+2. **Use `async with Client(mcp) as client`** for every test.
 3. **Every tool** in the plan must have at minimum:
    - A happy-path test with valid inputs
    - An error-path test for each documented `error_case`
 4. **Test isolation**: use `pytest` fixtures to reset in-memory state between tests.
    For module-level dicts/lists, access them via the server module and clear in fixtures.
-5. **Async tests**: all test functions must be `async def`. Use `pytest-asyncio`.
+5. **Async tests**: all test functions must be `async def`. No `@pytest.mark.asyncio` decorator.
 6. **Assertions**: assert on return values with specific field checks — not just "is not None".
 7. **Test names**: use `test_<tool_name>_<scenario>` format, e.g. `test_create_todo_success`,
    `test_get_todo_not_found`.
@@ -48,6 +50,7 @@ async def test_something():
 import pytest
 
 import server
+from fastmcp import Client
 from server import mcp
 
 
@@ -58,17 +61,14 @@ def reset_state():
     yield
 
 
-@pytest.mark.asyncio
 async def test_create_<entity>_success():
-    async with mcp.test_client() as client:
+    async with Client(mcp) as client:
         result = await client.call_tool("create_<entity>", {"field": "value"})
-        # assert on result
-        assert ...
+        assert result.data == {"id": "1", "field": "value"}
 
 
-@pytest.mark.asyncio
 async def test_create_<entity>_empty_title():
-    async with mcp.test_client() as client:
+    async with Client(mcp) as client:
         with pytest.raises(Exception):
             await client.call_tool("create_<entity>", {"title": ""})
 ```

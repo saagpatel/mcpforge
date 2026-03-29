@@ -15,6 +15,7 @@ from mcpforge.generator import generate_server
 from mcpforge.models import ServerPlan, ValidationResult
 from mcpforge.planner import extract_plan
 from mcpforge.self_heal import attempt_fix
+from mcpforge.template_hints import TEMPLATE_HINTS
 from mcpforge.test_generator import generate_tests
 from mcpforge.validator import uv_sync, validate_server
 from mcpforge.writer import write_server
@@ -70,6 +71,7 @@ async def _run_generate(
     dry_run: bool,
     yes: bool,
     force: bool,
+    template_hint: str = "",
 ) -> None:
     """Async orchestration for the generate command."""
     client = AnthropicClient(model=model)
@@ -93,7 +95,7 @@ async def _run_generate(
     # Stage 2: Generate code
     with Progress(SpinnerColumn(), TextColumn("{task.description}"), console=console) as progress:
         task = progress.add_task("Generating server code...", total=None)
-        server_code = await generate_server(plan, client)
+        server_code = await generate_server(plan, client, template_hint=template_hint)
         progress.update(task, description="Generating test suite...")
         test_code = await generate_tests(plan, server_code, client)
         progress.remove_task(task)
@@ -218,6 +220,13 @@ def cli() -> None:
     default=False,
     help="Overwrite existing output directory.",
 )
+@click.option(
+    "--template",
+    "-T",
+    default=None,
+    type=click.Choice(list(TEMPLATE_HINTS.keys()), case_sensitive=False),
+    help="Apply a template hint to guide code generation style.",
+)
 def generate(
     description: str,
     output: str | None,
@@ -226,10 +235,14 @@ def generate(
     dry_run: bool,
     yes: bool,
     force: bool,
+    template: str | None,
 ) -> None:
     """Generate a complete MCP server from a plain-English DESCRIPTION."""
     try:
-        asyncio.run(_run_generate(description, output, model, transport, dry_run, yes, force))
+        template_hint = TEMPLATE_HINTS.get(template or "", "")
+        asyncio.run(
+            _run_generate(description, output, model, transport, dry_run, yes, force, template_hint)
+        )
     except click.exceptions.Abort:
         console.print("[yellow]Aborted.[/yellow]")
     except ValueError as exc:

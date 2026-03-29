@@ -10,9 +10,15 @@ from mcpforge.utils import strip_code_fences
 logger = logging.getLogger(__name__)
 
 
-async def generate_server(plan: ServerPlan, client: AnthropicClient) -> str:
+async def generate_server(
+    plan: ServerPlan,
+    client: AnthropicClient,
+    template_hint: str = "",
+) -> str:
     """Generate FastMCP 3.x server.py source code from a ServerPlan."""
     system_prompt = load_prompt("generator")
+    if template_hint:
+        system_prompt = f"{system_prompt}\n\n## Template Guidance\n\n{template_hint}"
     user_message = plan.model_dump_json(indent=2)
     raw = await client.generate(
         system_prompt=system_prompt,
