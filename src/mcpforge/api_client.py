@@ -5,6 +5,7 @@ import json
 import os
 import random
 import re
+from collections.abc import AsyncIterator
 
 import anthropic
 from pydantic import BaseModel, ValidationError
@@ -97,6 +98,29 @@ class AnthropicClient:
             raise ValueError(
                 f"Response JSON did not match {response_model.__name__} schema: {exc}"
             ) from exc
+
+
+    async def generate_stream(
+        self,
+        system_prompt: str,
+        user_message: str,
+        max_tokens: int = 16384,
+        temperature: float = 0.2,
+    ) -> AsyncIterator[str]:
+        """Stream text chunks as they arrive from the API.
+
+        Yields str chunks. No retry — streaming connections are not retryable.
+        Raises immediately on API errors.
+        """
+        async with self._client.messages.stream(
+            model=self._model,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_message}],
+        ) as stream:
+            async for text in stream.text_stream:
+                yield text
 
 
 def _extract_json(text: str) -> dict:

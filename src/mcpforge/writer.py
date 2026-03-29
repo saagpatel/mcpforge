@@ -55,3 +55,46 @@ def write_server(
         (output_dir / out_name).write_text(rendered, encoding="utf-8")
 
     return output_dir
+
+
+def write_server_ts(
+    plan: ServerPlan,
+    server_code: str,
+    test_code: str,
+    output_dir: Path,
+    force: bool = False,
+) -> Path:
+    """Write a generated TypeScript server to the output directory.
+
+    Creates the directory if it doesn't exist. Raises FileExistsError if the
+    directory already exists and is non-empty unless force=True.
+
+    Returns:
+        The resolved output directory path.
+    """
+    output_dir = output_dir.resolve()
+    if output_dir.exists() and any(output_dir.iterdir()) and not force:
+        raise FileExistsError(
+            f"{output_dir} already exists and is not empty. Use force=True to overwrite."
+        )
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    env = Environment(loader=BaseLoader(), autoescape=False)
+    context = {"plan": plan}
+
+    src_dir = output_dir / "src"
+    src_dir.mkdir(exist_ok=True)
+
+    (src_dir / "server.ts").write_text(server_code, encoding="utf-8")
+    (src_dir / "server.test.ts").write_text(test_code, encoding="utf-8")
+
+    for tmpl_name, out_name in [
+        ("ts/package.json.j2", "package.json"),
+        ("ts/tsconfig.json.j2", "tsconfig.json"),
+        ("ts/gitignore.j2", ".gitignore"),
+    ]:
+        template_src = _load_template(tmpl_name)
+        rendered = env.from_string(template_src).render(**context)
+        (output_dir / out_name).write_text(rendered, encoding="utf-8")
+
+    return output_dir

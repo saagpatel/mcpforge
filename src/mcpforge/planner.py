@@ -29,3 +29,28 @@ async def extract_plan(
     if not plan.tools:
         raise ValueError(f"Planner returned a plan with no tools for: {description!r}")
     return plan
+
+
+async def refine_plan(
+    plan: ServerPlan,
+    feedback: str,
+    client: AnthropicClient,
+) -> ServerPlan:
+    """Apply user feedback to an existing ServerPlan via LLM."""
+    system_prompt = load_prompt("planner")
+    user_message = (
+        f"Here is the current server plan:\n\n{plan.model_dump_json(indent=2)}\n\n"
+        f"The user wants these changes: {feedback}\n\n"
+        f"Return the complete updated plan JSON."
+    )
+    updated = await client.generate_json(
+        system_prompt=system_prompt,
+        user_message=user_message,
+        response_model=ServerPlan,
+        max_tokens=8192,
+    )
+    if not isinstance(updated, ServerPlan):
+        raise TypeError(f"Expected ServerPlan, got {type(updated).__name__}")
+    if not updated.tools:
+        raise ValueError("Refined plan has no tools")
+    return updated

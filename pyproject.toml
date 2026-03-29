@@ -1,6 +1,6 @@
 [project]
 name = "mcpforge"
-version = "0.1.0"
+version = "0.2.0"
 description = "Generate complete, runnable FastMCP 3.x MCP servers from plain-English descriptions"
 authors = [
     { name = "saagpatel", email = "saagarpatel08@gmail.com" },
@@ -25,6 +25,7 @@ dependencies = [
     "jinja2>=3.1.0",
     "pydantic>=2.0.0",
     "rich>=13.0.0",
+    "pyyaml>=6.0",
 ]
 
 [project.scripts]
