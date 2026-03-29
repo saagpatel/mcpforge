@@ -1,6 +1,8 @@
 """Pydantic data models for mcpforge."""
 
-from pydantic import BaseModel, Field
+import re
+
+from pydantic import BaseModel, Field, field_validator
 
 
 class ToolParam(BaseModel):
@@ -46,9 +48,34 @@ class ServerPlan(BaseModel):
     external_packages: list[str] = Field(default_factory=list)
     transport: str = "streamable-http"
 
+    @field_validator("external_packages", mode="before")
+    @classmethod
+    def validate_external_packages(cls, v: list[str]) -> list[str]:
+        """Reject package names that could inject content into pyproject.toml."""
+        _pkg_re = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9._-]*$")
+        for pkg in v:
+            if not _pkg_re.match(pkg):
+                raise ValueError(f"Invalid package name: {pkg!r}")
+        return v
+
+    @field_validator("env_vars", mode="before")
+    @classmethod
+    def validate_env_vars(cls, v: list[str]) -> list[str]:
+        """Reject env var names that aren't valid shell identifiers."""
+        _var_re = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+        for var in v:
+            if not _var_re.match(var):
+                raise ValueError(f"Invalid env var name: {var!r}")
+        return v
+
     def model_post_init(self, __context: object) -> None:
         if not self.slug:
-            self.slug = self.name.lower().replace(" ", "-").replace("_", "-")
+            raw = self.name.lower().replace(" ", "-").replace("_", "-")
+            # Strip any character that isn't alphanumeric or a hyphen (prevents path traversal)
+            slug = re.sub(r"[^a-z0-9-]", "", raw)
+            # Collapse multiple hyphens and strip leading/trailing hyphens
+            slug = re.sub(r"-+", "-", slug).strip("-")
+            self.slug = slug or "server"
 
 
 class ValidationResult(BaseModel):

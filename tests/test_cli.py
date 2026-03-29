@@ -131,6 +131,85 @@ class TestGenerate:
         assert result.exit_code == 0
         mock_generate.assert_not_called()
 
+    def test_generate_self_heal_path(self, tmp_path):
+        """When first validate returns invalid, attempt_fix is called and server.py is rewritten."""
+        runner = CliRunner()
+        invalid_result = ValidationResult(syntax_ok=False, errors=["SyntaxError at line 1"])
+        valid_result = _valid_result()
+        server_py = tmp_path / "server.py"
+        server_py.write_text("broken code")
+
+        mock_validate = AsyncMock(side_effect=[invalid_result, valid_result])
+        mock_fix = AsyncMock(return_value="fixed code")
+
+        with (
+            patch("mcpforge.cli.AnthropicClient"),
+            patch("mcpforge.cli.extract_plan", new=AsyncMock(return_value=_mock_plan())),
+            patch("mcpforge.cli.generate_server", new=AsyncMock(return_value="broken code")),
+            patch("mcpforge.cli.generate_tests", new=AsyncMock(return_value="tests")),
+            patch("mcpforge.cli.write_server", return_value=tmp_path),
+            patch("mcpforge.cli.uv_sync", new=AsyncMock()),
+            patch("mcpforge.cli.validate_server", new=mock_validate),
+            patch("mcpforge.cli.attempt_fix", new=mock_fix),
+        ):
+            result = runner.invoke(
+                cli, ["generate", "A todo server", "--yes", "--output", str(tmp_path)]
+            )
+
+        assert result.exit_code == 0
+        mock_fix.assert_called_once()
+        assert mock_validate.call_count == 2
+        assert server_py.read_text() == "fixed code"
+
+    def test_generate_value_error_exits_1(self):
+        """ValueError from extract_plan (e.g. no tools) exits with code 1."""
+        runner = CliRunner()
+        with (
+            patch("mcpforge.cli.AnthropicClient"),
+            patch(
+                "mcpforge.cli.extract_plan",
+                new=AsyncMock(side_effect=ValueError("no tools generated")),
+            ),
+        ):
+            result = runner.invoke(cli, ["generate", "A todo server", "--yes"])
+        assert result.exit_code != 0
+
+    def test_generate_file_exists_error_exits_1(self):
+        """FileExistsError from write_server exits with code 1."""
+        runner = CliRunner()
+        with (
+            patch("mcpforge.cli.AnthropicClient"),
+            patch("mcpforge.cli.extract_plan", new=AsyncMock(return_value=_mock_plan())),
+            patch("mcpforge.cli.generate_server", new=AsyncMock(return_value="code")),
+            patch("mcpforge.cli.generate_tests", new=AsyncMock(return_value="tests")),
+            patch(
+                "mcpforge.cli.write_server",
+                side_effect=FileExistsError("dir not empty"),
+            ),
+        ):
+            result = runner.invoke(cli, ["generate", "A todo server", "--yes"])
+        assert result.exit_code != 0
+
+    def test_generate_force_flag_passed_to_writer(self, tmp_path):
+        """--force flag is forwarded to write_server."""
+        runner = CliRunner()
+        mock_write = patch("mcpforge.cli.write_server", return_value=tmp_path)
+        with (
+            patch("mcpforge.cli.AnthropicClient"),
+            patch("mcpforge.cli.extract_plan", new=AsyncMock(return_value=_mock_plan())),
+            patch("mcpforge.cli.generate_server", new=AsyncMock(return_value="code")),
+            patch("mcpforge.cli.generate_tests", new=AsyncMock(return_value="tests")),
+            mock_write as mock_w,
+            patch("mcpforge.cli.uv_sync", new=AsyncMock()),
+            patch("mcpforge.cli.validate_server", new=AsyncMock(return_value=_valid_result())),
+        ):
+            result = runner.invoke(
+                cli, ["generate", "A todo server", "--yes", "--force", "--output", str(tmp_path)]
+            )
+        assert result.exit_code == 0
+        _, kwargs = mock_w.call_args
+        assert kwargs.get("force") is True
+
 
 class TestValidate:
     def test_validate_runs_with_path(self, tmp_path):
@@ -151,4 +230,13 @@ class TestValidate:
     def test_validate_missing_server_py_fails(self, tmp_path):
         runner = CliRunner()
         result = runner.invoke(cli, ["validate", str(tmp_path)])
+        assert result.exit_code != 0
+
+    def test_validate_invalid_result_exits_1(self, tmp_path):
+        """validate exits 1 when ValidationResult.is_valid is False."""
+        (tmp_path / "server.py").write_text("from fastmcp import FastMCP\nmcp = FastMCP('Test')")
+        runner = CliRunner()
+        invalid = ValidationResult(syntax_ok=False, errors=["SyntaxError at line 1"])
+        with patch("mcpforge.cli.validate_server", new=AsyncMock(return_value=invalid)):
+            result = runner.invoke(cli, ["validate", str(tmp_path)])
         assert result.exit_code != 0

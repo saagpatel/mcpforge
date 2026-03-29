@@ -1,8 +1,8 @@
 """Tests for mcpforge validator module."""
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from mcpforge.validator import check_lint, check_syntax, validate_server
+from mcpforge.validator import check_lint, check_syntax, uv_sync, validate_server
 
 # Module-level test code constants
 VALID_SERVER = 'from fastmcp import FastMCP\n\nmcp = FastMCP("Test")\n'
@@ -75,6 +75,37 @@ class TestCheckLint:
         result = check_lint(f)
         assert len(result) > 0
         assert any("line" in e for e in result)
+
+
+class TestUvSync:
+    async def test_calls_uv_sync_in_output_dir(self, tmp_path):
+        proc = AsyncMock()
+        proc.communicate = AsyncMock(return_value=(b"", b""))
+        proc.returncode = 0
+        with patch("asyncio.create_subprocess_exec", return_value=proc) as mock_exec:
+            await uv_sync(tmp_path)
+        mock_exec.assert_called_once()
+        args = mock_exec.call_args.args
+        assert args[0] == "uv"
+        assert args[1] == "sync"
+        assert mock_exec.call_args.kwargs["cwd"] == tmp_path.resolve()
+
+    async def test_timeout_kills_process(self, tmp_path):
+        proc = AsyncMock()
+        proc.communicate = AsyncMock(side_effect=TimeoutError())
+        proc.kill = MagicMock()
+        proc.wait = AsyncMock()
+        with patch("asyncio.create_subprocess_exec", return_value=proc):
+            await uv_sync(tmp_path)  # should not raise
+        proc.kill.assert_called_once()
+        proc.wait.assert_called_once()
+
+    async def test_does_not_raise_on_failure(self, tmp_path):
+        proc = AsyncMock()
+        proc.communicate = AsyncMock(return_value=(b"", b"error"))
+        proc.returncode = 1
+        with patch("asyncio.create_subprocess_exec", return_value=proc):
+            await uv_sync(tmp_path)  # non-zero exit code should not raise
 
 
 class TestValidateServer:

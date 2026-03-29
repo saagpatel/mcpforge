@@ -23,8 +23,9 @@ async def extract_plan(
         response_model=ServerPlan,
         max_tokens=8192,
     )
-    # generate_json returns BaseModel; cast for type checker
-    assert isinstance(plan, ServerPlan)
+    # generate_json returns BaseModel; narrow type explicitly
+    if not isinstance(plan, ServerPlan):
+        raise TypeError(f"Expected ServerPlan, got {type(plan).__name__}")
     if not plan.tools:
         raise ValueError(f"Planner returned a plan with no tools for: {description!r}")
     return plan

@@ -159,6 +159,31 @@ class TestServerPlan:
         plan = self._minimal_plan(transport="stdio")
         assert plan.transport == "stdio"
 
+    def test_slug_sanitizes_path_traversal(self):
+        plan = self._minimal_plan(name="../../evil-dir")
+        assert ".." not in plan.slug
+        assert "/" not in plan.slug
+
+    def test_slug_sanitizes_special_chars(self):
+        plan = self._minimal_plan(name="My Server! (v2)")
+        assert plan.slug == "my-server-v2"
+
+    def test_invalid_external_package_raises(self):
+        with pytest.raises(ValidationError):
+            self._minimal_plan(external_packages=["../../../evil; rm -rf /"])
+
+    def test_valid_external_packages_accepted(self):
+        plan = self._minimal_plan(external_packages=["httpx", "pydantic", "my-pkg.extra"])
+        assert len(plan.external_packages) == 3
+
+    def test_invalid_env_var_raises(self):
+        with pytest.raises(ValidationError):
+            self._minimal_plan(env_vars=["../../SECRET"])
+
+    def test_valid_env_vars_accepted(self):
+        plan = self._minimal_plan(env_vars=["API_KEY", "DATABASE_URL", "MY_VAR_123"])
+        assert len(plan.env_vars) == 3
+
     def test_missing_name_raises(self):
         with pytest.raises(ValidationError):
             ServerPlan(description="desc", tools=[])  # name missing
