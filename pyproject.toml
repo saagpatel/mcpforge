@@ -1,0 +1,45 @@
+[project]
+name = "mcpforge"
+version = "0.1.0"
+description = "Generate complete, runnable FastMCP 3.x MCP servers from plain-English descriptions"
+authors = [
+    { name = "saagpatel", email = "saagarpatel08@gmail.com" },
+]
+requires-python = ">=3.12"
+license = { text = "MIT" }
+dependencies = [
+    "anthropic>=0.40.0",
+    "click>=8.1.0",
+    "jinja2>=3.1.0",
+    "pydantic>=2.0.0",
+    "rich>=13.0.0",
+]
+
+[project.scripts]
+mcpforge = "mcpforge.cli:cli"
+
+[build-system]
+requires = ["uv_build>=0.11.2,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "ruff>=0.4.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+ignore = []
+
+[tool.ruff.lint.isort]
+known-first-party = ["mcpforge"]
