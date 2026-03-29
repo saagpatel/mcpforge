@@ -1,26 +1,45 @@
-"""Self-heal: attempt to fix a generated server using LLM-assisted repair.
+"""Self-heal: attempts to fix a broken server.py using LLM feedback."""
 
-Phase 1 implementation.
-"""
+import logging
 
 from mcpforge.api_client import AnthropicClient
+from mcpforge.prompts import load_prompt
+from mcpforge.utils import strip_code_fences
+
+logger = logging.getLogger(__name__)
+
+_FIX_PROMPT = """The following FastMCP 3.x server.py has errors. Fix ALL errors and return ONLY
+the corrected Python code. No markdown fences, no explanation.
+
+## Errors
+{errors}
+
+## Current server.py
+```python
+{code}
+```"""
 
 
-async def attempt_fix(
-    code: str,
-    errors: list[str],
-    client: AnthropicClient,
-) -> str | None:
-    """Ask the LLM to fix a generated server given a list of error messages.
+async def attempt_fix(code: str, errors: list[str], client: AnthropicClient) -> str | None:
+    """Attempt to fix broken server.py code using LLM.
 
-    Called at most once per generation (1 retry max per roadmap spec).
-
-    Args:
-        code: The generated server.py source that failed validation.
-        errors: List of error strings from the validation layers.
-        client: Configured AnthropicClient instance.
-
-    Returns:
-        Fixed Python source code, or None if the fix could not be generated.
+    Returns the fixed code string, or None if the fix failed or returned empty content.
+    Uses temperature=0.0 for deterministic repair rather than creative rewriting.
     """
-    raise NotImplementedError("self_heal.attempt_fix is implemented in Phase 1")
+    system_prompt = load_prompt("generator")
+    user_message = _FIX_PROMPT.format(
+        errors="\n".join(f"- {e}" for e in errors),
+        code=code,
+    )
+    try:
+        raw = await client.generate(
+            system_prompt=system_prompt,
+            user_message=user_message,
+            max_tokens=16384,
+            temperature=0.0,
+        )
+        fixed = strip_code_fences(raw)
+        return fixed if fixed.strip() else None
+    except Exception:
+        logger.exception("Self-heal LLM call failed")
+        return None

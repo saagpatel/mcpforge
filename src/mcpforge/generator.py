@@ -1,20 +1,23 @@
-"""Generator: converts a ServerPlan into FastMCP 3.x server.py source code.
+"""Generator: produces server.py source code from a ServerPlan."""
 
-Phase 1 implementation.
-"""
+import logging
 
 from mcpforge.api_client import AnthropicClient
 from mcpforge.models import ServerPlan
+from mcpforge.prompts import load_prompt
+from mcpforge.utils import strip_code_fences
+
+logger = logging.getLogger(__name__)
 
 
 async def generate_server(plan: ServerPlan, client: AnthropicClient) -> str:
-    """Call the LLM to generate a complete server.py from a ServerPlan.
-
-    Args:
-        plan: Validated ServerPlan describing tools, resources, and configuration.
-        client: Configured AnthropicClient instance.
-
-    Returns:
-        Raw Python source code for the FastMCP server (no markdown fences).
-    """
-    raise NotImplementedError("generator.generate_server is implemented in Phase 1")
+    """Generate FastMCP 3.x server.py source code from a ServerPlan."""
+    system_prompt = load_prompt("generator")
+    user_message = plan.model_dump_json(indent=2)
+    raw = await client.generate(
+        system_prompt=system_prompt,
+        user_message=user_message,
+        max_tokens=16384,
+        temperature=0.2,
+    )
+    return strip_code_fences(raw)

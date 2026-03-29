@@ -1,11 +1,20 @@
-"""Writer: scaffolds the output directory with all generated files.
+"""Writer: renders Jinja2 templates and writes the generated server to disk."""
 
-Phase 1 implementation.
-"""
-
+import importlib.resources
 from pathlib import Path
 
+from jinja2 import BaseLoader, Environment
+
 from mcpforge.models import ServerPlan
+
+
+def _load_template(name: str) -> str:
+    """Load a Jinja2 template from the mcpforge templates directory."""
+    return (
+        importlib.resources.files("mcpforge")
+        .joinpath("templates", name)
+        .read_text(encoding="utf-8")
+    )
 
 
 def write_server(
@@ -13,23 +22,36 @@ def write_server(
     server_code: str,
     test_code: str,
     output_dir: Path,
+    force: bool = False,
 ) -> Path:
-    """Write all generated files to the output directory.
+    """Write a generated server to the output directory.
 
-    Creates:
-        - server.py (generated server code)
-        - test_server.py (generated test suite)
-        - pyproject.toml (from Jinja2 template)
-        - README.md (from Jinja2 template)
-        - config.json (MCP client configuration, from Jinja2 template)
-
-    Args:
-        plan: The ServerPlan used to generate the server.
-        server_code: Generated server.py source code.
-        test_code: Generated test_server.py source code.
-        output_dir: Target directory (created if it does not exist).
+    Creates the directory if it doesn't exist. Raises FileExistsError if the
+    directory already exists and is non-empty unless force=True.
 
     Returns:
-        Path to the output directory.
+        The resolved output directory path.
     """
-    raise NotImplementedError("writer.write_server is implemented in Phase 1")
+    output_dir = output_dir.resolve()
+    if output_dir.exists() and any(output_dir.iterdir()) and not force:
+        raise FileExistsError(
+            f"{output_dir} already exists and is not empty. Use force=True to overwrite."
+        )
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    env = Environment(loader=BaseLoader(), autoescape=False)
+    context = {"plan": plan}
+
+    (output_dir / "server.py").write_text(server_code, encoding="utf-8")
+    (output_dir / "test_server.py").write_text(test_code, encoding="utf-8")
+
+    for tmpl_name, out_name in [
+        ("pyproject.toml.j2", "pyproject.toml"),
+        ("README.md.j2", "README.md"),
+        ("config.json.j2", "config.json"),
+    ]:
+        template_src = _load_template(tmpl_name)
+        rendered = env.from_string(template_src).render(**context)
+        (output_dir / out_name).write_text(rendered, encoding="utf-8")
+
+    return output_dir
