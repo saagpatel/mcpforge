@@ -57,6 +57,49 @@ def write_server(
     return output_dir
 
 
+def write_server_multi(
+    plan: ServerPlan,
+    files: dict[str, str],
+    test_code: str,
+    output_dir: Path,
+    force: bool = False,
+) -> Path:
+    """Write a multi-file generated server to the output directory.
+
+    `files` maps relative paths (e.g. 'server.py', 'tools/crud.py') to content.
+    `test_code` is written as test_server.py in the output directory root.
+    """
+    output_dir = output_dir.resolve()
+    if output_dir.exists() and any(output_dir.iterdir()) and not force:
+        raise FileExistsError(
+            f"{output_dir} already exists and is not empty. Use force=True to overwrite."
+        )
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Write generated files
+    for rel_path, content in files.items():
+        dest = output_dir / rel_path
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text(content, encoding="utf-8")
+
+    # Write test file
+    (output_dir / "test_server.py").write_text(test_code, encoding="utf-8")
+
+    # Render standard scaffolding templates
+    env = Environment(loader=BaseLoader(), autoescape=False)
+    context = {"plan": plan}
+    for tmpl_name, out_name in [
+        ("pyproject.toml.j2", "pyproject.toml"),
+        ("README.md.j2", "README.md"),
+        ("config.json.j2", "config.json"),
+    ]:
+        template_src = _load_template(tmpl_name)
+        rendered = env.from_string(template_src).render(**context)
+        (output_dir / out_name).write_text(rendered, encoding="utf-8")
+
+    return output_dir
+
+
 def write_server_ts(
     plan: ServerPlan,
     server_code: str,

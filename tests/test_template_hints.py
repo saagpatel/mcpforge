@@ -47,6 +47,32 @@ class TestTemplateHints:
         assert "path traversal" in TEMPLATE_HINTS["filesystem"].lower()
 
 
+class TestNewTemplateHints:
+    def test_graphql_hint_exists(self):
+        assert "graphql" in TEMPLATE_HINTS
+
+    def test_graphql_hint_mentions_gql(self):
+        assert "gql" in TEMPLATE_HINTS["graphql"]
+
+    def test_websocket_hint_exists(self):
+        assert "websocket" in TEMPLATE_HINTS
+
+    def test_websocket_hint_mentions_reconnection(self):
+        assert "reconnect" in TEMPLATE_HINTS["websocket"].lower()
+
+    def test_auth_proxy_hint_exists(self):
+        assert "auth-proxy" in TEMPLATE_HINTS
+
+    def test_auth_proxy_hint_mentions_jwt(self):
+        assert "jwt" in TEMPLATE_HINTS["auth-proxy"].lower()
+
+    def test_queue_consumer_hint_exists(self):
+        assert "queue-consumer" in TEMPLATE_HINTS
+
+    def test_queue_consumer_hint_mentions_redis(self):
+        assert "redis" in TEMPLATE_HINTS["queue-consumer"].lower()
+
+
 class TestTemplateCLIFlag:
     def test_invalid_template_fails(self):
         runner = CliRunner()

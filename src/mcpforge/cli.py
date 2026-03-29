@@ -1,30 +1,45 @@
 """Click CLI entrypoint for mcpforge."""
 
 import asyncio
+import importlib.resources
 from pathlib import Path
 
 import click
 from rich.console import Console
+from rich.live import Live
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
+from rich.text import Text
 
 from mcpforge import __version__
 from mcpforge.api_client import AnthropicClient
-from mcpforge.generator import generate_server
+from mcpforge.discovery import find_servers
+from mcpforge.generator import generate_server, generate_server_multi
 from mcpforge.generator_ts import generate_server_ts, generate_tests_ts
-from mcpforge.models import ServerPlan, ValidationResult
+from mcpforge.models import ServerPlan, ToolDef, ValidationResult
 from mcpforge.openapi import load_spec, parse_openapi
 from mcpforge.planner import extract_plan, refine_plan
+from mcpforge.prompts import load_prompt
 from mcpforge.self_heal import attempt_fix
 from mcpforge.template_hints import TEMPLATE_HINTS
 from mcpforge.test_generator import generate_tests
 from mcpforge.updater import update_server
+from mcpforge.utils import strip_code_fences
 from mcpforge.validator import uv_sync, validate_server
 from mcpforge.validator_ts import npm_install, validate_server_ts
-from mcpforge.writer import write_server, write_server_ts
+from mcpforge.writer import write_server, write_server_multi, write_server_ts
 
 console = Console()
+
+
+def _load_init_template(name: str) -> str:
+    """Load an init template from the mcpforge templates directory."""
+    return (
+        importlib.resources.files("mcpforge")
+        .joinpath("templates", name)
+        .read_text(encoding="utf-8")
+    )
 
 
 def _display_plan(plan: ServerPlan) -> None:
@@ -79,6 +94,8 @@ async def _run_generate(
     openapi_path: str | None = None,
     language: str = "python",
     interactive: bool = False,
+    stream: bool = False,
+    multi_file: bool = False,
 ) -> None:
     """Async orchestration for the generate command."""
     client = AnthropicClient(model=model)
@@ -149,14 +166,80 @@ async def _run_generate(
 
     else:
         # Python path
-        with Progress(
-            SpinnerColumn(), TextColumn("{task.description}"), console=console
-        ) as progress:
-            task = progress.add_task("Generating server code...", total=None)
-            server_code = await generate_server(plan, client, template_hint=template_hint)
-            progress.update(task, description="Generating test suite...")
-            test_code = await generate_tests(plan, server_code, client)
-            progress.remove_task(task)
+        if multi_file:
+            with Progress(
+                SpinnerColumn(), TextColumn("{task.description}"), console=console
+            ) as progress:
+                task = progress.add_task("Generating multi-file server code...", total=None)
+                files = await generate_server_multi(plan, client, template_hint=template_hint)
+                progress.update(task, description="Generating test suite...")
+                test_code = await generate_tests(plan, files.get("server.py", ""), client)
+                progress.remove_task(task)
+
+            write_server_multi(plan, files, test_code, output_path, force=force)
+            console.print(f"[dim]Written to {output_path} ({len(files)} files)[/dim]")
+
+            with Progress(
+                SpinnerColumn(), TextColumn("{task.description}"), console=console
+            ) as progress:
+                task = progress.add_task("Installing dependencies (uv sync)...", total=None)
+                await uv_sync(output_path)
+                progress.update(task, description="Validating server...")
+                result = await validate_server(output_path)
+                progress.remove_task(task)
+
+            heal_attempted = False
+            if not result.is_valid:
+                heal_attempted = True
+                main_code = files.get("server.py", "")
+                with Progress(
+                    SpinnerColumn(), TextColumn("{task.description}"), console=console
+                ) as progress:
+                    task = progress.add_task("Attempting self-heal...", total=None)
+                    fixed = await attempt_fix(main_code, result.errors, client)
+                    if fixed:
+                        (output_path / "server.py").write_text(fixed, encoding="utf-8")
+                        progress.update(task, description="Re-validating after self-heal...")
+                        result = await validate_server(output_path)
+                    progress.remove_task(task)
+
+            _display_results(plan, result, output_path, heal_attempted)
+            if not result.is_valid:
+                raise SystemExit(1)
+            return
+
+        if stream:
+            # Streaming generation for Python
+            buf: list[str] = []
+            live_text = Text()
+            sys_prompt = load_prompt("generator")
+            if template_hint:
+                sys_prompt = f"{sys_prompt}\n\n## Template Guidance\n\n{template_hint}"
+            user_msg = plan.model_dump_json(indent=2)
+            with Live(live_text, console=console, refresh_per_second=10):
+                async for chunk in client.generate_stream(
+                    sys_prompt, user_msg, max_tokens=16384, temperature=0.2
+                ):
+                    buf.append(chunk)
+                    live_text.plain = (
+                        f"Generating server... {sum(len(c) for c in buf):,} chars"
+                    )
+            server_code = strip_code_fences("".join(buf))
+            with Progress(
+                SpinnerColumn(), TextColumn("{task.description}"), console=console
+            ) as progress:
+                task = progress.add_task("Generating test suite...", total=None)
+                test_code = await generate_tests(plan, server_code, client)
+                progress.remove_task(task)
+        else:
+            with Progress(
+                SpinnerColumn(), TextColumn("{task.description}"), console=console
+            ) as progress:
+                task = progress.add_task("Generating server code...", total=None)
+                server_code = await generate_server(plan, client, template_hint=template_hint)
+                progress.update(task, description="Generating test suite...")
+                test_code = await generate_tests(plan, server_code, client)
+                progress.remove_task(task)
 
         # Stage 3: Write files
         write_server(plan, server_code, test_code, output_path, force=force)
@@ -367,6 +450,19 @@ def cli() -> None:
     default=False,
     help="Interactively refine the plan before generating.",
 )
+@click.option(
+    "--stream",
+    is_flag=True,
+    default=False,
+    help="Stream code generation output in real-time.",
+)
+@click.option(
+    "--multi-file",
+    "multi_file",
+    is_flag=True,
+    default=False,
+    help="Generate server split across multiple files (Python only).",
+)
 def generate(
     description: str,
     output: str | None,
@@ -379,6 +475,8 @@ def generate(
     openapi_path: str | None,
     language: str,
     interactive: bool,
+    stream: bool,
+    multi_file: bool,
 ) -> None:
     """Generate a complete MCP server from a plain-English DESCRIPTION."""
     try:
@@ -396,6 +494,8 @@ def generate(
                 openapi_path=openapi_path,
                 language=language,
                 interactive=interactive,
+                stream=stream,
+                multi_file=multi_file,
             )
         )
     except click.exceptions.Abort:
@@ -450,3 +550,90 @@ def validate(path: str) -> None:
 def version_cmd() -> None:
     """Print the mcpforge version."""
     console.print(f"mcpforge {__version__}")
+
+
+@cli.command("list")
+@click.argument("path", default=".", required=False)
+@click.option(
+    "--recursive",
+    "-r",
+    is_flag=True,
+    default=False,
+    help="Search subdirectories recursively.",
+)
+def list_servers(path: str, recursive: bool) -> None:
+    """List mcpforge-generated servers found at PATH (default: current directory)."""
+    root = Path(path).resolve()
+    servers = find_servers(root, recursive=recursive)
+    if not servers:
+        console.print("[dim]No mcpforge servers found.[/dim]")
+        return
+    table = Table(title=f"mcpforge servers in {root}")
+    table.add_column("Name", style="cyan")
+    table.add_column("Language")
+    table.add_column("Tools", justify="right")
+    table.add_column("Tests")
+    table.add_column("Path", style="dim")
+    for server in servers:
+        table.add_row(
+            server.name,
+            server.language,
+            str(server.tool_count),
+            "✓" if server.has_tests else "—",
+            str(server.path),
+        )
+    console.print(table)
+
+
+@cli.command()
+@click.argument("name")
+@click.option(
+    "--output",
+    "-o",
+    default=None,
+    metavar="PATH",
+    help="Output directory (default: ./<slug>)",
+)
+@click.option(
+    "--transport",
+    "-t",
+    default="streamable-http",
+    show_default=True,
+    type=click.Choice(["streamable-http", "stdio", "sse"], case_sensitive=False),
+)
+@click.option(
+    "--force",
+    "-f",
+    is_flag=True,
+    default=False,
+    help="Overwrite existing output directory.",
+)
+def init(name: str, output: str | None, transport: str, force: bool) -> None:
+    """Scaffold a minimal FastMCP server named NAME without LLM generation."""
+    from jinja2 import BaseLoader, Environment
+
+    # Build a minimal plan for template rendering
+    plan = ServerPlan(
+        name=name,
+        description=f"A FastMCP server named {name}",
+        tools=[ToolDef(name="echo", description="Echo a message", params=[])],
+        transport=transport,
+    )
+    output_path = Path(output) if output else Path(plan.slug)
+
+    env = Environment(loader=BaseLoader(), autoescape=False)
+    context = {"plan": plan}
+
+    server_tmpl = _load_init_template("init_server.py.j2")
+    test_tmpl = _load_init_template("init_test.py.j2")
+    server_code = env.from_string(server_tmpl).render(**context)
+    test_code = env.from_string(test_tmpl).render(**context)
+
+    try:
+        write_server(plan, server_code, test_code, output_path, force=force)
+    except FileExistsError as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        raise SystemExit(1)
+
+    console.print(f"[green]✓[/green] Scaffolded [bold]{name}[/bold] at {output_path}")
+    console.print(f"[dim]cd {output_path} && uv sync && uv run pytest[/dim]")
