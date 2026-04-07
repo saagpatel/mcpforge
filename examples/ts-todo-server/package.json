@@ -1,0 +1,19 @@
+{
+	"name": "ts-todo-server",
+	"version": "0.1.0",
+	"description": "In-memory TODO manager MCP server (TypeScript example)",
+	"type": "module",
+	"scripts": {
+		"start": "npx tsx src/server.ts",
+		"test": "npx vitest run"
+	},
+	"dependencies": {
+		"@modelcontextprotocol/sdk": "^1.12.0",
+		"zod": "^3.23.0"
+	},
+	"devDependencies": {
+		"typescript": "^5.5.0",
+		"tsx": "^4.16.0",
+		"vitest": "^2.0.0"
+	}
+}

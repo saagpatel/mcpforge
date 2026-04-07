@@ -4,6 +4,7 @@ import pytest
 from pydantic import ValidationError
 
 from mcpforge.models import (
+    KNOWN_PACKAGES,
     ResourceDef,
     ServerPlan,
     ToolDef,
@@ -241,3 +242,34 @@ class TestValidationResult:
         restored = ValidationResult.model_validate(result.model_dump())
         assert restored.tests_run == 5
         assert restored.is_valid is True
+
+
+class TestResourceDefValidation:
+    def test_valid_uri_pattern_accepted(self):
+        r = ResourceDef(uri_pattern="file:///{path}", name="File", description="A file")
+        assert r.uri_pattern == "file:///{path}"
+
+    def test_valid_custom_scheme_accepted(self):
+        r = ResourceDef(uri_pattern="docs://{doc_id}/content", name="Doc", description="Doc")
+        assert r.uri_pattern.startswith("docs://")
+
+    def test_missing_scheme_rejected(self):
+        with pytest.raises(ValidationError):
+            ResourceDef(uri_pattern="no-scheme/path", name="Bad", description="Bad")
+
+    def test_bare_path_rejected(self):
+        with pytest.raises(ValidationError):
+            ResourceDef(uri_pattern="/just/a/path", name="Bad", description="Bad")
+
+
+class TestKnownPackages:
+    def test_known_packages_is_nonempty(self):
+        assert len(KNOWN_PACKAGES) > 30
+
+    def test_check_unknown_packages_returns_unknown(self):
+        unknown = ServerPlan.check_unknown_packages(["httpx", "totally-fake-pkg"])
+        assert unknown == ["totally-fake-pkg"]
+
+    def test_check_unknown_packages_all_known(self):
+        unknown = ServerPlan.check_unknown_packages(["httpx", "redis", "pydantic"])
+        assert unknown == []

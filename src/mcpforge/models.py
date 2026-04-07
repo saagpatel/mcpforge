@@ -44,6 +44,16 @@ class ResourceDef(BaseModel):
     description: str
     is_template: bool = False
 
+    @field_validator("uri_pattern", mode="before")
+    @classmethod
+    def validate_uri_pattern(cls, v: str) -> str:
+        """Ensure URI pattern has a valid scheme (e.g. 'file://', 'docs://')."""
+        if not re.match(r"^[a-z][a-z0-9+.-]*://", v):
+            raise ValueError(
+                f"Invalid URI pattern: {v!r} — must start with a scheme like 'file://' or 'docs://'"
+            )
+        return v
+
 
 class ServerPlan(BaseModel):
     """Complete structured plan for an MCP server, extracted from natural language."""
