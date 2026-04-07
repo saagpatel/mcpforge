@@ -16,7 +16,10 @@ async def extract_plan(
 ) -> ServerPlan:
     """Call the LLM to extract a ServerPlan from a plain-English description."""
     system_prompt = load_prompt("planner")
-    user_message = f"Description: {description}\nTransport: {transport}"
+    user_message = (
+        f"Description:\n<user_input>\n{description}\n</user_input>\n"
+        f"Transport: {transport}"
+    )
     plan = await client.generate_json(
         system_prompt=system_prompt,
         user_message=user_message,
@@ -40,7 +43,7 @@ async def refine_plan(
     system_prompt = load_prompt("planner")
     user_message = (
         f"Here is the current server plan:\n\n{plan.model_dump_json(indent=2)}\n\n"
-        f"The user wants these changes: {feedback}\n\n"
+        f"The user wants these changes:\n<user_input>\n{feedback}\n</user_input>\n\n"
         f"Return the complete updated plan JSON."
     )
     updated = await client.generate_json(

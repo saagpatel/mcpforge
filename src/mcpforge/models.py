@@ -4,6 +4,16 @@ import re
 
 from pydantic import BaseModel, Field, field_validator
 
+KNOWN_PACKAGES: frozenset[str] = frozenset({
+    "aiohttp", "aiosqlite", "asyncpg", "beautifulsoup4", "boto3", "cachetools",
+    "celery", "click", "cryptography", "elasticsearch", "flask", "gql",
+    "google-cloud-storage", "httpx", "lxml", "markdown", "matplotlib", "motor",
+    "numpy", "opensearch-py", "orjson", "pandas", "pendulum", "pillow",
+    "plotly", "pymongo", "python-dateutil", "python-jose", "pydantic", "pyyaml",
+    "redis", "requests", "rich", "scipy", "scikit-learn", "seaborn", "sqlalchemy",
+    "starlette", "tenacity", "toml", "tqdm", "typer", "ujson", "websockets",
+})
+
 
 class ToolParam(BaseModel):
     """A parameter for an MCP tool."""
@@ -67,6 +77,11 @@ class ServerPlan(BaseModel):
             if not _var_re.match(var):
                 raise ValueError(f"Invalid env var name: {var!r}")
         return v
+
+    @classmethod
+    def check_unknown_packages(cls, packages: list[str]) -> list[str]:
+        """Return package names not in the known-safe set."""
+        return [p for p in packages if p.lower() not in KNOWN_PACKAGES]
 
     def model_post_init(self, __context: object) -> None:
         if not self.slug:
