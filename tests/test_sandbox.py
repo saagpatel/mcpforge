@@ -1,10 +1,9 @@
 """Tests for mcpforge sandbox module."""
 
-import os
 from pathlib import Path
 from unittest.mock import patch
 
-from mcpforge.sandbox import sandbox_preexec, sandboxed_command
+from mcpforge.sandbox import is_sandbox_enabled, sandboxed_command
 
 
 class TestSandboxedCommand:
@@ -56,13 +55,23 @@ class TestSandboxedCommand:
             assert "(deny network*)" in profile
 
 
-class TestSandboxPreexec:
-    def test_returns_callable(self, tmp_path: Path):
-        with patch("mcpforge.sandbox._SANDBOX_DISABLED", False):
-            fn = sandbox_preexec(tmp_path)
-            assert callable(fn)
+class TestIsSandboxEnabled:
+    def test_enabled_on_macos(self):
+        with (
+            patch("mcpforge.sandbox._SANDBOX_DISABLED", False),
+            patch("mcpforge.sandbox.sys") as mock_sys,
+        ):
+            mock_sys.platform = "darwin"
+            assert is_sandbox_enabled() is True
 
-    def test_returns_none_when_disabled(self, tmp_path: Path):
+    def test_disabled_on_linux(self):
+        with (
+            patch("mcpforge.sandbox._SANDBOX_DISABLED", False),
+            patch("mcpforge.sandbox.sys") as mock_sys,
+        ):
+            mock_sys.platform = "linux"
+            assert is_sandbox_enabled() is False
+
+    def test_disabled_by_env_var(self):
         with patch("mcpforge.sandbox._SANDBOX_DISABLED", True):
-            fn = sandbox_preexec(tmp_path)
-            assert fn is None
+            assert is_sandbox_enabled() is False
