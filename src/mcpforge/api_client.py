@@ -106,11 +106,12 @@ class AnthropicClient:
         user_message: str,
         max_tokens: int = 16384,
         temperature: float = 0.2,
+        chunk_timeout: float = 60.0,
     ) -> AsyncIterator[str]:
         """Stream text chunks as they arrive from the API.
 
         Yields str chunks. No retry — streaming connections are not retryable.
-        Raises immediately on API errors.
+        Raises TimeoutError if no chunk arrives within chunk_timeout seconds.
         """
         async with self._client.messages.stream(
             model=self._model,
@@ -119,8 +120,17 @@ class AnthropicClient:
             system=system_prompt,
             messages=[{"role": "user", "content": user_message}],
         ) as stream:
-            async for text in stream.text_stream:
-                yield text
+            aiter = stream.text_stream.__aiter__()
+            while True:
+                try:
+                    text = await asyncio.wait_for(aiter.__anext__(), timeout=chunk_timeout)
+                    yield text
+                except StopAsyncIteration:
+                    break
+                except TimeoutError:
+                    raise TimeoutError(
+                        f"Streaming generation stalled — no data received for {chunk_timeout}s"
+                    ) from None
 
 
 def _extract_json(text: str) -> dict:
