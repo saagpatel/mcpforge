@@ -185,7 +185,9 @@ async def _run_generate(
             ) as progress:
                 task = progress.add_task("Installing dependencies (uv sync)...", total=None)
                 if not no_execute:
-                    await uv_sync(output_path)
+                    sync_err = await uv_sync(output_path)
+                    if sync_err:
+                        console.print(f"[yellow]Warning:[/yellow] {sync_err}")
                 progress.update(task, description="Validating server...")
                 result = await validate_server(output_path, skip_execution=no_execute)
                 progress.remove_task(task)
@@ -253,7 +255,9 @@ async def _run_generate(
         ) as progress:
             task = progress.add_task("Installing dependencies (uv sync)...", total=None)
             if not no_execute:
-                await uv_sync(output_path)
+                sync_err = await uv_sync(output_path)
+                if sync_err:
+                    console.print(f"[yellow]Warning:[/yellow] {sync_err}")
             progress.update(task, description="Validating server...")
             result = await validate_server(output_path, skip_execution=no_execute)
             progress.remove_task(task)
@@ -305,7 +309,9 @@ async def _run_update(
 
     with Progress(SpinnerColumn(), TextColumn("{task.description}"), console=console) as progress:
         task = progress.add_task("Installing dependencies (uv sync)...", total=None)
-        await uv_sync(output_dir)
+        sync_err = await uv_sync(output_dir)
+        if sync_err:
+            console.print(f"[yellow]Warning:[/yellow] {sync_err}")
         progress.update(task, description="Validating server...")
         result = await validate_server(output_dir)
         progress.remove_task(task)
