@@ -13,12 +13,23 @@ _SANDBOX_DISABLED = os.environ.get("MCPFORGE_NO_SANDBOX", "") == "1"
 
 # macOS seatbelt profile: deny-default, allow only what's needed.
 # {output_dir} is replaced at runtime with the actual output directory.
-_SEATBELT_PROFILE = """\
+def _build_seatbelt_profile(output_dir: Path) -> str:
+    """Build a macOS seatbelt profile for sandboxing generated code execution.
+
+    Allows file writes to: output dir, uv cache, temp dirs.
+    Denies: network access.
+    """
+    # Resolve the uv cache directory (UV_CACHE_DIR or ~/.cache/uv)
+    uv_cache = os.environ.get("UV_CACHE_DIR", str(Path.home() / ".cache" / "uv"))
+    resolved_output = str(output_dir.resolve())
+
+    return f"""\
 (version 1)
 (deny default)
 (allow file-read*)
 (allow file-write*
-    (subpath "{output_dir}")
+    (subpath "{resolved_output}")
+    (subpath "{uv_cache}")
     (subpath "/private/var/folders")
     (subpath "/var/folders")
     (subpath "/tmp")
@@ -47,7 +58,7 @@ def sandboxed_command(cmd: list[str], output_dir: Path) -> list[str]:
     if _SANDBOX_DISABLED or sys.platform != "darwin":
         return cmd
 
-    profile = _SEATBELT_PROFILE.format(output_dir=str(output_dir.resolve()))
+    profile = _build_seatbelt_profile(output_dir)
     return ["sandbox-exec", "-p", profile, *cmd]
 
 

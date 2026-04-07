@@ -182,6 +182,8 @@ mcpforge generate DESCRIPTION [OPTIONS]
 | `--from-openapi FILE` | — | Generate from an OpenAPI 3.x spec |
 | `--stream` | off | Stream generation output live |
 | `--multi-file` | off | Split server across multiple files (Python) |
+| `--no-execute` | off | Skip import check and test execution (write files only) |
+| `--strict` | off | Treat lint errors as validation failures |
 | `--dry-run` | off | Show plan only, no files written |
 | `-y, --yes` | off | Skip confirmation prompts |
 | `-f, --force` | off | Overwrite existing output directory |

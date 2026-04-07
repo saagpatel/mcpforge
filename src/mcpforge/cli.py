@@ -384,7 +384,11 @@ async def _validate_command(path: str) -> None:
         raise SystemExit(1)
 
     with Progress(SpinnerColumn(), TextColumn("{task.description}"), console=console) as progress:
-        task = progress.add_task("Validating server...", total=None)
+        task = progress.add_task("Installing dependencies (uv sync)...", total=None)
+        sync_err = await uv_sync(output_dir)
+        if sync_err:
+            console.print(f"[yellow]Warning:[/yellow] {sync_err}")
+        progress.update(task, description="Validating server...")
         result = await validate_server(output_dir)
         progress.remove_task(task)
 
