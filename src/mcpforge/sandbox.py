@@ -51,23 +51,6 @@ def sandboxed_command(cmd: list[str], output_dir: Path) -> list[str]:
     return ["sandbox-exec", "-p", profile, *cmd]
 
 
-def sandbox_preexec(output_dir: Path) -> "callable[[], None] | None":
-    """Return a preexec_fn that sets resource limits for subprocess execution.
-
-    Sets CPU time limit (30s) and address space limit (512MB).
-    Returns None when sandboxing is disabled.
-    """
-    if _SANDBOX_DISABLED:
-        return None
-
-    def _set_limits() -> None:
-        try:
-            import resource
-
-            resource.setrlimit(resource.RLIMIT_CPU, (30, 30))
-            # 512 MB address space limit
-            resource.setrlimit(resource.RLIMIT_AS, (512 * 1024 * 1024, 512 * 1024 * 1024))
-        except (ValueError, OSError):
-            pass  # Resource limits not available on this platform
-
-    return _set_limits
+def is_sandbox_enabled() -> bool:
+    """Return True if sandboxing is active (macOS + not disabled)."""
+    return not _SANDBOX_DISABLED and sys.platform == "darwin"

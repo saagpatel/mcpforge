@@ -17,6 +17,7 @@ def _redact_secrets(text: str) -> str:
     """Replace long token-like strings with [REDACTED] to prevent leaking secrets."""
     return _SECRET_PATTERN.sub("[REDACTED]", text)
 
+
 _FULL_REWRITE_PROMPT = """The following FastMCP 3.x server.py has errors.
 Fix ALL errors and return ONLY the corrected Python code.
 No markdown fences, no explanation.
