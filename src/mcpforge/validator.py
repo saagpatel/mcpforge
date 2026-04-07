@@ -51,10 +51,10 @@ def check_lint(file_path: Path) -> list[str]:
         return [raw] if raw else []
 
 
-async def uv_sync(output_dir: Path) -> None:
+async def uv_sync(output_dir: Path) -> str | None:
     """Run uv sync in the output directory to install dependencies.
 
-    Does not raise on failure — import check will surface errors.
+    Returns an error message string on failure, or None on success.
     """
     proc = await asyncio.create_subprocess_exec(
         "uv",
@@ -64,11 +64,17 @@ async def uv_sync(output_dir: Path) -> None:
         stderr=asyncio.subprocess.PIPE,
     )
     try:
-        await asyncio.wait_for(proc.communicate(), timeout=120.0)
+        _, stderr = await asyncio.wait_for(proc.communicate(), timeout=120.0)
+        if proc.returncode != 0:
+            msg = stderr.decode(errors="replace").strip()
+            logger.warning("uv sync failed in %s: %s", output_dir, msg)
+            return f"Dependency installation failed: {msg}"
+        return None
     except TimeoutError:
         proc.kill()
         await proc.wait()
         logger.warning("uv sync timed out after 120 seconds in %s", output_dir)
+        return "Dependency installation timed out after 120 seconds"
 
 
 async def check_import(output_dir: Path) -> tuple[bool, str]:
