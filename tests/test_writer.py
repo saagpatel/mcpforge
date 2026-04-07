@@ -5,7 +5,7 @@ import json
 import pytest
 
 from mcpforge.models import ServerPlan, ToolDef, ToolParam
-from mcpforge.writer import write_server
+from mcpforge.writer import _validate_rel_path, write_server, write_server_multi
 
 
 def _sample_plan(**kwargs) -> ServerPlan:
@@ -136,3 +136,72 @@ class TestWriteServer:
         out = tmp_path / "output"
         returned = write_server(plan, "s", "t", out)
         assert returned == out.resolve()
+
+
+class TestPathTraversal:
+    """Tests for _validate_rel_path and path traversal prevention in write_server_multi."""
+
+    def test_rejects_dotdot_path(self, tmp_path):
+        with pytest.raises(ValueError, match="directory traversal"):
+            _validate_rel_path("../../etc/passwd", tmp_path)
+
+    def test_rejects_absolute_path(self, tmp_path):
+        with pytest.raises(ValueError, match="absolute"):
+            _validate_rel_path("/tmp/evil.py", tmp_path)
+
+    def test_rejects_null_byte(self, tmp_path):
+        with pytest.raises(ValueError, match="null byte"):
+            _validate_rel_path("server\x00.py", tmp_path)
+
+    def test_rejects_hidden_directory(self, tmp_path):
+        with pytest.raises(ValueError, match="hidden"):
+            _validate_rel_path(".ssh/authorized_keys", tmp_path)
+
+    def test_rejects_dotfile(self, tmp_path):
+        with pytest.raises(ValueError, match="hidden"):
+            _validate_rel_path(".bashrc", tmp_path)
+
+    def test_allows_nested_relative(self, tmp_path):
+        dest = _validate_rel_path("tools/crud.py", tmp_path)
+        assert dest.is_relative_to(tmp_path.resolve())
+
+    def test_allows_simple_filename(self, tmp_path):
+        dest = _validate_rel_path("server.py", tmp_path)
+        assert dest.name == "server.py"
+
+    def test_write_server_multi_rejects_traversal(self, tmp_path):
+        plan = _sample_plan()
+        out = tmp_path / "output"
+        files = {"../../evil.py": "malicious code"}
+        with pytest.raises(ValueError, match="directory traversal"):
+            write_server_multi(plan, files, "test code", out)
+
+    def test_write_server_multi_allows_safe_paths(self, tmp_path):
+        plan = _sample_plan()
+        out = tmp_path / "output"
+        files = {"server.py": "# server", "tools/utils.py": "# utils"}
+        write_server_multi(plan, files, "test code", out)
+        assert (out / "server.py").exists()
+        assert (out / "tools" / "utils.py").exists()
+
+
+class TestTemplateInjection:
+    """Tests for Jinja2 template injection prevention."""
+
+    def test_rejects_jinja_syntax_in_plan_name(self, tmp_path):
+        plan = _sample_plan(name='{{ 7*7 }}')
+        out = tmp_path / "output"
+        with pytest.raises(ValueError, match="Jinja2 template syntax"):
+            write_server(plan, "s", "t", out)
+
+    def test_rejects_jinja_block_in_description(self, tmp_path):
+        plan = _sample_plan(description='{% import os %}')
+        out = tmp_path / "output"
+        with pytest.raises(ValueError, match="Jinja2 template syntax"):
+            write_server(plan, "s", "t", out)
+
+    def test_allows_normal_plan_fields(self, tmp_path):
+        plan = _sample_plan(name="Todo Manager", description="A todo server")
+        out = tmp_path / "output"
+        write_server(plan, "s", "t", out)
+        assert (out / "server.py").exists()

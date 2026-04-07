@@ -15,6 +15,8 @@ import subprocess
 from pathlib import Path
 
 from mcpforge.models import ValidationResult
+from mcpforge.sandbox import sandboxed_command
+from mcpforge.security import check_security
 
 logger = logging.getLogger(__name__)
 
@@ -30,11 +32,15 @@ def check_syntax(code: str) -> tuple[bool, list[str]]:
 
 def check_lint(file_path: Path) -> list[str]:
     """Run ruff on a file and return lint error messages."""
-    result = subprocess.run(
-        ["ruff", "check", "--output-format=json", str(file_path)],
-        capture_output=True,
-        text=True,
-    )
+    try:
+        result = subprocess.run(
+            ["ruff", "check", "--output-format=json", str(file_path)],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except subprocess.TimeoutExpired:
+        return ["Lint check timed out after 30 seconds"]
     if result.returncode == 0:
         return []
     try:
@@ -66,13 +72,15 @@ async def uv_sync(output_dir: Path) -> None:
 
 
 async def check_import(output_dir: Path) -> tuple[bool, str]:
-    """Attempt to import the generated server module using uv run."""
+    """Attempt to import the generated server module using uv run.
+
+    The command is wrapped with sandbox-exec on macOS to restrict
+    network access and filesystem writes outside the output directory.
+    """
+    base_cmd = ["uv", "run", "python", "-c", "from server import mcp"]
+    cmd = sandboxed_command(base_cmd, output_dir)
     proc = await asyncio.create_subprocess_exec(
-        "uv",
-        "run",
-        "python",
-        "-c",
-        "from server import mcp",
+        *cmd,
         cwd=output_dir.resolve(),
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
@@ -91,16 +99,16 @@ async def check_import(output_dir: Path) -> tuple[bool, str]:
 async def run_tests(output_dir: Path) -> tuple[bool, int, int, str]:
     """Run pytest on the generated test_server.py.
 
+    The command is wrapped with sandbox-exec on macOS to restrict
+    network access and filesystem writes outside the output directory.
+
     Returns:
         (passed, tests_run, tests_failed, output)
     """
+    base_cmd = ["uv", "run", "pytest", "test_server.py", "-v", "--tb=short"]
+    cmd = sandboxed_command(base_cmd, output_dir)
     proc = await asyncio.create_subprocess_exec(
-        "uv",
-        "run",
-        "pytest",
-        "test_server.py",
-        "-v",
-        "--tb=short",
+        *cmd,
         cwd=output_dir.resolve(),
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.STDOUT,
@@ -120,8 +128,16 @@ async def run_tests(output_dir: Path) -> tuple[bool, int, int, str]:
         return False, 0, 0, "Tests timed out after 120 seconds"
 
 
-async def validate_server(output_dir: Path) -> ValidationResult:
-    """Run all validation layers on a generated server directory."""
+async def validate_server(
+    output_dir: Path,
+    *,
+    skip_execution: bool = False,
+) -> ValidationResult:
+    """Run all validation layers on a generated server directory.
+
+    When skip_execution=True, only runs syntax check, security scan, and lint.
+    Import check and tests are skipped (useful with --no-execute flag).
+    """
     server_py = output_dir / "server.py"
     code = server_py.read_text(encoding="utf-8")
     errors: list[str] = []
@@ -132,9 +148,30 @@ async def validate_server(output_dir: Path) -> ValidationResult:
         errors.extend(syntax_errors)
         return ValidationResult(syntax_ok=False, errors=errors)
 
+    # Layer 1.5: Security scan (block execution on dangerous patterns)
+    security_findings = check_security(code)
+    dangerous = [f for f in security_findings if f.startswith("DANGEROUS:")]
+    errors.extend(security_findings)
+    if dangerous:
+        return ValidationResult(
+            syntax_ok=True,
+            lint_errors=[],
+            import_ok=False,
+            errors=errors,
+        )
+
     # Layer 2: Lint (continue to import even with lint errors)
     lint_errors = check_lint(server_py)
     errors.extend(lint_errors)
+
+    # Early return when execution is disabled (--no-execute)
+    if skip_execution:
+        return ValidationResult(
+            syntax_ok=True,
+            lint_errors=lint_errors,
+            import_ok=False,
+            errors=errors,
+        )
 
     # Layer 3: Import check
     import_ok, import_error = await check_import(output_dir)

@@ -96,6 +96,7 @@ async def _run_generate(
     interactive: bool = False,
     stream: bool = False,
     multi_file: bool = False,
+    no_execute: bool = False,
 ) -> None:
     """Async orchestration for the generate command."""
     client = AnthropicClient(model=model)
@@ -183,13 +184,14 @@ async def _run_generate(
                 SpinnerColumn(), TextColumn("{task.description}"), console=console
             ) as progress:
                 task = progress.add_task("Installing dependencies (uv sync)...", total=None)
-                await uv_sync(output_path)
+                if not no_execute:
+                    await uv_sync(output_path)
                 progress.update(task, description="Validating server...")
-                result = await validate_server(output_path)
+                result = await validate_server(output_path, skip_execution=no_execute)
                 progress.remove_task(task)
 
             heal_attempted = False
-            if not result.is_valid:
+            if not result.is_valid and not no_execute:
                 heal_attempted = True
                 main_code = files.get("server.py", "")
                 with Progress(
@@ -200,11 +202,11 @@ async def _run_generate(
                     if fixed:
                         (output_path / "server.py").write_text(fixed, encoding="utf-8")
                         progress.update(task, description="Re-validating after self-heal...")
-                        result = await validate_server(output_path)
+                        result = await validate_server(output_path, skip_execution=no_execute)
                     progress.remove_task(task)
 
             _display_results(plan, result, output_path, heal_attempted)
-            if not result.is_valid:
+            if not result.is_valid and not no_execute:
                 raise SystemExit(1)
             return
 
@@ -250,14 +252,15 @@ async def _run_generate(
             SpinnerColumn(), TextColumn("{task.description}"), console=console
         ) as progress:
             task = progress.add_task("Installing dependencies (uv sync)...", total=None)
-            await uv_sync(output_path)
+            if not no_execute:
+                await uv_sync(output_path)
             progress.update(task, description="Validating server...")
-            result = await validate_server(output_path)
+            result = await validate_server(output_path, skip_execution=no_execute)
             progress.remove_task(task)
 
         # Stage 5: Self-heal (1 retry if invalid)
         heal_attempted = False
-        if not result.is_valid:
+        if not result.is_valid and not no_execute:
             heal_attempted = True
             with Progress(
                 SpinnerColumn(), TextColumn("{task.description}"), console=console
@@ -267,12 +270,12 @@ async def _run_generate(
                 if fixed:
                     (output_path / "server.py").write_text(fixed, encoding="utf-8")
                     progress.update(task, description="Re-validating after self-heal...")
-                    result = await validate_server(output_path)
+                    result = await validate_server(output_path, skip_execution=no_execute)
                 progress.remove_task(task)
 
         # Stage 6: Summary
         _display_results(plan, result, output_path, heal_attempted)
-        if not result.is_valid:
+        if not result.is_valid and not no_execute:
             raise SystemExit(1)
 
 
@@ -463,6 +466,13 @@ def cli() -> None:
     default=False,
     help="Generate server split across multiple files (Python only).",
 )
+@click.option(
+    "--no-execute",
+    "no_execute",
+    is_flag=True,
+    default=False,
+    help="Skip import check and test execution (write files only).",
+)
 def generate(
     description: str,
     output: str | None,
@@ -477,6 +487,7 @@ def generate(
     interactive: bool,
     stream: bool,
     multi_file: bool,
+    no_execute: bool,
 ) -> None:
     """Generate a complete MCP server from a plain-English DESCRIPTION."""
     try:
@@ -496,6 +507,7 @@ def generate(
                 interactive=interactive,
                 stream=stream,
                 multi_file=multi_file,
+                no_execute=no_execute,
             )
         )
     except click.exceptions.Abort:
@@ -610,7 +622,8 @@ def list_servers(path: str, recursive: bool) -> None:
 )
 def init(name: str, output: str | None, transport: str, force: bool) -> None:
     """Scaffold a minimal FastMCP server named NAME without LLM generation."""
-    from jinja2 import BaseLoader, Environment
+    from jinja2 import BaseLoader
+    from jinja2.sandbox import SandboxedEnvironment
 
     # Build a minimal plan for template rendering
     plan = ServerPlan(
@@ -621,7 +634,7 @@ def init(name: str, output: str | None, transport: str, force: bool) -> None:
     )
     output_path = Path(output) if output else Path(plan.slug)
 
-    env = Environment(loader=BaseLoader(), autoescape=False)
+    env = SandboxedEnvironment(loader=BaseLoader(), autoescape=False)
     context = {"plan": plan}
 
     server_tmpl = _load_init_template("init_server.py.j2")

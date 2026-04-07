@@ -139,6 +139,10 @@ def parse_openapi(spec: dict) -> ServerPlan:
         scheme_type = scheme.get("type", "")
         if scheme_type in ("apiKey", "http"):
             env_var = scheme.get("x-env-var") or f"{scheme_name.upper()}_API_KEY"
+            # Sanitize to valid shell identifier
+            env_var = re.sub(r"[^A-Za-z0-9_]", "_", env_var)
+            if env_var and not env_var[0].isalpha() and env_var[0] != "_":
+                env_var = f"_{env_var}"
             if env_var not in env_vars:
                 env_vars.append(env_var)
 

@@ -27,6 +27,24 @@ mcp = FastMCP(
 _DEFAULT_MODEL = "claude-sonnet-4-20250514"
 
 
+def _resolve_workspace_path(raw_path: str, *, must_exist: bool = False) -> Path:
+    """Resolve a path and validate it falls within the configured workspace.
+
+    Reads MCPFORGE_WORKSPACE env var (defaults to cwd). Raises ToolError if the
+    resolved path escapes the workspace boundary.
+    """
+    workspace = Path(os.environ.get("MCPFORGE_WORKSPACE", ".")).resolve()
+    resolved = Path(raw_path).resolve()
+    if not resolved.is_relative_to(workspace):
+        raise ToolError(
+            f"Path '{raw_path}' resolves outside workspace '{workspace}'. "
+            "Set MCPFORGE_WORKSPACE to expand the allowed directory."
+        )
+    if must_exist and not resolved.exists():
+        raise ToolError(f"Path does not exist: {resolved}")
+    return resolved
+
+
 def _get_client(model: str = _DEFAULT_MODEL) -> AnthropicClient:
     """Create an AnthropicClient, raising McpError if API key is missing."""
     key = os.environ.get("ANTHROPIC_API_KEY")
@@ -51,7 +69,11 @@ async def generate(
     server_code = await generate_server(server_plan, client)
     test_code = await generate_tests(server_plan, server_code, client)
 
-    out_dir = Path(output_path) if output_path else Path(server_plan.slug)
+    if output_path:
+        out_dir = _resolve_workspace_path(output_path)
+    else:
+        workspace = Path(os.environ.get("MCPFORGE_WORKSPACE", ".")).resolve()
+        out_dir = workspace / server_plan.slug
     write_server(server_plan, server_code, test_code, out_dir)
     await uv_sync(out_dir)
     result = await validate_server(out_dir)
@@ -75,7 +97,7 @@ async def update(
     Returns a dict with keys: path, valid (bool), tests_run (int).
     """
     client = _get_client(model)
-    out_dir = Path(server_path)
+    out_dir = _resolve_workspace_path(server_path, must_exist=True)
     server_code, test_code = await update_server(out_dir, request, client)
     (out_dir / "server.py").write_text(server_code, encoding="utf-8")
     (out_dir / "test_server.py").write_text(test_code, encoding="utf-8")
@@ -91,7 +113,7 @@ async def update(
 @mcp.tool
 async def validate(server_path: str) -> dict:
     """Validate an existing MCP server. Returns detailed validation results."""
-    out_dir = Path(server_path)
+    out_dir = _resolve_workspace_path(server_path, must_exist=True)
     result = await validate_server(out_dir)
     return {
         "valid": result.is_valid,

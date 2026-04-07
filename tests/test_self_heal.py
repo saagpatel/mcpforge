@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock
 from mcpforge.self_heal import (
     _extract_error_lines,
     _find_affected_functions,
+    _redact_secrets,
     attempt_fix,
 )
 
@@ -175,3 +176,25 @@ class TestAttemptFix:
         user_msg = mock_client.generate.call_args.kwargs["user_message"]
         for err in errors:
             assert err in user_msg
+
+
+class TestRedactSecrets:
+    def test_redacts_long_token(self):
+        text = "Error: key=sk-ant-api03-xxxxxxxxxxxxxxxxxxxx is invalid"
+        result = _redact_secrets(text)
+        assert "sk-ant-api03" not in result
+        assert "[REDACTED]" in result
+
+    def test_preserves_short_strings(self):
+        text = "ModuleNotFoundError: No module named 'fastmcp'"
+        assert _redact_secrets(text) == text
+
+    def test_redacts_base64_token(self):
+        text = "Token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9 failed"
+        result = _redact_secrets(text)
+        assert "eyJhbGci" not in result
+        assert "[REDACTED]" in result
+
+    def test_preserves_error_structure(self):
+        text = "SyntaxError at line 42: unexpected indent"
+        assert _redact_secrets(text) == text
