@@ -10,27 +10,40 @@ from mcpforge.utils import strip_code_fences
 
 logger = logging.getLogger(__name__)
 
+_SECRET_PATTERN = re.compile(r"(?<![a-zA-Z0-9])[a-zA-Z0-9+/=_-]{20,}(?![a-zA-Z0-9])")
+
+
+def _redact_secrets(text: str) -> str:
+    """Replace long token-like strings with [REDACTED] to prevent leaking secrets."""
+    return _SECRET_PATTERN.sub("[REDACTED]", text)
+
 _FULL_REWRITE_PROMPT = """The following FastMCP 3.x server.py has errors.
 Fix ALL errors and return ONLY the corrected Python code.
 No markdown fences, no explanation.
 
 ## Errors
+<error_output>
 {errors}
+</error_output>
 
 ## Current server.py
-```python
+<source_code>
 {code}
-```"""
+</source_code>"""
 
 _SURGICAL_PROMPT = """Fix the following broken Python function(s) from a FastMCP 3.x server.
 Return ONLY the fixed function(s) — no imports, no class definitions, no explanation,
 no markdown fences. Preserve function signatures exactly.
 
 ## Errors
+<error_output>
 {errors}
+</error_output>
 
 ## Broken function(s)
-{functions}"""
+<source_code>
+{functions}
+</source_code>"""
 
 
 def _extract_error_lines(errors: list[str]) -> set[int]:
@@ -154,7 +167,7 @@ async def attempt_fix(code: str, errors: list[str], client: AnthropicClient) -> 
                 f"# Function {i + 1}\n{src}" for i, (_, _, src) in enumerate(affected)
             )
             user_message = _SURGICAL_PROMPT.format(
-                errors="\n".join(f"- {e}" for e in errors),
+                errors="\n".join(f"- {_redact_secrets(e)}" for e in errors),
                 functions=functions_text,
             )
             raw = await client.generate(
@@ -175,7 +188,7 @@ async def attempt_fix(code: str, errors: list[str], client: AnthropicClient) -> 
     try:
         system_prompt = load_prompt("self_heal")
         user_message = _FULL_REWRITE_PROMPT.format(
-            errors="\n".join(f"- {e}" for e in errors),
+            errors="\n".join(f"- {_redact_secrets(e)}" for e in errors),
             code=code,
         )
         raw = await client.generate(
