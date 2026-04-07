@@ -26,7 +26,7 @@ from mcpforge.template_hints import TEMPLATE_HINTS
 from mcpforge.test_generator import generate_tests
 from mcpforge.updater import update_server
 from mcpforge.utils import strip_code_fences
-from mcpforge.validator import uv_sync, validate_server
+from mcpforge.validator import check_plan_conformance, uv_sync, validate_server
 from mcpforge.validator_ts import npm_install, validate_server_ts
 from mcpforge.writer import write_server, write_server_multi, write_server_ts
 
@@ -97,6 +97,7 @@ async def _run_generate(
     stream: bool = False,
     multi_file: bool = False,
     no_execute: bool = False,
+    strict: bool = False,
 ) -> None:
     """Async orchestration for the generate command."""
     client = AnthropicClient(model=model)
@@ -180,6 +181,12 @@ async def _run_generate(
             write_server_multi(plan, files, test_code, output_path, force=force)
             console.print(f"[dim]Written to {output_path} ({len(files)} files)[/dim]")
 
+            # Plan-to-code conformance check
+            main_code = files.get("server.py", "")
+            conformance_warnings = check_plan_conformance(main_code, plan)
+            for warning in conformance_warnings:
+                console.print(f"[yellow]Warning:[/yellow] {warning}")
+
             with Progress(
                 SpinnerColumn(), TextColumn("{task.description}"), console=console
             ) as progress:
@@ -189,7 +196,9 @@ async def _run_generate(
                     if sync_err:
                         console.print(f"[yellow]Warning:[/yellow] {sync_err}")
                 progress.update(task, description="Validating server...")
-                result = await validate_server(output_path, skip_execution=no_execute)
+                result = await validate_server(
+                        output_path, skip_execution=no_execute, strict=strict
+                    )
                 progress.remove_task(task)
 
             heal_attempted = False
@@ -204,7 +213,9 @@ async def _run_generate(
                     if fixed:
                         (output_path / "server.py").write_text(fixed, encoding="utf-8")
                         progress.update(task, description="Re-validating after self-heal...")
-                        result = await validate_server(output_path, skip_execution=no_execute)
+                        result = await validate_server(
+                        output_path, skip_execution=no_execute, strict=strict
+                    )
                     progress.remove_task(task)
 
             _display_results(plan, result, output_path, heal_attempted)
@@ -249,6 +260,11 @@ async def _run_generate(
         write_server(plan, server_code, test_code, output_path, force=force)
         console.print(f"[dim]Written to {output_path}[/dim]")
 
+        # Plan-to-code conformance check
+        conformance_warnings = check_plan_conformance(server_code, plan)
+        for warning in conformance_warnings:
+            console.print(f"[yellow]Warning:[/yellow] {warning}")
+
         # Stage 4: Sync + Validate
         with Progress(
             SpinnerColumn(), TextColumn("{task.description}"), console=console
@@ -259,7 +275,9 @@ async def _run_generate(
                 if sync_err:
                     console.print(f"[yellow]Warning:[/yellow] {sync_err}")
             progress.update(task, description="Validating server...")
-            result = await validate_server(output_path, skip_execution=no_execute)
+            result = await validate_server(
+                        output_path, skip_execution=no_execute, strict=strict
+                    )
             progress.remove_task(task)
 
         # Stage 5: Self-heal (1 retry if invalid)
@@ -274,7 +292,9 @@ async def _run_generate(
                 if fixed:
                     (output_path / "server.py").write_text(fixed, encoding="utf-8")
                     progress.update(task, description="Re-validating after self-heal...")
-                    result = await validate_server(output_path, skip_execution=no_execute)
+                    result = await validate_server(
+                        output_path, skip_execution=no_execute, strict=strict
+                    )
                 progress.remove_task(task)
 
         # Stage 6: Summary
@@ -302,6 +322,17 @@ async def _run_update(
         task = progress.add_task("Applying update...", total=None)
         server_code, test_code = await update_server(output_dir, request, client)
         progress.remove_task(task)
+
+    # Backup existing files before overwriting
+    server_py = output_dir / "server.py"
+    test_py = output_dir / "test_server.py"
+    if server_py.exists():
+        bak = server_py.read_text(encoding="utf-8")
+        (output_dir / "server.py.bak").write_text(bak, encoding="utf-8")
+    if test_py.exists():
+        bak = test_py.read_text(encoding="utf-8")
+        (output_dir / "test_server.py.bak").write_text(bak, encoding="utf-8")
+    console.print("[dim]Backed up existing files (.bak)[/dim]")
 
     (output_dir / "server.py").write_text(server_code, encoding="utf-8")
     (output_dir / "test_server.py").write_text(test_code, encoding="utf-8")
@@ -479,6 +510,12 @@ def cli() -> None:
     default=False,
     help="Skip import check and test execution (write files only).",
 )
+@click.option(
+    "--strict",
+    is_flag=True,
+    default=False,
+    help="Treat lint errors as validation failures (halt on lint issues).",
+)
 def generate(
     description: str,
     output: str | None,
@@ -494,6 +531,7 @@ def generate(
     stream: bool,
     multi_file: bool,
     no_execute: bool,
+    strict: bool,
 ) -> None:
     """Generate a complete MCP server from a plain-English DESCRIPTION."""
     try:
@@ -514,6 +552,7 @@ def generate(
                 stream=stream,
                 multi_file=multi_file,
                 no_execute=no_execute,
+                strict=strict,
             )
         )
     except click.exceptions.Abort:

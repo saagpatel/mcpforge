@@ -2,7 +2,14 @@
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from mcpforge.validator import check_lint, check_syntax, uv_sync, validate_server
+from mcpforge.models import ServerPlan, ToolDef
+from mcpforge.validator import (
+    check_lint,
+    check_plan_conformance,
+    check_syntax,
+    uv_sync,
+    validate_server,
+)
 
 # Module-level test code constants
 VALID_SERVER = 'from fastmcp import FastMCP\n\nmcp = FastMCP("Test")\n'
@@ -183,3 +190,79 @@ class TestValidateServer:
         result = await validate_server(tmp_path)
         assert len(result.errors) > 0
         assert any("SyntaxError" in e for e in result.errors)
+
+    async def test_strict_mode_halts_on_lint_errors(self, tmp_path):
+        (tmp_path / "server.py").write_text(LINT_ERROR)
+        mock_import = AsyncMock(return_value=(True, ""))
+        with patch("mcpforge.validator.check_import", mock_import):
+            result = await validate_server(tmp_path, strict=True)
+        assert result.syntax_ok is True
+        assert result.import_ok is False  # halted before import
+        assert len(result.lint_errors) > 0
+        mock_import.assert_not_called()
+
+
+class TestCheckPlanConformance:
+    def _plan_with_tools(self, *names: str) -> ServerPlan:
+        return ServerPlan(
+            name="Test",
+            description="Test",
+            tools=[
+                ToolDef(name=n, description=f"Tool {n}", params=[])
+                for n in names
+            ],
+        )
+
+    def test_matching_tools_no_warnings(self):
+        code = '''
+from fastmcp import FastMCP
+mcp = FastMCP("Test")
+
+@mcp.tool
+async def create_todo():
+    pass
+
+@mcp.tool
+async def list_todos():
+    pass
+'''
+        plan = self._plan_with_tools("create_todo", "list_todos")
+        assert check_plan_conformance(code, plan) == []
+
+    def test_missing_tool_reported(self):
+        code = '''
+from fastmcp import FastMCP
+mcp = FastMCP("Test")
+
+@mcp.tool
+async def create_todo():
+    pass
+'''
+        plan = self._plan_with_tools("create_todo", "delete_todo")
+        warnings = check_plan_conformance(code, plan)
+        assert len(warnings) == 1
+        assert "missing tools" in warnings[0]
+        assert "delete_todo" in warnings[0]
+
+    def test_extra_tool_reported(self):
+        code = '''
+from fastmcp import FastMCP
+mcp = FastMCP("Test")
+
+@mcp.tool
+async def create_todo():
+    pass
+
+@mcp.tool
+async def bonus_tool():
+    pass
+'''
+        plan = self._plan_with_tools("create_todo")
+        warnings = check_plan_conformance(code, plan)
+        assert len(warnings) == 1
+        assert "extra tools" in warnings[0]
+        assert "bonus_tool" in warnings[0]
+
+    def test_syntax_error_returns_empty(self):
+        plan = self._plan_with_tools("create_todo")
+        assert check_plan_conformance("def broken(", plan) == []

@@ -14,7 +14,7 @@ import re
 import subprocess
 from pathlib import Path
 
-from mcpforge.models import ValidationResult
+from mcpforge.models import ServerPlan, ValidationResult
 from mcpforge.sandbox import sandboxed_command
 from mcpforge.security import check_security
 
@@ -134,15 +134,55 @@ async def run_tests(output_dir: Path) -> tuple[bool, int, int, str]:
         return False, 0, 0, "Tests timed out after 120 seconds"
 
 
+def check_plan_conformance(code: str, plan: ServerPlan) -> list[str]:
+    """Verify generated code contains tool functions matching the plan.
+
+    Returns a list of warning strings for missing or extra tools.
+    """
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return []  # Syntax checking is handled elsewhere
+
+    # Find all async functions decorated with @mcp.tool
+    generated_tools: set[str] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        for decorator in node.decorator_list:
+            is_mcp_tool = (
+                isinstance(decorator, ast.Attribute)
+                and isinstance(decorator.value, ast.Name)
+                and decorator.value.id == "mcp"
+                and decorator.attr == "tool"
+            )
+            if is_mcp_tool:
+                generated_tools.add(node.name)
+
+    planned_tools = {t.name for t in plan.tools}
+    warnings: list[str] = []
+
+    missing = planned_tools - generated_tools
+    if missing:
+        warnings.append(f"Plan-to-code: missing tools: {', '.join(sorted(missing))}")
+
+    extra = generated_tools - planned_tools
+    if extra:
+        warnings.append(f"Plan-to-code: extra tools not in plan: {', '.join(sorted(extra))}")
+
+    return warnings
+
+
 async def validate_server(
     output_dir: Path,
     *,
     skip_execution: bool = False,
+    strict: bool = False,
 ) -> ValidationResult:
     """Run all validation layers on a generated server directory.
 
     When skip_execution=True, only runs syntax check, security scan, and lint.
-    Import check and tests are skipped (useful with --no-execute flag).
+    When strict=True, lint errors halt validation (no import check or tests).
     """
     server_py = output_dir / "server.py"
     code = server_py.read_text(encoding="utf-8")
@@ -166,9 +206,17 @@ async def validate_server(
             errors=errors,
         )
 
-    # Layer 2: Lint (continue to import even with lint errors)
+    # Layer 2: Lint (continue to import even with lint errors, unless strict)
     lint_errors = check_lint(server_py)
     errors.extend(lint_errors)
+
+    if strict and lint_errors:
+        return ValidationResult(
+            syntax_ok=True,
+            lint_errors=lint_errors,
+            import_ok=False,
+            errors=errors,
+        )
 
     # Early return when execution is disabled (--no-execute)
     if skip_execution:
