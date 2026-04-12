@@ -192,7 +192,7 @@ async def _run_generate(
             ) as progress:
                 task = progress.add_task("Installing dependencies (uv sync)...", total=None)
                 if not no_execute:
-                    sync_err = await uv_sync(output_path)
+                    sync_err = await uv_sync(output_path, plan=plan)
                     if sync_err:
                         console.print(f"[yellow]Warning:[/yellow] {sync_err}")
                 progress.update(task, description="Validating server...")
@@ -271,7 +271,7 @@ async def _run_generate(
         ) as progress:
             task = progress.add_task("Installing dependencies (uv sync)...", total=None)
             if not no_execute:
-                sync_err = await uv_sync(output_path)
+                sync_err = await uv_sync(output_path, plan=plan)
                 if sync_err:
                     console.print(f"[yellow]Warning:[/yellow] {sync_err}")
             progress.update(task, description="Validating server...")

@@ -75,7 +75,7 @@ async def generate(
         workspace = Path(os.environ.get("MCPFORGE_WORKSPACE", ".")).resolve()
         out_dir = workspace / server_plan.slug
     write_server(server_plan, server_code, test_code, out_dir)
-    await uv_sync(out_dir)
+    await uv_sync(out_dir, plan=server_plan)
     result = await validate_server(out_dir)
 
     return {

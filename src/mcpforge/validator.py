@@ -14,9 +14,15 @@ import re
 import subprocess
 from pathlib import Path
 
-from mcpforge.models import ServerPlan, ValidationResult
+from mcpforge.models import KNOWN_PACKAGES, ServerPlan, ValidationResult
 from mcpforge.sandbox import sandboxed_command
-from mcpforge.security import check_security
+from mcpforge.security import ALLOWED_IMPORTS, check_security
+
+# Combined package allowlist: stdlib/common imports + known safe third-party packages.
+# Union of ALLOWED_IMPORTS (used for import scanning) and KNOWN_PACKAGES (pip names).
+_ALLOWED_PACKAGES: frozenset[str] = frozenset(
+    {p.lower() for p in ALLOWED_IMPORTS} | {p.lower() for p in KNOWN_PACKAGES}
+)
 
 logger = logging.getLogger(__name__)
 
@@ -51,11 +57,36 @@ def check_lint(file_path: Path) -> list[str]:
         return [raw] if raw else []
 
 
-async def uv_sync(output_dir: Path) -> str | None:
+def check_packages(plan: ServerPlan) -> str | None:
+    """Validate that all external packages in the plan are on the allowlist.
+
+    Returns an error message string listing rejected packages, or None if all allowed.
+    """
+    rejected = [
+        pkg for pkg in plan.external_packages
+        if pkg.lower() not in _ALLOWED_PACKAGES
+    ]
+    if rejected:
+        return (
+            f"Package allowlist violation — refusing uv sync. "
+            f"Rejected packages: {', '.join(rejected)}. "
+            f"Add them to KNOWN_PACKAGES in models.py after manual review."
+        )
+    return None
+
+
+async def uv_sync(output_dir: Path, plan: ServerPlan | None = None) -> str | None:
     """Run uv sync in the output directory to install dependencies.
 
-    Returns an error message string on failure, or None on success.
+    When a plan is provided, validates all external packages against the allowlist
+    before running uv sync. Returns an error message string on failure or None on success.
     """
+    if plan is not None:
+        pkg_err = check_packages(plan)
+        if pkg_err:
+            logger.warning("uv sync blocked by package allowlist: %s", pkg_err)
+            return pkg_err
+
     proc = await asyncio.create_subprocess_exec(
         "uv",
         "sync",
