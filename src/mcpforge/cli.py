@@ -197,8 +197,8 @@ async def _run_generate(
                         console.print(f"[yellow]Warning:[/yellow] {sync_err}")
                 progress.update(task, description="Validating server...")
                 result = await validate_server(
-                        output_path, skip_execution=no_execute, strict=strict
-                    )
+                    output_path, skip_execution=no_execute, strict=strict
+                )
                 progress.remove_task(task)
 
             heal_attempted = False
@@ -214,8 +214,8 @@ async def _run_generate(
                         (output_path / "server.py").write_text(fixed, encoding="utf-8")
                         progress.update(task, description="Re-validating after self-heal...")
                         result = await validate_server(
-                        output_path, skip_execution=no_execute, strict=strict
-                    )
+                            output_path, skip_execution=no_execute, strict=strict
+                        )
                     progress.remove_task(task)
 
             _display_results(plan, result, output_path, heal_attempted)
@@ -236,9 +236,7 @@ async def _run_generate(
                     sys_prompt, user_msg, max_tokens=16384, temperature=0.2
                 ):
                     buf.append(chunk)
-                    live_text.plain = (
-                        f"Generating server... {sum(len(c) for c in buf):,} chars"
-                    )
+                    live_text.plain = f"Generating server... {sum(len(c) for c in buf):,} chars"
             server_code = strip_code_fences("".join(buf))
             with Progress(
                 SpinnerColumn(), TextColumn("{task.description}"), console=console
@@ -275,9 +273,7 @@ async def _run_generate(
                 if sync_err:
                     console.print(f"[yellow]Warning:[/yellow] {sync_err}")
             progress.update(task, description="Validating server...")
-            result = await validate_server(
-                        output_path, skip_execution=no_execute, strict=strict
-                    )
+            result = await validate_server(output_path, skip_execution=no_execute, strict=strict)
             progress.remove_task(task)
 
         # Stage 5: Self-heal (1 retry if invalid)
@@ -433,7 +429,7 @@ def cli() -> None:
 @click.option(
     "--model",
     "-m",
-    default="claude-sonnet-4-20250514",
+    default="claude-sonnet-4-6",
     show_default=True,
     help="Override the LLM model used for generation.",
 )
@@ -575,7 +571,7 @@ def generate(
 @click.option(
     "--model",
     "-m",
-    default="claude-sonnet-4-20250514",
+    default="claude-sonnet-4-6",
     show_default=True,
     help="Override the LLM model used for generation.",
 )

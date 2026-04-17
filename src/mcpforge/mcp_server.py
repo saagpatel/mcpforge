@@ -24,7 +24,7 @@ mcp = FastMCP(
     ),
 )
 
-_DEFAULT_MODEL = "claude-sonnet-4-20250514"
+_DEFAULT_MODEL = "claude-sonnet-4-6"
 
 
 def _resolve_workspace_path(raw_path: str, *, must_exist: bool = False) -> Path:
