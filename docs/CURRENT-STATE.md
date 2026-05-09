@@ -60,6 +60,13 @@ Latest local result on 2026-05-09:
 - `uv build`: built `dist/mcpforge-0.2.0.tar.gz` and `dist/mcpforge-0.2.0-py3-none-any.whl`
 - CLI smoke: `mcpforge --help`, `mcpforge version`, and `mcpforge list examples --recursive` passed
 - Python example tests: todo, file-reader, database-query, slack-notifier, and weather examples passed with `uv run --directory ... pytest`
+- Hosted generation smoke: blocked because `ANTHROPIC_API_KEY` was not available in this shell or the usual local Keychain entries
+
+Opt-in hosted smoke command:
+
+```bash
+MCPFORGE_RUN_HOSTED_SMOKE=1 ANTHROPIC_API_KEY=... uv run pytest tests/test_hosted_generation_smoke.py
+```
 
 Hosted generation with a real `ANTHROPIC_API_KEY` was not run in this pass.
 
@@ -83,7 +90,7 @@ uv run --directory examples/weather-server pytest
 ## Recommended Next Moves
 
 1. Decide whether this green `0.2.0` state is a publish/tag moment or a continue-building moment.
-2. Before any public release claim, run one hosted `mcpforge generate` smoke with a real `ANTHROPIC_API_KEY`.
+2. Before any public release claim, run the opt-in hosted smoke with a real `ANTHROPIC_API_KEY`.
 3. If continuing, prioritize one focused lane:
    - hosted `generate` smoke with a real API key,
    - TypeScript path hardening,

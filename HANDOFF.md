@@ -45,12 +45,18 @@ uv run mcpforge validate examples/todo-server
 uv build
 ```
 
-Latest local result on 2026-05-09: the baseline above passed, `uv build` produced the `0.2.0` source distribution and wheel, CLI help/version/list smokes passed, and all five Python example server test files passed when run from their own example projects.
+Latest local result on 2026-05-09: the baseline above passed, `uv build` produced the `0.2.0` source distribution and wheel, CLI help/version/list smokes passed, and all five Python example server test files passed when run from their own example projects. Hosted generation was blocked because `ANTHROPIC_API_KEY` was not available in this shell or the usual local Keychain entries.
+
+Opt-in hosted smoke command:
+
+```bash
+MCPFORGE_RUN_HOSTED_SMOKE=1 ANTHROPIC_API_KEY=... uv run pytest tests/test_hosted_generation_smoke.py
+```
 
 ## Remaining Decisions
 
 1. Decide whether to publish/tag the current `0.2.0` state or continue building before release.
-2. Run one hosted `mcpforge generate` smoke with `ANTHROPIC_API_KEY` before making a public release claim.
+2. Run the opt-in hosted `mcpforge generate` smoke with `ANTHROPIC_API_KEY` before making a public release claim.
 3. Pick the next feature lane: TypeScript hardening, generated-template polish, provider/model controls, or coordination/workflow expansion.
 
 ## Best Next Step
