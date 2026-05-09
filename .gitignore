@@ -8,3 +8,4 @@ dist/
 build/
 .ruff_cache/
 .env
+examples/*/uv.lock

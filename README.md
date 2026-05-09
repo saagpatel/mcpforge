@@ -11,8 +11,10 @@ mcpforge generates production-ready FastMCP 3.x MCP servers from plain-English d
 - **Plain-English generation** — describe your server in natural language; Claude writes the implementation
 - **Complete project scaffold** — tools, Pydantic input models, error handling, `pyproject.toml`, and a pytest suite generated together
 - **FastMCP 3.x native** — output uses modern FastMCP decorators and transport configuration, not raw MCP protocol boilerplate
-- **Inspect before running** — `mcpforge inspect` loads any MCP server and shows its full tool schema without running it
-- **Iterate and extend** — `mcpforge extend` adds new tools to an existing generated server without regenerating from scratch
+- **Validate before running** — `mcpforge validate` runs syntax, security, lint, import, and pytest checks against generated servers
+- **Iterate safely** — `mcpforge update` modifies an existing generated server and backs up changed files before writing
+- **Discover generated servers** — `mcpforge list` finds mcpforge-generated projects in a workspace
+- **Scaffold without an LLM** — `mcpforge init` creates a minimal FastMCP server skeleton for local iteration
 - **MCP server mode** — `mcpforge-server` exposes generation itself as an MCP tool, so AI assistants can generate servers on demand
 
 ## Quick Start
@@ -32,12 +34,22 @@ uv tool install mcpforge
 # Generate a new MCP server
 mcpforge generate "A todo list manager with create, read, update, and delete operations"
 
-# Inspect an existing server's tool schema
-mcpforge inspect ./my-server
+# Validate an existing generated server
+mcpforge validate ./my-server
 
-# Add a new tool to an existing server
-mcpforge extend ./my-server "Add a tool to export todos as CSV"
+# Modify an existing generated server
+mcpforge update ./my-server "Add a tool to export todos as CSV"
+
+# Find generated servers in the current workspace
+mcpforge list . --recursive
 ```
+
+Useful generation flags:
+- `--dry-run` displays the structured plan without writing files.
+- `--no-execute` writes files but skips import and test execution.
+- `--strict` treats lint errors as hard validation failures.
+- `--from-openapi FILE` generates from an OpenAPI 3.x spec.
+- `--language python|typescript` chooses the target server language.
 
 ## Tech Stack
 
@@ -53,7 +65,11 @@ mcpforge extend ./my-server "Add a tool to export todos as CSV"
 
 ## Architecture
 
-The `generate` command sends the user's description to Claude with a structured prompt that includes FastMCP 3.x idioms and a tool-schema contract. Claude returns a JSON plan (tool names, signatures, and descriptions) that mcpforge validates against a Pydantic model before rendering through Jinja2 templates into a complete project directory. The `extend` command reads the existing project's tool list, appends the new tool spec to the plan, and rerenders only the changed files — keeping manual edits to other parts of the server intact.
+The `generate` command sends the user's description to Claude with a structured prompt that includes FastMCP 3.x idioms and a tool-schema contract. Claude returns a JSON plan (tool names, signatures, and descriptions) that mcpforge validates against a Pydantic model before rendering through Jinja2 templates into a complete project directory. The generated project is then validated with syntax checks, security scanning, ruff linting, import checks, and pytest execution. The `update` command reads an existing generated server, asks Claude for a targeted modification, writes backups for changed files, and validates the result.
+
+## Current Status
+
+As of May 9, 2026, `main` is green after the validation, example, CI, and dependency cleanup pass. Open GitHub PRs and Dependabot alerts were cleared, and the release-readiness baseline is tracked in `docs/CURRENT-STATE.md`.
 
 ## License
 

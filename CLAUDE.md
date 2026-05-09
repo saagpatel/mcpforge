@@ -25,8 +25,9 @@ A Python CLI that takes a plain-English description of a service and generates a
 - Conventional commits: feat:, fix:, chore:, docs:
 
 ## Current Phase
-**Phase 0: Foundation**
-See IMPLEMENTATION-ROADMAP.md for full phase details.
+**Post-foundation stabilization / release readiness**
+
+The foundation work is implemented. The current focus is keeping the generated-server validation path truthful, maintaining secure dependency and template behavior, and deciding whether the current `0.2.0` state should be published/tagged or followed by one more feature-hardening lane.
 
 ## Key Decisions
 | Decision | Choice | Why |
@@ -42,7 +43,7 @@ See IMPLEMENTATION-ROADMAP.md for full phase details.
 - Do not generate MCP servers using the old SDK-bundled FastMCP v1 patterns — use standalone FastMCP 3.x with `from fastmcp import FastMCP`
 - Do not hardcode API keys in generated server code — always use env vars
 - Do not skip the planning stage — always extract a structured ServerPlan before generating code
-- Do not add features not in the current phase of IMPLEMENTATION-ROADMAP.md
+- Do not treat older roadmap phase labels as current without checking `docs/CURRENT-STATE.md`
 - Do not use synchronous HTTP calls to Anthropic API — always async
 - Do not trust LLM output without validation — always run AST parse + import check minimum
 
@@ -55,8 +56,8 @@ A Python CLI that takes a plain-English description of a service and generates a
 
 ## Current State
 
-**Phase 0: Foundation**
-See IMPLEMENTATION-ROADMAP.md for full phase details.
+**Post-foundation stabilization / release readiness**
+See `docs/CURRENT-STATE.md` for the current resume checkpoint.
 
 ## Stack
 
@@ -86,12 +87,12 @@ See IMPLEMENTATION-ROADMAP.md for full phase details.
 - Do not generate MCP servers using the old SDK-bundled FastMCP v1 patterns — use standalone FastMCP 3.x with `from fastmcp import FastMCP`
 - Do not hardcode API keys in generated server code — always use env vars
 - Do not skip the planning stage — always extract a structured ServerPlan before generating code
-- Do not add features not in the current phase of IMPLEMENTATION-ROADMAP.md
+- Do not treat older roadmap phase labels as current without checking `docs/CURRENT-STATE.md`
 - Do not use synchronous HTTP calls to Anthropic API — always async
 - Do not trust LLM output without validation — always run AST parse + import check minimum
 
 ## Next Recommended Move
 
-Use this context plus the README and supporting docs to resume the next active task, then promote the repo beyond minimum-viable by capturing a dedicated handoff, roadmap, or discovery artifact.
+Use this context plus the README and `docs/CURRENT-STATE.md` to resume the next active task. The next decision is whether to publish/tag the current `0.2.0` state or continue with a focused feature-hardening lane.
 
 <!-- portfolio-context:end -->
