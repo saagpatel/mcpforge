@@ -5,7 +5,7 @@ import json
 import pytest
 
 from mcpforge.models import ServerPlan, ToolDef, ToolParam
-from mcpforge.writer import _validate_rel_path, write_server, write_server_multi
+from mcpforge.writer import _validate_rel_path, write_server, write_server_multi, write_server_ts
 
 
 def _sample_plan(**kwargs) -> ServerPlan:
@@ -136,6 +136,38 @@ class TestWriteServer:
         out = tmp_path / "output"
         returned = write_server(plan, "s", "t", out)
         assert returned == out.resolve()
+
+
+class TestWriteServerTs:
+    def test_creates_typescript_project_files(self, tmp_path):
+        plan = _sample_plan()
+        out = tmp_path / "output"
+        write_server_ts(plan, "server code", "test code", out)
+
+        assert (out / "src" / "server.ts").exists()
+        assert (out / "src" / "server.test.ts").exists()
+        assert (out / "package.json").exists()
+        assert (out / "tsconfig.json").exists()
+        assert (out / "config.json").exists()
+
+    def test_typescript_config_points_to_npm_start(self, tmp_path):
+        plan = _sample_plan()
+        out = tmp_path / "output"
+        write_server_ts(plan, "server code", "test code", out)
+
+        parsed = json.loads((out / "config.json").read_text())
+        server_config = parsed["mcpServers"]["todo-manager"]
+        assert server_config["command"] == "npm"
+        assert server_config["args"] == ["--prefix", ".", "run", "start"]
+
+    def test_typescript_package_start_runs_source_with_tsx(self, tmp_path):
+        plan = _sample_plan()
+        out = tmp_path / "output"
+        write_server_ts(plan, "server code", "test code", out)
+
+        parsed = json.loads((out / "package.json").read_text())
+        assert parsed["scripts"]["start"] == "tsx src/server.ts"
+        assert "tsx" in parsed["devDependencies"]
 
 
 class TestPathTraversal:

@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "ts-todo-server": {
+      "command": "npm",
+      "args": ["--prefix", ".", "run", "start"]
+    }
+  }
+}

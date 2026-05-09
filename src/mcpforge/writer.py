@@ -176,6 +176,7 @@ def write_server_ts(
     for tmpl_name, out_name in [
         ("ts/package.json.j2", "package.json"),
         ("ts/tsconfig.json.j2", "tsconfig.json"),
+        ("ts/config.json.j2", "config.json"),
         ("ts/gitignore.j2", ".gitignore"),
     ]:
         template_src = _load_template(tmpl_name)
