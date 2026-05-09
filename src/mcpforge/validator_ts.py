@@ -10,6 +10,31 @@ from mcpforge.models import ValidationResult
 logger = logging.getLogger(__name__)
 
 
+def _parse_vitest_counts(output: str) -> tuple[int, int]:
+    """Return (tests_run, tests_failed) from Vitest summary output."""
+    tests_line = ""
+    for line in output.splitlines():
+        if re.match(r"^\s*Tests\s+", line):
+            tests_line = line
+
+    if tests_line:
+        total_match = re.search(r"\((\d+)\)", tests_line)
+        failed_match = re.search(r"(\d+)\s+failed", tests_line)
+        if total_match:
+            tests_run = int(total_match.group(1))
+        else:
+            count_matches = re.findall(r"(\d+)\s+(?:passed|failed|skipped|todo)", tests_line)
+            tests_run = sum(int(count) for count in count_matches)
+        tests_failed = int(failed_match.group(1)) if failed_match else 0
+        return tests_run, tests_failed
+
+    passed_match = re.search(r"(\d+)\s+passed", output)
+    failed_match = re.search(r"(\d+)\s+failed", output)
+    tests_passed_count = int(passed_match.group(1)) if passed_match else 0
+    tests_failed_count = int(failed_match.group(1)) if failed_match else 0
+    return tests_passed_count + tests_failed_count, tests_failed_count
+
+
 async def npm_install(output_dir: Path) -> None:
     """Run npm install in output_dir.
 
@@ -72,11 +97,7 @@ async def run_tests_ts(output_dir: Path) -> tuple[bool, int, int, str]:
     try:
         stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=120.0)
         output = stdout.decode(errors="replace")
-        passed_match = re.search(r"(\d+)\s+passed", output)
-        failed_match = re.search(r"(\d+)\s+failed", output)
-        tests_passed_count = int(passed_match.group(1)) if passed_match else 0
-        tests_failed_count = int(failed_match.group(1)) if failed_match else 0
-        tests_run = tests_passed_count + tests_failed_count
+        tests_run, tests_failed_count = _parse_vitest_counts(output)
         return proc.returncode == 0, tests_run, tests_failed_count, output
     except TimeoutError:
         proc.kill()

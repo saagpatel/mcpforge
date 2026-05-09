@@ -27,7 +27,7 @@ from mcpforge.test_generator import generate_tests
 from mcpforge.updater import update_server
 from mcpforge.utils import strip_code_fences
 from mcpforge.validator import check_plan_conformance, uv_sync, validate_server
-from mcpforge.validator_ts import npm_install, validate_server_ts
+from mcpforge.validator_ts import validate_server_ts
 from mcpforge.writer import write_server, write_server_multi, write_server_ts
 
 console = Console()
@@ -161,9 +161,7 @@ async def _run_generate(
         with Progress(
             SpinnerColumn(), TextColumn("{task.description}"), console=console
         ) as progress:
-            task = progress.add_task("Installing dependencies (npm install)...", total=None)
-            await npm_install(output_path)
-            progress.update(task, description="Validating TypeScript server...")
+            task = progress.add_task("Validating TypeScript server...", total=None)
             result = await validate_server_ts(output_path)
             progress.remove_task(task)
 

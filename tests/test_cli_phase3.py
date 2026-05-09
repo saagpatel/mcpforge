@@ -149,7 +149,6 @@ class TestLanguageFlag:
             patch("mcpforge.cli.generate_server_ts", new=mock_gen_ts),
             patch("mcpforge.cli.generate_tests_ts", new=mock_gen_tests_ts),
             patch("mcpforge.cli.write_server_ts", return_value=tmp_path),
-            patch("mcpforge.cli.npm_install", new=AsyncMock()),
             patch("mcpforge.cli.validate_server_ts", new=AsyncMock(return_value=_valid_result())),
         ):
             result = runner.invoke(

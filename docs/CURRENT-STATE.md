@@ -26,6 +26,10 @@ mcpforge is a Python 3.12+ CLI and MCP server that generates runnable FastMCP 3.
 - Folded in Dependabot package and GitHub Actions updates.
 - Refreshed root and todo-example lockfiles for security fixes.
 - Closed stale or superseded Dependabot PRs after their changes were covered on `main`.
+- Hardened the TypeScript validation path so Vitest test counts are reported from the
+  actual test summary, and removed a duplicate `npm install` from the TypeScript CLI flow.
+- Added TypeScript-generated project metadata so `mcpforge list` can discover
+  TypeScript servers alongside Python servers.
 
 ## Current Command Surface
 
@@ -55,11 +59,14 @@ Latest local result on 2026-05-09:
 
 - `uv run ruff check .`: passed
 - `uv run ruff format --check .`: passed
-- `uv run pytest`: 294 passed
+- `uv run pytest`: 300 passed, 1 skipped
 - `uv run mcpforge validate examples/todo-server`: syntax, lint, import, and 11 tests passed
 - `uv build`: built `dist/mcpforge-0.2.0.tar.gz` and `dist/mcpforge-0.2.0-py3-none-any.whl`
 - CLI smoke: `mcpforge --help`, `mcpforge version`, and `mcpforge list examples --recursive` passed
 - Python example tests: todo, file-reader, database-query, slack-notifier, and weather examples passed with `uv run --directory ... pytest`
+- TypeScript example validation: the `examples/ts-todo-server` path validates from a
+  temporary copy and reports 2 tests run, 0 failed
+- Discovery smoke: `mcpforge list examples --recursive` now includes the TypeScript todo example
 - Hosted generation smoke: blocked because `ANTHROPIC_API_KEY` was not available in this shell or the usual local Keychain entries
 
 Opt-in hosted smoke command:
@@ -85,7 +92,8 @@ uv run --directory examples/weather-server pytest
 - Full hosted generation still needs an `ANTHROPIC_API_KEY` and should be tested before a public release claim.
 - Provider/model behavior is sensitive: do not change the default model or structured JSON generation path without deterministic evidence.
 - Generated templates and prompt contracts are high-impact surfaces; use a dedicated worktree before changing them.
-- The TypeScript generation path exists but should be re-verified separately before being positioned as release-grade.
+- The TypeScript validation path has representative local coverage, but hosted
+  TypeScript generation still needs a real-key smoke before being positioned as release-grade.
 
 ## Recommended Next Moves
 
@@ -93,6 +101,6 @@ uv run --directory examples/weather-server pytest
 2. Before any public release claim, run the opt-in hosted smoke with a real `ANTHROPIC_API_KEY`.
 3. If continuing, prioritize one focused lane:
    - hosted `generate` smoke with a real API key,
-   - TypeScript path hardening,
+   - hosted TypeScript `generate --language typescript` smoke with a real API key,
    - generated-template polish,
    - or richer coordination/workflow features.
