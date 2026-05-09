@@ -189,13 +189,13 @@ class TestTemplateInjection:
     """Tests for Jinja2 template injection prevention."""
 
     def test_rejects_jinja_syntax_in_plan_name(self, tmp_path):
-        plan = _sample_plan(name='{{ 7*7 }}')
+        plan = _sample_plan(name="{{ 7*7 }}")
         out = tmp_path / "output"
         with pytest.raises(ValueError, match="Jinja2 template syntax"):
             write_server(plan, "s", "t", out)
 
     def test_rejects_jinja_block_in_description(self, tmp_path):
-        plan = _sample_plan(description='{% import os %}')
+        plan = _sample_plan(description="{% import os %}")
         out = tmp_path / "output"
         with pytest.raises(ValueError, match="Jinja2 template syntax"):
             write_server(plan, "s", "t", out)

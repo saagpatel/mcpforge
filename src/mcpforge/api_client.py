@@ -19,6 +19,8 @@ from collections.abc import AsyncIterator
 import anthropic
 from pydantic import BaseModel, ValidationError
 
+DEFAULT_MODEL = "claude-sonnet-4-6"
+
 
 class AnthropicClient:
     """Async wrapper around anthropic.AsyncAnthropic with exponential-backoff retry."""
@@ -26,7 +28,7 @@ class AnthropicClient:
     def __init__(
         self,
         api_key: str | None = None,
-        model: str = "claude-sonnet-4-6",
+        model: str = DEFAULT_MODEL,
     ) -> None:
         resolved_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
         if not resolved_key:

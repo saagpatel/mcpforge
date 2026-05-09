@@ -3,91 +3,97 @@
 import ast
 
 # Imports considered safe for generated MCP servers.
-ALLOWED_IMPORTS: frozenset[str] = frozenset({
-    "__future__",
-    "abc",
-    "asyncio",
-    "base64",
-    "collections",
-    "contextlib",
-    "copy",
-    "dataclasses",
-    "datetime",
-    "decimal",
-    "enum",
-    "functools",
-    "hashlib",
-    "hmac",
-    "io",
-    "itertools",
-    "json",
-    "logging",
-    "math",
-    "os",
-    "pathlib",
-    "re",
-    "secrets",
-    "string",
-    "textwrap",
-    "typing",
-    "typing_extensions",
-    "uuid",
-    # Common third-party packages used by MCP servers
-    "aiohttp",
-    "aiosqlite",
-    "asyncpg",
-    "fastmcp",
-    "gql",
-    "httpx",
-    "jose",
-    "motor",
-    "pydantic",
-    "redis",
-    "requests",
-    "websockets",
-})
+ALLOWED_IMPORTS: frozenset[str] = frozenset(
+    {
+        "__future__",
+        "abc",
+        "asyncio",
+        "base64",
+        "collections",
+        "contextlib",
+        "copy",
+        "dataclasses",
+        "datetime",
+        "decimal",
+        "enum",
+        "functools",
+        "hashlib",
+        "hmac",
+        "io",
+        "itertools",
+        "json",
+        "logging",
+        "math",
+        "os",
+        "pathlib",
+        "re",
+        "secrets",
+        "string",
+        "textwrap",
+        "typing",
+        "typing_extensions",
+        "uuid",
+        # Common third-party packages used by MCP servers
+        "aiohttp",
+        "aiosqlite",
+        "asyncpg",
+        "fastmcp",
+        "gql",
+        "httpx",
+        "jose",
+        "motor",
+        "pydantic",
+        "redis",
+        "requests",
+        "websockets",
+    }
+)
 
 # Built-in function calls that are never safe in generated code.
-DANGEROUS_CALLS: frozenset[str] = frozenset({
-    "eval",
-    "exec",
-    "compile",
-    "__import__",
-    "globals",
-    "locals",
-    "breakpoint",
-})
+DANGEROUS_CALLS: frozenset[str] = frozenset(
+    {
+        "eval",
+        "exec",
+        "compile",
+        "__import__",
+        "globals",
+        "locals",
+        "breakpoint",
+    }
+)
 
 # Module.function patterns that are dangerous.
-DANGEROUS_ATTRIBUTES: frozenset[str] = frozenset({
-    "os.system",
-    "os.popen",
-    "os.exec",
-    "os.execl",
-    "os.execle",
-    "os.execlp",
-    "os.execlpe",
-    "os.execv",
-    "os.execve",
-    "os.execvp",
-    "os.execvpe",
-    "os.spawn",
-    "os.spawnl",
-    "os.spawnle",
-    "os.spawnlp",
-    "os.spawnlpe",
-    "os.spawnv",
-    "os.spawnve",
-    "os.spawnvp",
-    "os.spawnvpe",
-    "subprocess.run",
-    "subprocess.call",
-    "subprocess.check_call",
-    "subprocess.check_output",
-    "subprocess.Popen",
-    "shutil.rmtree",
-    "shutil.move",
-})
+DANGEROUS_ATTRIBUTES: frozenset[str] = frozenset(
+    {
+        "os.system",
+        "os.popen",
+        "os.exec",
+        "os.execl",
+        "os.execle",
+        "os.execlp",
+        "os.execlpe",
+        "os.execv",
+        "os.execve",
+        "os.execvp",
+        "os.execvpe",
+        "os.spawn",
+        "os.spawnl",
+        "os.spawnle",
+        "os.spawnlp",
+        "os.spawnlpe",
+        "os.spawnv",
+        "os.spawnve",
+        "os.spawnvp",
+        "os.spawnvpe",
+        "subprocess.run",
+        "subprocess.call",
+        "subprocess.check_call",
+        "subprocess.check_output",
+        "subprocess.Popen",
+        "shutil.rmtree",
+        "shutil.move",
+    }
+)
 
 
 def check_security(code: str) -> list[str]:
@@ -128,17 +134,13 @@ def check_security(code: str) -> list[str]:
         elif isinstance(node, ast.Call):
             if isinstance(node.func, ast.Name):
                 if node.func.id in DANGEROUS_CALLS:
-                    findings.append(
-                        f"DANGEROUS: call to '{node.func.id}()' at line {node.lineno}"
-                    )
+                    findings.append(f"DANGEROUS: call to '{node.func.id}()' at line {node.lineno}")
 
             elif isinstance(node.func, ast.Attribute):
                 # Build dotted name for attribute access (e.g. os.system)
                 attr_chain = _resolve_attr_chain(node.func)
                 if attr_chain and attr_chain in DANGEROUS_ATTRIBUTES:
-                    findings.append(
-                        f"DANGEROUS: call to '{attr_chain}()' at line {node.lineno}"
-                    )
+                    findings.append(f"DANGEROUS: call to '{attr_chain}()' at line {node.lineno}")
 
     return findings
 

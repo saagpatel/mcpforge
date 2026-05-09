@@ -43,9 +43,7 @@ async def test_update_server_raises_for_missing_server_py(
         await update_server(tmp_path, "add a tool", mock_client)
 
 
-async def test_update_server_returns_tuple(
-    tmp_path: Path, mock_client: AsyncMock
-) -> None:
+async def test_update_server_returns_tuple(tmp_path: Path, mock_client: AsyncMock) -> None:
     """update_server returns a (server_code, test_code) tuple with fences stripped."""
     server_py = tmp_path / "server.py"
     server_py.write_text("# server", encoding="utf-8")
@@ -91,10 +89,12 @@ async def test_update_server_strips_fences_from_response(
     """Fences in LLM JSON values are stripped from returned code."""
     client = AsyncMock()
     client.generate = AsyncMock(
-        return_value=json.dumps({
-            "server_code": "```python\ncode here\n```",
-            "test_code": "```python\ntest here\n```",
-        })
+        return_value=json.dumps(
+            {
+                "server_code": "```python\ncode here\n```",
+                "test_code": "```python\ntest here\n```",
+            }
+        )
     )
     (tmp_path / "server.py").write_text("# server", encoding="utf-8")
 

@@ -11,6 +11,7 @@ from pathlib import Path
 
 _SANDBOX_DISABLED = os.environ.get("MCPFORGE_NO_SANDBOX", "") == "1"
 
+
 # macOS seatbelt profile: deny-default, allow only what's needed.
 # {output_dir} is replaced at runtime with the actual output directory.
 def _build_seatbelt_profile(output_dir: Path) -> str:
@@ -28,6 +29,7 @@ def _build_seatbelt_profile(output_dir: Path) -> str:
 (deny default)
 (allow file-read*)
 (allow file-write*
+    (literal "/dev/null")
     (subpath "{resolved_output}")
     (subpath "{uv_cache}")
     (subpath "/private/var/folders")

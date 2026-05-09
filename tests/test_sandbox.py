@@ -54,6 +54,16 @@ class TestSandboxedCommand:
             profile = cmd[2]
             assert "(deny network*)" in profile
 
+    def test_profile_allows_dev_null_writes(self, tmp_path: Path):
+        with (
+            patch("mcpforge.sandbox._SANDBOX_DISABLED", False),
+            patch("mcpforge.sandbox.sys") as mock_sys,
+        ):
+            mock_sys.platform = "darwin"
+            cmd = sandboxed_command(["uv", "run"], tmp_path)
+            profile = cmd[2]
+            assert '(literal "/dev/null")' in profile
+
 
 class TestIsSandboxEnabled:
     def test_enabled_on_macos(self):

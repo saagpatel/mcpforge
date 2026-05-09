@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Centralized the default Anthropic model pin so the CLI, API client, and MCP server share one source of truth.
+- Treat executed test failures as validation failures in CLI and MCP validation outputs.
+- Updated generated-server guidance and bundled examples to use standard Python exceptions instead of string-based `McpError`.
+- Aligned CI with the package's Python 3.12+ runtime requirement.
+
 ## [0.2.0] - 2025-01-01
 
 ### Added

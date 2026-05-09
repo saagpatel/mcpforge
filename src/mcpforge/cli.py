@@ -13,7 +13,7 @@ from rich.table import Table
 from rich.text import Text
 
 from mcpforge import __version__
-from mcpforge.api_client import AnthropicClient
+from mcpforge.api_client import DEFAULT_MODEL, AnthropicClient
 from mcpforge.discovery import find_servers
 from mcpforge.generator import generate_server, generate_server_multi
 from mcpforge.generator_ts import generate_server_ts, generate_tests_ts
@@ -63,7 +63,7 @@ def _display_results(
     heal_attempted: bool,
 ) -> None:
     """Display final validation results as a Rich panel."""
-    status = "[green]VALID[/green]" if result.is_valid else "[red]INVALID[/red]"
+    status = "[green]VALID[/green]" if _validation_passed(result) else "[red]INVALID[/red]"
     lines = [
         f"Status: {status}",
         f"Output: {output_path}",
@@ -80,6 +80,11 @@ def _display_results(
         for err in result.errors[:5]:
             lines.append(f"  {err}")
     console.print(Panel("\n".join(lines), title="mcpforge result"))
+
+
+def _validation_passed(result: ValidationResult) -> bool:
+    """Return True when structural checks and executed tests are healthy."""
+    return result.is_valid and result.tests_ok
 
 
 async def _run_generate(
@@ -163,7 +168,7 @@ async def _run_generate(
             progress.remove_task(task)
 
         _display_results(plan, result, output_path, heal_attempted=False)
-        if not result.is_valid:
+        if not _validation_passed(result):
             raise SystemExit(1)
 
     else:
@@ -219,7 +224,7 @@ async def _run_generate(
                     progress.remove_task(task)
 
             _display_results(plan, result, output_path, heal_attempted)
-            if not result.is_valid and not no_execute:
+            if not _validation_passed(result) and not no_execute:
                 raise SystemExit(1)
             return
 
@@ -295,7 +300,7 @@ async def _run_generate(
 
         # Stage 6: Summary
         _display_results(plan, result, output_path, heal_attempted)
-        if not result.is_valid and not no_execute:
+        if not _validation_passed(result) and not no_execute:
             raise SystemExit(1)
 
 
@@ -367,7 +372,7 @@ async def _run_update(
     )
     _display_results(dummy_plan, result, output_dir, heal_attempted)
 
-    if not result.is_valid:
+    if not _validation_passed(result):
         raise SystemExit(1)
 
 
@@ -407,7 +412,7 @@ async def _validate_command(path: str) -> None:
         for err in result.lint_errors:
             console.print(f"  [yellow]{err}[/yellow]")
 
-    if not result.is_valid:
+    if not _validation_passed(result):
         raise SystemExit(1)
 
 
@@ -429,7 +434,7 @@ def cli() -> None:
 @click.option(
     "--model",
     "-m",
-    default="claude-sonnet-4-6",
+    default=DEFAULT_MODEL,
     show_default=True,
     help="Override the LLM model used for generation.",
 )
@@ -571,7 +576,7 @@ def generate(
 @click.option(
     "--model",
     "-m",
-    default="claude-sonnet-4-6",
+    default=DEFAULT_MODEL,
     show_default=True,
     help="Override the LLM model used for generation.",
 )

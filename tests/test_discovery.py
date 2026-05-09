@@ -6,29 +6,19 @@ from pathlib import Path
 from mcpforge.discovery import find_servers
 
 
-def _make_python_server(
-    root: Path, name: str, tool_count: int = 2, has_tests: bool = True
-) -> Path:
+def _make_python_server(root: Path, name: str, tool_count: int = 2, has_tests: bool = True) -> Path:
     """Create a fake mcpforge Python server directory."""
     d = root / name
     d.mkdir(parents=True, exist_ok=True)
     # config.json
     (d / "config.json").write_text(
         json.dumps(
-            {
-                "mcpServers": {
-                    name: {"command": "uv", "args": ["run", "server.py"], "env": {}}
-                }
-            }
+            {"mcpServers": {name: {"command": "uv", "args": ["run", "server.py"], "env": {}}}}
         )
     )
     # server.py with tool_count @mcp.tool occurrences
-    tools = "\n".join(
-        f"@mcp.tool\nasync def tool_{i}(): pass" for i in range(tool_count)
-    )
-    (d / "server.py").write_text(
-        f"from fastmcp import FastMCP\nmcp = FastMCP('Test')\n{tools}"
-    )
+    tools = "\n".join(f"@mcp.tool\nasync def tool_{i}(): pass" for i in range(tool_count))
+    (d / "server.py").write_text(f"from fastmcp import FastMCP\nmcp = FastMCP('Test')\n{tools}")
     if has_tests:
         (d / "test_server.py").write_text("# tests")
     return d

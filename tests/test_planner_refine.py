@@ -45,9 +45,7 @@ class TestRefinePlan:
     async def test_raises_value_error_when_no_tools(self):
         """refine_plan raises ValueError if refined plan has no tools."""
         plan = _mock_plan()
-        empty_plan = ServerPlan(
-            name="Empty", description="No tools", tools=[]
-        )
+        empty_plan = ServerPlan(name="Empty", description="No tools", tools=[])
         mock_client = AsyncMock()
         mock_client.generate_json = AsyncMock(return_value=empty_plan)
 

@@ -12,10 +12,7 @@ def _mock_plan_many_tools() -> ServerPlan:
         name="Big Server",
         slug="big-server",
         description="A server with many tools",
-        tools=[
-            ToolDef(name=f"tool_{i}", description=f"Tool {i}", params=[])
-            for i in range(5)
-        ],
+        tools=[ToolDef(name=f"tool_{i}", description=f"Tool {i}", params=[]) for i in range(5)],
     )
 
 
@@ -24,10 +21,12 @@ class TestGenerateServerMulti:
         """generate_server_multi returns dict containing 'server.py' key."""
         plan = _mock_plan_many_tools()
         mock_client = AsyncMock()
-        response = json.dumps({
-            "server.py": "from fastmcp import FastMCP\nmcp = FastMCP('Test')",
-            "tools/crud.py": "async def create(): pass",
-        })
+        response = json.dumps(
+            {
+                "server.py": "from fastmcp import FastMCP\nmcp = FastMCP('Test')",
+                "tools/crud.py": "async def create(): pass",
+            }
+        )
         mock_client.generate = AsyncMock(return_value=response)
         with patch("mcpforge.generator.load_prompt", return_value="system"):
             result = await generate_server_multi(plan, mock_client)
@@ -75,10 +74,14 @@ class TestGenerateServerMulti:
         """All values in returned dict are strings."""
         plan = _mock_plan_many_tools()
         mock_client = AsyncMock()
-        mock_client.generate = AsyncMock(return_value=json.dumps({
-            "server.py": "code1",
-            "tools/a.py": "code2",
-        }))
+        mock_client.generate = AsyncMock(
+            return_value=json.dumps(
+                {
+                    "server.py": "code1",
+                    "tools/a.py": "code2",
+                }
+            )
+        )
         with patch("mcpforge.generator.load_prompt", return_value="system"):
             result = await generate_server_multi(plan, mock_client)
         for v in result.values():

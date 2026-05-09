@@ -21,7 +21,7 @@ Return a JSON object where keys are relative file paths and values are complete 
 - Tool files should export their functions and decorate them with `@mcp.tool` via the imported mcp instance
 - Include `models.py` only if multiple tools share Pydantic input/output models
 - All tools must be `async def`
-- Handle errors by raising `McpError` with descriptive messages
+- Handle invalid user input with `ValueError` and external-service failures with `RuntimeError`
 - Read all config (URLs, API keys) from environment variables
 - Return ONLY the JSON object — no markdown fences, no explanation
 

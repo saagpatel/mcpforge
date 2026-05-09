@@ -28,11 +28,13 @@ async def update_server(
     test_code = test_py.read_text(encoding="utf-8") if test_py.exists() else ""
 
     system_prompt = load_prompt("updater")
-    user_message = json.dumps({
-        "request": request,
-        "server_code": server_code,
-        "test_code": test_code,
-    })
+    user_message = json.dumps(
+        {
+            "request": request,
+            "server_code": server_code,
+            "test_code": test_code,
+        }
+    )
 
     raw = await client.generate(
         system_prompt=system_prompt,

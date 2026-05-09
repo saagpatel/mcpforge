@@ -41,9 +41,7 @@ def _map_type(schema_type: str) -> str:
 def _response_return_type(operation: dict) -> str:
     """Determine return type from operation responses."""
     try:
-        schema = (
-            operation["responses"]["200"]["content"]["application/json"]["schema"]
-        )
+        schema = operation["responses"]["200"]["content"]["application/json"]["schema"]
         t = schema.get("type", "dict")
         if t == "array":
             return "list[dict]"
@@ -56,9 +54,7 @@ def parse_openapi(spec: dict) -> ServerPlan:
     """Convert an OpenAPI 3.x spec dict to a ServerPlan."""
     openapi_version = spec.get("openapi", "")
     if not openapi_version.startswith("3."):
-        raise ValueError(
-            f"Only OpenAPI 3.x is supported, got: {openapi_version!r}"
-        )
+        raise ValueError(f"Only OpenAPI 3.x is supported, got: {openapi_version!r}")
 
     paths = spec.get("paths", {})
     if not paths:
@@ -97,30 +93,36 @@ def parse_openapi(spec: dict) -> ServerPlan:
                 py_type = _map_type(schema_type)
                 param_desc: str = param.get("description", "")
                 required: bool = param.get("required", param.get("in") == "path")
-                params.append(ToolParam(
-                    name=param_name,
-                    type=py_type,
-                    description=param_desc,
-                    required=required,
-                ))
+                params.append(
+                    ToolParam(
+                        name=param_name,
+                        type=py_type,
+                        description=param_desc,
+                        required=required,
+                    )
+                )
 
             # requestBody → body param
             if "requestBody" in operation:
-                params.append(ToolParam(
-                    name="body",
-                    type="dict",
-                    description="Request body",
-                    required=True,
-                ))
+                params.append(
+                    ToolParam(
+                        name="body",
+                        type="dict",
+                        description="Request body",
+                        required=True,
+                    )
+                )
 
             return_type = _response_return_type(operation)
 
-            tools.append(ToolDef(
-                name=tool_name,
-                description=tool_description,
-                params=params,
-                return_type=return_type,
-            ))
+            tools.append(
+                ToolDef(
+                    name=tool_name,
+                    description=tool_description,
+                    params=params,
+                    return_type=return_type,
+                )
+            )
 
     if not tools:
         raise ValueError("OpenAPI spec has no operations")

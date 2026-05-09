@@ -107,7 +107,8 @@ def _splice_fixed_functions(
     try:
         fixed_tree = ast.parse(fixed_stripped)
         fixed_funcs = [
-            n for n in ast.walk(fixed_tree)
+            n
+            for n in ast.walk(fixed_tree)
             if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
         ]
         fixed_lines = fixed_stripped.splitlines()
@@ -139,9 +140,7 @@ def _splice_fixed_functions(
     # Apply splices from bottom up
     for _sorted_idx, (start, end, _) in enumerate(sorted_affected):
         # Find original index
-        orig_idx = next(
-            i for i, tup in enumerate(affected) if tup[0] == start and tup[1] == end
-        )
+        orig_idx = next(i for i, tup in enumerate(affected) if tup[0] == start and tup[1] == end)
         replacement = fix_map.get(orig_idx, "")
         if replacement:
             code_lines[start - 1 : end] = replacement.splitlines()

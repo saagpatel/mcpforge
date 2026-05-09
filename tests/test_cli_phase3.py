@@ -36,9 +36,7 @@ class TestUpdateCommand:
             patch("mcpforge.cli.uv_sync", new=AsyncMock()),
             patch("mcpforge.cli.validate_server", new=AsyncMock(return_value=_valid_result())),
         ):
-            result = runner.invoke(
-                cli, ["update", str(tmp_path), "add a search tool", "--yes"]
-            )
+            result = runner.invoke(cli, ["update", str(tmp_path), "add a search tool", "--yes"])
         assert result.exit_code == 0
 
     def test_update_rewrites_server_py(self, tmp_path: Path) -> None:
@@ -67,9 +65,7 @@ class TestUpdateCommand:
                 new=AsyncMock(side_effect=FileNotFoundError("no server.py")),
             ),
         ):
-            result = runner.invoke(
-                cli, ["update", str(tmp_path), "add search", "--yes"]
-            )
+            result = runner.invoke(cli, ["update", str(tmp_path), "add search", "--yes"])
         assert result.exit_code != 0
 
     def test_update_calls_update_server(self, tmp_path: Path) -> None:
@@ -110,9 +106,12 @@ class TestFromOpenAPI:
             runner.invoke(
                 cli,
                 [
-                    "generate", "A test server",
-                    "--from-openapi", str(spec_file),
-                    "--dry-run", "--yes",
+                    "generate",
+                    "A test server",
+                    "--from-openapi",
+                    str(spec_file),
+                    "--dry-run",
+                    "--yes",
                 ],
             )
 
@@ -156,10 +155,13 @@ class TestLanguageFlag:
             result = runner.invoke(
                 cli,
                 [
-                    "generate", "A test server",
-                    "--language", "typescript",
+                    "generate",
+                    "A test server",
+                    "--language",
+                    "typescript",
                     "--yes",
-                    "--output", str(tmp_path),
+                    "--output",
+                    str(tmp_path),
                 ],
             )
         assert result.exit_code == 0

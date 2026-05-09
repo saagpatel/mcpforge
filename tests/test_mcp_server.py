@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from mcpforge import DEFAULT_MODEL
 from mcpforge.models import ServerPlan, ToolDef, ValidationResult
 
 
@@ -23,6 +24,11 @@ def _valid_result() -> ValidationResult:
 
 
 class TestMcpServerTools:
+    def test_default_model_matches_package_constant(self):
+        from mcpforge.mcp_server import _DEFAULT_MODEL
+
+        assert _DEFAULT_MODEL == DEFAULT_MODEL
+
     async def test_plan_tool_returns_name_and_tools(self):
         """plan() tool returns dict with name, slug, tools keys."""
         from mcpforge.mcp_server import plan

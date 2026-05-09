@@ -1,5 +1,6 @@
 """mcpforge — Generate FastMCP 3.x MCP servers from plain-English descriptions."""
 
+from mcpforge.api_client import DEFAULT_MODEL
 from mcpforge.models import (
     ResourceDef,
     ServerPlan,
@@ -15,5 +16,6 @@ __all__ = [
     "ToolDef",
     "ToolParam",
     "ValidationResult",
+    "DEFAULT_MODEL",
     "__version__",
 ]
