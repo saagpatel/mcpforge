@@ -151,7 +151,7 @@ class ValidationResult(BaseModel):
 **Anthropic API call patterns:**
 
 All calls use:
-- `model`: `claude-sonnet-4-20250514` (default) or user-specified via `--model`
+- `model`: `claude-sonnet-4-6` (default, pinned — see MODEL PIN in api_client.py) or user-specified via `--model`
 - `max_tokens`: 8192 for planner, 16384 for generator/test_gen
 - `temperature`: 0 for planner (structured extraction), 0.2 for generator/test_gen (slight creativity)
 - System prompts loaded from `src/mcpforge/prompts/*.md`
@@ -187,7 +187,7 @@ All calls use:
 class AnthropicClient:
     """Wrapper around anthropic.AsyncAnthropic with retry and error handling."""
     
-    def __init__(self, api_key: str | None = None, model: str = "claude-sonnet-4-20250514"):
+    def __init__(self, api_key: str | None = None, model: str = "claude-sonnet-4-6"):
         ...
     
     async def generate(

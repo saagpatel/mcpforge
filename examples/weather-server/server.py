@@ -4,7 +4,6 @@ import os
 
 import httpx
 from fastmcp import FastMCP
-from fastmcp.exceptions import McpError
 
 mcp = FastMCP("Weather Server")
 
@@ -16,7 +15,7 @@ async def get_current_weather(city: str) -> dict:
     """Get current weather for a city."""
     api_key = os.environ.get("OPENWEATHER_API_KEY", "")
     if not api_key:
-        raise McpError("OPENWEATHER_API_KEY environment variable is not set")
+        raise RuntimeError("OPENWEATHER_API_KEY environment variable is not set")
     async with httpx.AsyncClient() as client:
         response = await client.get(
             f"{OPENWEATHER_BASE}/weather",
@@ -38,9 +37,9 @@ async def get_forecast(city: str, days: int = 3) -> dict:
     """Get weather forecast for a city (1-5 days)."""
     api_key = os.environ.get("OPENWEATHER_API_KEY", "")
     if not api_key:
-        raise McpError("OPENWEATHER_API_KEY environment variable is not set")
+        raise RuntimeError("OPENWEATHER_API_KEY environment variable is not set")
     if not 1 <= days <= 5:
-        raise McpError("days must be between 1 and 5")
+        raise ValueError("days must be between 1 and 5")
     async with httpx.AsyncClient() as client:
         response = await client.get(
             f"{OPENWEATHER_BASE}/forecast",

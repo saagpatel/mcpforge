@@ -17,24 +17,18 @@ SAMPLE_SPEC: dict = {
             "get": {
                 "operationId": "list_pets",
                 "summary": "List all pets",
-                "parameters": [
-                    {"name": "limit", "in": "query", "schema": {"type": "integer"}}
-                ],
+                "parameters": [{"name": "limit", "in": "query", "schema": {"type": "integer"}}],
                 "responses": {
                     "200": {
                         "description": "ok",
-                        "content": {
-                            "application/json": {"schema": {"type": "array"}}
-                        },
+                        "content": {"application/json": {"schema": {"type": "array"}}},
                     }
                 },
             },
             "post": {
                 "operationId": "create_pet",
                 "summary": "Create a pet",
-                "requestBody": {
-                    "content": {"application/json": {"schema": {"type": "object"}}}
-                },
+                "requestBody": {"content": {"application/json": {"schema": {"type": "object"}}}},
                 "responses": {"201": {"description": "Created"}},
             },
         },
@@ -42,9 +36,7 @@ SAMPLE_SPEC: dict = {
             "get": {
                 "operationId": "get_pet",
                 "summary": "Get a pet by ID",
-                "parameters": [
-                    {"name": "id", "in": "path", "schema": {"type": "string"}}
-                ],
+                "parameters": [{"name": "id", "in": "path", "schema": {"type": "string"}}],
                 "responses": {"200": {"description": "ok"}},
             }
         },

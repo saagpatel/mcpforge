@@ -5,7 +5,7 @@ from mcpforge.security import check_security
 
 class TestCheckSecurity:
     def test_clean_fastmcp_code_no_findings(self):
-        code = '''
+        code = """
 import uuid
 from datetime import datetime, timezone
 from fastmcp import FastMCP
@@ -15,7 +15,7 @@ mcp = FastMCP("Todo")
 @mcp.tool
 async def create_todo(title: str) -> dict:
     return {"id": str(uuid.uuid4()), "title": title}
-'''
+"""
         assert check_security(code) == []
 
     def test_detects_eval(self):
@@ -56,14 +56,14 @@ async def create_todo(title: str) -> dict:
         assert any("shutil.rmtree" in f for f in findings)
 
     def test_flags_unknown_import(self):
-        code = 'import boto3\n'
+        code = "import boto3\n"
         findings = check_security(code)
         assert len(findings) == 1
         assert "WARNING" in findings[0]
         assert "boto3" in findings[0]
 
     def test_allows_all_whitelisted_imports(self):
-        code = '''
+        code = """
 import json
 import logging
 import asyncio
@@ -77,18 +77,18 @@ from typing import Any
 from fastmcp import FastMCP
 from pydantic import BaseModel
 import httpx
-'''
+"""
         findings = check_security(code)
         assert findings == []
 
     def test_multiple_issues_all_reported(self):
-        code = '''
+        code = """
 import boto3
 import subprocess
 eval("1+1")
 subprocess.run(["ls"])
 os.system("whoami")
-'''
+"""
         findings = check_security(code)
         assert len(findings) >= 4  # 1 unknown import + eval + subprocess.run + os.system
 

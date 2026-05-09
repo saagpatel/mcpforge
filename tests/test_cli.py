@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from click.testing import CliRunner
 
-from mcpforge import __version__
+from mcpforge import DEFAULT_MODEL, __version__
 from mcpforge.cli import cli
 from mcpforge.models import ServerPlan, ToolDef, ValidationResult
 
@@ -36,6 +36,7 @@ class TestHelp:
         assert result.exit_code == 0
         assert "--output" in result.output
         assert "--model" in result.output
+        assert DEFAULT_MODEL in result.output
         assert "--transport" in result.output
         assert "--dry-run" in result.output
         assert "--yes" in result.output
@@ -63,6 +64,15 @@ class TestVersion:
         result = runner.invoke(cli, ["--version"])
         assert result.exit_code == 0
         assert __version__ in result.output
+
+
+class TestModelDefaults:
+    def test_default_model_is_shared_by_cli_and_client(self):
+        import mcpforge.cli as cli_module
+        from mcpforge.api_client import AnthropicClient
+
+        assert cli_module.DEFAULT_MODEL == DEFAULT_MODEL
+        assert AnthropicClient.__init__.__defaults__[-1] == DEFAULT_MODEL
 
 
 class TestGenerate:
@@ -238,6 +248,22 @@ class TestValidate:
         runner = CliRunner()
         invalid = ValidationResult(syntax_ok=False, errors=["SyntaxError at line 1"])
         with patch("mcpforge.cli.validate_server", new=AsyncMock(return_value=invalid)):
+            result = runner.invoke(cli, ["validate", str(tmp_path)])
+        assert result.exit_code != 0
+
+    def test_validate_test_failures_exit_1(self, tmp_path):
+        """validate exits 1 when executed tests fail even if structural checks pass."""
+        (tmp_path / "server.py").write_text("from fastmcp import FastMCP\nmcp = FastMCP('Test')")
+        runner = CliRunner()
+        failed_tests = ValidationResult(
+            syntax_ok=True,
+            import_ok=True,
+            tests_passed=False,
+            tests_run=3,
+            tests_failed=1,
+            test_output="1 failed, 2 passed",
+        )
+        with patch("mcpforge.cli.validate_server", new=AsyncMock(return_value=failed_tests)):
             result = runner.invoke(cli, ["validate", str(tmp_path)])
         assert result.exit_code != 0
 

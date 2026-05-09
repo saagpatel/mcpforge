@@ -6,7 +6,7 @@ from pathlib import Path
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 
-from mcpforge.api_client import AnthropicClient
+from mcpforge.api_client import DEFAULT_MODEL, AnthropicClient
 from mcpforge.generator import generate_server
 from mcpforge.planner import extract_plan
 from mcpforge.test_generator import generate_tests
@@ -24,7 +24,7 @@ mcp = FastMCP(
     ),
 )
 
-_DEFAULT_MODEL = "claude-sonnet-4-20250514"
+_DEFAULT_MODEL = DEFAULT_MODEL
 
 
 def _resolve_workspace_path(raw_path: str, *, must_exist: bool = False) -> Path:
@@ -46,11 +46,16 @@ def _resolve_workspace_path(raw_path: str, *, must_exist: bool = False) -> Path:
 
 
 def _get_client(model: str = _DEFAULT_MODEL) -> AnthropicClient:
-    """Create an AnthropicClient, raising McpError if API key is missing."""
+    """Create an AnthropicClient, raising ToolError if API key is missing."""
     key = os.environ.get("ANTHROPIC_API_KEY")
     if not key:
         raise ToolError("ANTHROPIC_API_KEY environment variable is not set")
     return AnthropicClient(api_key=key, model=model)
+
+
+def _validation_passed(result) -> bool:
+    """Return True when structural checks and executed tests are healthy."""
+    return result.is_valid and result.tests_ok
 
 
 @mcp.tool
@@ -81,7 +86,9 @@ async def generate(
     return {
         "path": str(out_dir.resolve()),
         "plan": server_plan.model_dump(),
-        "valid": result.is_valid,
+        "valid": _validation_passed(result),
+        "structurally_valid": result.is_valid,
+        "tests_ok": result.tests_ok,
         "tests_run": result.tests_run,
     }
 
@@ -105,7 +112,9 @@ async def update(
     result = await validate_server(out_dir)
     return {
         "path": str(out_dir.resolve()),
-        "valid": result.is_valid,
+        "valid": _validation_passed(result),
+        "structurally_valid": result.is_valid,
+        "tests_ok": result.tests_ok,
         "tests_run": result.tests_run,
     }
 
@@ -116,7 +125,9 @@ async def validate(server_path: str) -> dict:
     out_dir = _resolve_workspace_path(server_path, must_exist=True)
     result = await validate_server(out_dir)
     return {
-        "valid": result.is_valid,
+        "valid": _validation_passed(result),
+        "structurally_valid": result.is_valid,
+        "tests_ok": result.tests_ok,
         "syntax_ok": result.syntax_ok,
         "import_ok": result.import_ok,
         "lint_errors": result.lint_errors,

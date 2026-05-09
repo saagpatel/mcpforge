@@ -78,6 +78,4 @@ async def test_get_channel_history_success():
 async def test_get_channel_history_invalid_limit():
     async with Client(srv.mcp) as client:
         with pytest.raises(Exception, match="between 1 and 100"):
-            await client.call_tool(
-                "get_channel_history", {"channel": "general", "limit": 0}
-            )
+            await client.call_tool("get_channel_history", {"channel": "general", "limit": 0})

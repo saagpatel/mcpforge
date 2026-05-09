@@ -15,9 +15,7 @@ async def db(tmp_path, monkeypatch):
     monkeypatch.setenv("DATABASE_PATH", str(db_path))
     importlib.reload(srv)
     async with aiosqlite.connect(db_path) as conn:
-        await conn.execute(
-            "CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL)"
-        )
+        await conn.execute("CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL)")
         await conn.execute("INSERT INTO items VALUES (1, 'apple')")
         await conn.execute("INSERT INTO items VALUES (2, 'banana')")
         await conn.commit()
@@ -42,9 +40,7 @@ async def test_query_select(db):
 async def test_query_rejects_non_select(db):
     async with Client(srv.mcp) as client:
         with pytest.raises(Exception, match="Only SELECT"):
-            await client.call_tool(
-                "query_database", {"sql": "DROP TABLE items"}
-            )
+            await client.call_tool("query_database", {"sql": "DROP TABLE items"})
 
 
 async def test_describe_table(db):

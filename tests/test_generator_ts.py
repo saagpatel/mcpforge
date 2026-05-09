@@ -47,9 +47,7 @@ async def test_generate_server_ts_returns_stripped_code(
 ) -> None:
     """generate_server_ts returns code with fences stripped."""
     client = AsyncMock()
-    client.generate = AsyncMock(
-        return_value="```typescript\nconst server = new McpServer();\n```"
-    )
+    client.generate = AsyncMock(return_value="```typescript\nconst server = new McpServer();\n```")
     result = await generate_server_ts(sample_plan, client)
     assert result == "const server = new McpServer();"
 
@@ -70,9 +68,7 @@ async def test_generate_tests_ts_includes_server_code(
 async def test_strip_code_fences_typescript(sample_plan: ServerPlan) -> None:
     """Fence stripping handles typescript-tagged fences."""
     client = AsyncMock()
-    client.generate = AsyncMock(
-        return_value="```typescript\ncode\n```"
-    )
+    client.generate = AsyncMock(return_value="```typescript\ncode\n```")
     # strip_code_fences only strips python/generic fences by default;
     # the TS generator uses the same utility — verify it handles generic fences too
     result = await generate_server_ts(sample_plan, client)

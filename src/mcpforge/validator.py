@@ -62,10 +62,7 @@ def check_packages(plan: ServerPlan) -> str | None:
 
     Returns an error message string listing rejected packages, or None if all allowed.
     """
-    rejected = [
-        pkg for pkg in plan.external_packages
-        if pkg.lower() not in _ALLOWED_PACKAGES
-    ]
+    rejected = [pkg for pkg in plan.external_packages if pkg.lower() not in _ALLOWED_PACKAGES]
     if rejected:
         return (
             f"Package allowlist violation — refusing uv sync. "

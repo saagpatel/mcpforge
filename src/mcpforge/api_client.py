@@ -1,4 +1,13 @@
-"""Anthropic API client wrapper with retry logic."""
+"""Anthropic API client wrapper with retry logic.
+
+MODEL PIN: This module uses Sonnet 4.6 intentionally. Opus 4.7 rejects
+non-default `temperature` values (400 error), and mcpforge relies on
+`temperature=0` for deterministic JSON output in `generate_json()`.
+Do NOT upgrade the default model to Opus 4.7 (or any future model that
+rejects temperature) without first migrating `generate_json()` to tool
+use with a strict schema, which is the 4.7-era replacement for the
+`temperature=0` determinism lever.
+"""
 
 import asyncio
 import json
@@ -10,6 +19,8 @@ from collections.abc import AsyncIterator
 import anthropic
 from pydantic import BaseModel, ValidationError
 
+DEFAULT_MODEL = "claude-sonnet-4-6"
+
 
 class AnthropicClient:
     """Async wrapper around anthropic.AsyncAnthropic with exponential-backoff retry."""
@@ -17,7 +28,7 @@ class AnthropicClient:
     def __init__(
         self,
         api_key: str | None = None,
-        model: str = "claude-sonnet-4-20250514",
+        model: str = DEFAULT_MODEL,
     ) -> None:
         resolved_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
         if not resolved_key:
@@ -98,7 +109,6 @@ class AnthropicClient:
             raise ValueError(
                 f"Response JSON did not match {response_model.__name__} schema: {exc}"
             ) from exc
-
 
     async def generate_stream(
         self,

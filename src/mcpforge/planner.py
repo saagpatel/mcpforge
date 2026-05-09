@@ -17,8 +17,7 @@ async def extract_plan(
     """Call the LLM to extract a ServerPlan from a plain-English description."""
     system_prompt = load_prompt("planner")
     user_message = (
-        f"Description:\n<user_input>\n{description}\n</user_input>\n"
-        f"Transport: {transport}"
+        f"Description:\n<user_input>\n{description}\n</user_input>\nTransport: {transport}"
     )
     plan = await client.generate_json(
         system_prompt=system_prompt,

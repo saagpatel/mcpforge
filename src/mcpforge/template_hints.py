@@ -4,7 +4,7 @@ TEMPLATE_HINTS: dict[str, str] = {
     "rest-api": (
         "This server wraps a REST API. Use async httpx.AsyncClient for all HTTP calls. "
         "Read API keys from environment variables. Handle HTTP errors (4xx, 5xx) by raising "
-        "McpError with descriptive messages. Include the base URL as a module-level constant "
+        "RuntimeError with descriptive messages. Include the base URL as a module-level constant "
         "read from an env var."
     ),
     "database": (
@@ -24,7 +24,7 @@ TEMPLATE_HINTS: dict[str, str] = {
         "`from gql import gql, Client` and `from gql.transport.aiohttp import AIOHTTPTransport`. "
         "Read the GraphQL endpoint URL from an env var (GRAPHQL_URL). If authentication is needed, "
         "read the API token from an env var and pass it as an Authorization header. "
-        "Check for 'errors' key in the response dict and raise McpError if present."
+        "Check for 'errors' key in the response dict and raise RuntimeError if present."
     ),
     "websocket": (
         "This server communicates over WebSocket. Use the websockets library: "

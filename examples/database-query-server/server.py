@@ -5,7 +5,6 @@ import re
 
 import aiosqlite
 from fastmcp import FastMCP
-from fastmcp.exceptions import McpError
 
 mcp = FastMCP("Database Query Server")
 
@@ -14,12 +13,12 @@ _SAFE_IDENTIFIER_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
 
 def _require_select(sql: str) -> None:
     if not sql.strip().upper().startswith("SELECT"):
-        raise McpError("Only SELECT queries are allowed")
+        raise ValueError("Only SELECT queries are allowed")
 
 
 def _validate_identifier(name: str) -> None:
     if not _SAFE_IDENTIFIER_RE.match(name):
-        raise McpError(f"Invalid identifier: {name!r}")
+        raise ValueError(f"Invalid identifier: {name!r}")
 
 
 @mcp.tool
@@ -57,7 +56,7 @@ async def describe_table(table_name: str) -> dict:
         async with conn.execute(f"PRAGMA table_info({table_name})") as cursor:
             rows = await cursor.fetchall()
     if not rows:
-        raise McpError(f"Table {table_name!r} not found")
+        raise ValueError(f"Table {table_name!r} not found")
     columns = [
         {"name": row[1], "type": row[2], "notnull": bool(row[3]), "pk": bool(row[5])}
         for row in rows

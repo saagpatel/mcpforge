@@ -9,10 +9,10 @@ from pathlib import Path
 @dataclass
 class ServerInfo:
     path: Path
-    name: str        # first key in mcpServers dict from config.json
+    name: str  # first key in mcpServers dict from config.json
     tool_count: int  # count of @mcp.tool in server.py (or server.tool( in server.ts)
     has_tests: bool
-    language: str    # "python" or "typescript"
+    language: str  # "python" or "typescript"
 
 
 def find_servers(root: Path, recursive: bool = False) -> list[ServerInfo]:

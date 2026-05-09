@@ -4,15 +4,54 @@ import re
 
 from pydantic import BaseModel, Field, field_validator
 
-KNOWN_PACKAGES: frozenset[str] = frozenset({
-    "aiohttp", "aiosqlite", "asyncpg", "beautifulsoup4", "boto3", "cachetools",
-    "celery", "click", "cryptography", "elasticsearch", "flask", "gql",
-    "google-cloud-storage", "httpx", "lxml", "markdown", "matplotlib", "motor",
-    "numpy", "opensearch-py", "orjson", "pandas", "pendulum", "pillow",
-    "plotly", "pymongo", "python-dateutil", "python-jose", "pydantic", "pyyaml",
-    "redis", "requests", "rich", "scipy", "scikit-learn", "seaborn", "sqlalchemy",
-    "starlette", "tenacity", "toml", "tqdm", "typer", "ujson", "websockets",
-})
+KNOWN_PACKAGES: frozenset[str] = frozenset(
+    {
+        "aiohttp",
+        "aiosqlite",
+        "asyncpg",
+        "beautifulsoup4",
+        "boto3",
+        "cachetools",
+        "celery",
+        "click",
+        "cryptography",
+        "elasticsearch",
+        "flask",
+        "gql",
+        "google-cloud-storage",
+        "httpx",
+        "lxml",
+        "markdown",
+        "matplotlib",
+        "motor",
+        "numpy",
+        "opensearch-py",
+        "orjson",
+        "pandas",
+        "pendulum",
+        "pillow",
+        "plotly",
+        "pymongo",
+        "python-dateutil",
+        "python-jose",
+        "pydantic",
+        "pyyaml",
+        "redis",
+        "requests",
+        "rich",
+        "scipy",
+        "scikit-learn",
+        "seaborn",
+        "sqlalchemy",
+        "starlette",
+        "tenacity",
+        "toml",
+        "tqdm",
+        "typer",
+        "ujson",
+        "websockets",
+    }
+)
 
 
 class ToolParam(BaseModel):
@@ -123,3 +162,8 @@ class ValidationResult(BaseModel):
         APIs will have failing tests without credentials, but are still valid code.
         """
         return self.syntax_ok and self.import_ok and len(self.lint_errors) == 0
+
+    @property
+    def tests_ok(self) -> bool:
+        """True when tests passed, were skipped, or produced no executable output."""
+        return self.tests_passed or (self.tests_run == 0 and not self.test_output)

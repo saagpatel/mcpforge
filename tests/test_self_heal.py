@@ -32,7 +32,7 @@ async def list_items() -> dict:
     return {"items": []}
 '''
 
-BROKEN_FUNC_CODE = '''from fastmcp import FastMCP
+BROKEN_FUNC_CODE = """from fastmcp import FastMCP
 
 mcp = FastMCP("Test")
 
@@ -45,7 +45,7 @@ async def broken_func(x: str) -> dict:
 @mcp.tool
 async def good_func(y: str) -> dict:
     return {"y": y}
-'''
+"""
 
 
 class TestExtractErrorLines:

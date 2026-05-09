@@ -182,6 +182,7 @@ class TestValidateServer:
         ):
             result = await validate_server(tmp_path)
         assert result.is_valid is True
+        assert result.tests_ok is False
         assert result.tests_failed == 2
         assert result.tests_passed is False
 
@@ -207,14 +208,11 @@ class TestCheckPlanConformance:
         return ServerPlan(
             name="Test",
             description="Test",
-            tools=[
-                ToolDef(name=n, description=f"Tool {n}", params=[])
-                for n in names
-            ],
+            tools=[ToolDef(name=n, description=f"Tool {n}", params=[]) for n in names],
         )
 
     def test_matching_tools_no_warnings(self):
-        code = '''
+        code = """
 from fastmcp import FastMCP
 mcp = FastMCP("Test")
 
@@ -225,19 +223,19 @@ async def create_todo():
 @mcp.tool
 async def list_todos():
     pass
-'''
+"""
         plan = self._plan_with_tools("create_todo", "list_todos")
         assert check_plan_conformance(code, plan) == []
 
     def test_missing_tool_reported(self):
-        code = '''
+        code = """
 from fastmcp import FastMCP
 mcp = FastMCP("Test")
 
 @mcp.tool
 async def create_todo():
     pass
-'''
+"""
         plan = self._plan_with_tools("create_todo", "delete_todo")
         warnings = check_plan_conformance(code, plan)
         assert len(warnings) == 1
@@ -245,7 +243,7 @@ async def create_todo():
         assert "delete_todo" in warnings[0]
 
     def test_extra_tool_reported(self):
-        code = '''
+        code = """
 from fastmcp import FastMCP
 mcp = FastMCP("Test")
 
@@ -256,7 +254,7 @@ async def create_todo():
 @mcp.tool
 async def bonus_tool():
     pass
-'''
+"""
         plan = self._plan_with_tools("create_todo")
         warnings = check_plan_conformance(code, plan)
         assert len(warnings) == 1

@@ -1,7 +1,6 @@
 """In-memory TODO manager MCP server."""
 
 from fastmcp import FastMCP
-from fastmcp.exceptions import McpError
 
 mcp = FastMCP("Todo Manager")
 
@@ -14,7 +13,7 @@ async def create_todo(title: str, description: str = "") -> dict:
     """Create a new todo item."""
     global _next_id
     if not title.strip():
-        raise McpError("Title cannot be empty")
+        raise ValueError("Title cannot be empty")
     todo_id = str(_next_id)
     _next_id += 1
     todo = {"id": todo_id, "title": title, "description": description, "done": False}
@@ -26,7 +25,7 @@ async def create_todo(title: str, description: str = "") -> dict:
 async def get_todo(todo_id: str) -> dict:
     """Get a todo item by ID."""
     if todo_id not in _todos:
-        raise McpError(f"Todo {todo_id!r} not found")
+        raise ValueError(f"Todo {todo_id!r} not found")
     return _todos[todo_id]
 
 
@@ -45,7 +44,7 @@ async def update_todo(
 ) -> dict:
     """Update a todo item."""
     if todo_id not in _todos:
-        raise McpError(f"Todo {todo_id!r} not found")
+        raise ValueError(f"Todo {todo_id!r} not found")
     todo = _todos[todo_id]
     if title is not None:
         todo["title"] = title
@@ -60,7 +59,7 @@ async def update_todo(
 async def delete_todo(todo_id: str) -> dict:
     """Delete a todo item."""
     if todo_id not in _todos:
-        raise McpError(f"Todo {todo_id!r} not found")
+        raise ValueError(f"Todo {todo_id!r} not found")
     todo = _todos.pop(todo_id)
     return {"deleted": True, "id": todo_id, "title": todo["title"]}
 
