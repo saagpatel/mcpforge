@@ -18,6 +18,7 @@ from pydantic import BaseModel
 
 from mcpforge.cli import cli
 from mcpforge.openai_client import OpenAIClient
+from mcpforge.planner import extract_plan
 
 ROOT = Path(__file__).resolve().parents[1]
 AUTH_OPENAPI_SPEC = ROOT / "tests" / "fixtures" / "openapi-auth-tickets.json"
@@ -177,3 +178,64 @@ async def test_hosted_openai_structured_output_smoke() -> None:
     )
 
     assert result == OpenAIStructuredSmoke(name="openai", count=3, ready=True)
+
+
+@pytest.mark.skipif(
+    os.environ.get("MCPFORGE_RUN_HOSTED_OPENAI_PLANNING_SMOKE") != "1",
+    reason="set MCPFORGE_RUN_HOSTED_OPENAI_PLANNING_SMOKE=1 to run OpenAI planning smoke",
+)
+@pytest.mark.skipif(
+    not os.environ.get("OPENAI_API_KEY"),
+    reason="OPENAI_API_KEY is required for hosted OpenAI planning smoke",
+)
+async def test_hosted_openai_planning_smoke() -> None:
+    """Prove OpenAI can produce a strict mcpforge ServerPlan."""
+    client = OpenAIClient()
+
+    plan = await extract_plan(
+        "A tiny echo MCP server with one tool named echo_message that returns "
+        "the provided message.",
+        client,
+        "streamable-http",
+    )
+
+    assert plan.name
+    assert any(tool.name == "echo_message" for tool in plan.tools)
+
+
+@pytest.mark.skipif(
+    os.environ.get("MCPFORGE_RUN_HOSTED_OPENAI_GENERATION_SMOKE") != "1",
+    reason="set MCPFORGE_RUN_HOSTED_OPENAI_GENERATION_SMOKE=1 to run OpenAI generation smoke",
+)
+@pytest.mark.skipif(
+    not os.environ.get("OPENAI_API_KEY"),
+    reason="OPENAI_API_KEY is required for hosted OpenAI generation smoke",
+)
+def test_hosted_openai_generate_echo_server(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Generate and validate a tiny server through OpenAI's opt-in provider path."""
+    output_dir = tmp_path / "hosted-openai-echo-server"
+    runner = CliRunner()
+    monkeypatch.setenv("MCPFORGE_ENABLE_OPENAI_PROVIDER", "1")
+
+    result = runner.invoke(
+        cli,
+        [
+            "generate",
+            "A tiny echo MCP server with one tool named echo_message that returns "
+            "the provided message.",
+            "--provider",
+            "openai",
+            "--output",
+            str(output_dir),
+            "--yes",
+        ],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 0, result.output
+    assert (output_dir / "server.py").exists()
+    assert (output_dir / "test_server.py").exists()
+    _assert_valid_generation(result.output)

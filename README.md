@@ -65,7 +65,7 @@ Useful generation flags:
 - `--language python|typescript` chooses the target server language.
 - `--auth-profile none|api-key|jwt` adds optional Python auth profile metadata and env docs.
 - `--middleware-profile logging|timing|rate-limit` adds optional Python middleware profiles; repeat it to combine profiles.
-- `--provider anthropic|openai` selects the generation provider. OpenAI structured-output support has an opt-in smoke, but full OpenAI generation remains gated until planning and generation smokes pass.
+- `--provider anthropic|openai` selects the generation provider. OpenAI remains gated by default; set `MCPFORGE_ENABLE_OPENAI_PROVIDER=1` only for opt-in smoke testing after `OPENAI_API_KEY` is available.
 
 Useful status flags:
 - `mcpforge list --json`
@@ -79,7 +79,7 @@ Useful status flags:
 | Layer | Technology |
 |-------|------------|
 | Language | Python 3.12+ |
-| Generation | Anthropic Claude via `anthropic` SDK; OpenAI structured-output smoke support is gated |
+| Generation | Anthropic Claude via `anthropic` SDK; OpenAI provider support is gated behind hosted smokes |
 | MCP framework | FastMCP 3.x |
 | CLI | Click 8 |
 | Templates | Jinja2 |

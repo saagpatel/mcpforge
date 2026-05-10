@@ -2,7 +2,7 @@
 
 import json
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -106,6 +106,14 @@ def test_provider_capabilities_and_openai_gate() -> None:
     assert provider_capabilities("openai").status == "gated"
     with pytest.raises(ValueError, match="OpenAI provider support is gated"):
         create_provider_client("openai")
+
+
+def test_openai_provider_can_be_opted_in_for_smokes(monkeypatch) -> None:
+    monkeypatch.setenv("MCPFORGE_ENABLE_OPENAI_PROVIDER", "1")
+    with patch("mcpforge.providers.OpenAIClient", return_value=MagicMock()) as openai_client:
+        create_provider_client("openai")
+
+    openai_client.assert_called_once()
 
 
 def test_apply_generation_profiles_adds_env_and_metadata() -> None:

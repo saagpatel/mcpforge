@@ -15,7 +15,7 @@ mcpforge is a Python 3.12+ CLI and MCP server that generates runnable FastMCP 3.
 - Import package and commands: `mcpforge`, `mcpforge-server`
 - GitHub release: `v0.3.0` exists
 - PyPI publish: `fastmcp-builder==0.3.0` published successfully
-- Current follow-up lane: OpenAI structured-output proof, remote MCP readiness, and OpenAPI quality expansion
+- Current follow-up lane: OpenAI structured-output, planning, and generation smoke gates
 - GitHub PR queue: cleared during the latest cleanup pass
 - Dependabot alerts: cleared during the latest cleanup pass
 - CI posture: green on the latest pushed `main`
@@ -64,17 +64,17 @@ uv run mcpforge validate examples/todo-server
 uv build
 ```
 
-Latest local result on 2026-05-10 after the v0.3 fixture lane:
+Latest local result on 2026-05-10 after the OpenAI smoke-gate lane:
 
 - `uv run ruff check .`: passed
 - `uv run ruff format --check .`: passed
-- `uv run pytest -q`: 345 passed, 4 skipped
+- `uv run pytest -q`: 347 passed, 6 skipped
 - `uv run mcpforge validate examples/todo-server`: syntax, lint, import, and 11 tests passed
 - `uv run mcpforge validate examples/v03-authenticated-openapi-server`: syntax, lint, import, and 23 tests passed
 - `uv build`: built `dist/fastmcp_builder-0.3.0.tar.gz` and `dist/fastmcp_builder-0.3.0-py3-none-any.whl`
 - `scripts/verify_clean_install.sh`: passed and reported `mcpforge 0.3.0`
-- Hosted smoke suite with Anthropic key from Keychain: 3 passed, 1 skipped
-- OpenAI hosted structured-output smoke: present, skipped until `OPENAI_API_KEY` is set
+- Hosted Anthropic Python, TypeScript, and authenticated OpenAPI smokes: 3 passed, 3 skipped
+- OpenAI hosted structured-output, planning, and generation smokes: present, skipped until `OPENAI_API_KEY` is set
 - CLI smoke: `mcpforge list examples --recursive --json`, `mcpforge inspect`, and `mcpforge doctor --json` passed
 - Python example tests: todo, file-reader, database-query, slack-notifier, and weather examples passed with `uv run --directory ... pytest`
 - TypeScript example validation: the `examples/ts-todo-server` path validates from a
@@ -113,10 +113,13 @@ Latest v0.3 feature-lane result on 2026-05-10:
 - Added hosted authenticated OpenAPI generation smoke coverage and a live authenticated OpenAPI fixture with header API-key auth, request timeout/env docs, and local mocked HTTP tests.
 - Added deterministic structured-output smoke tests for `generate_json`: temperature-zero calls,
   fenced JSON parsing, Pydantic schema validation, and malformed-output failure handling.
-- Added an OpenAI structured-output client and opt-in hosted smoke while keeping full OpenAI generation gated.
+- Added an OpenAI structured-output client plus opt-in hosted structured-output, planning,
+  and generation smokes while keeping full OpenAI generation gated by default.
 - Added remote MCP readiness docs/config profiles and inspection readiness signals.
 - Expanded OpenAPI planning with richer response schema summaries, non-2xx error cases,
   OAuth token placeholder guidance, and pagination context.
+- Switched OpenAPI generated test suites to deterministic local `httpx.AsyncClient`
+  fakes so hosted OpenAPI validation no longer depends on LLM-written mock code.
 - Focused feature tests: 182 passed.
 - New generated fixture validation:
   - REST API fixture: 33 tests run, 0 failed
@@ -154,15 +157,15 @@ Latest follow-up hardening result on 2026-05-10:
 
 - `uv run ruff check .`: passed.
 - `uv run ruff format --check .`: passed.
-- `uv run pytest -q`: 345 passed, 4 skipped.
+- `uv run pytest -q`: 347 passed, 6 skipped.
 - `uv run mcpforge validate examples/todo-server`: syntax, lint, import, and 11 tests passed.
 - `uv run mcpforge validate examples/v03-authenticated-openapi-server`: syntax, lint, import, and 23 tests passed.
 - `uv run mcpforge inspect examples/v03-authenticated-openapi-server --json`: remote MCP readiness reported `ready: true`.
 - FastMCP HTTP smoke against `examples/v03-authenticated-openapi-server/fastmcp.json`: server started on a local test port with env vars set.
 - `uv build`: built `fastmcp_builder-0.3.0` source distribution and wheel.
 - `scripts/verify_clean_install.sh`: passed and reported `mcpforge 0.3.0`.
-- Hosted Anthropic Python, TypeScript, and authenticated OpenAPI smokes: 3 passed.
-- Hosted OpenAI structured-output smoke: added but skipped because `OPENAI_API_KEY` is not set in this environment.
+- Hosted Anthropic Python, TypeScript, and authenticated OpenAPI smokes: 3 passed, 3 OpenAI smokes skipped.
+- Hosted OpenAI structured-output, planning, and generation smokes: added but skipped because `OPENAI_API_KEY` is not set in this environment.
 
 Opt-in hosted smoke commands:
 
@@ -170,11 +173,13 @@ Opt-in hosted smoke commands:
 MCPFORGE_RUN_HOSTED_SMOKE=1 ANTHROPIC_API_KEY=... uv run pytest tests/test_hosted_generation_smoke.py
 MCPFORGE_RUN_HOSTED_OPENAPI_SMOKE=1 ANTHROPIC_API_KEY=... uv run pytest tests/test_hosted_generation_smoke.py::test_hosted_generate_openapi_auth_server
 MCPFORGE_RUN_HOSTED_OPENAI_SMOKE=1 OPENAI_API_KEY=... uv run pytest tests/test_hosted_generation_smoke.py::test_hosted_openai_structured_output_smoke
+MCPFORGE_RUN_HOSTED_OPENAI_PLANNING_SMOKE=1 OPENAI_API_KEY=... uv run pytest tests/test_hosted_generation_smoke.py::test_hosted_openai_planning_smoke
+MCPFORGE_RUN_HOSTED_OPENAI_GENERATION_SMOKE=1 MCPFORGE_ENABLE_OPENAI_PROVIDER=1 OPENAI_API_KEY=... uv run pytest tests/test_hosted_generation_smoke.py::test_hosted_openai_generate_echo_server
 ```
 
 Hosted generation with a real `ANTHROPIC_API_KEY` passed on 2026-05-10, including the authenticated OpenAPI smoke.
-The OpenAI hosted structured-output smoke is present but still requires `OPENAI_API_KEY`
-for live verification in this environment.
+The OpenAI hosted structured-output, planning, and generation smokes are present but
+still require `OPENAI_API_KEY` for live verification in this environment.
 
 Optional broader generated-example checks:
 
@@ -191,11 +196,11 @@ uv run --directory examples/weather-server pytest
 - Provider/model behavior is sensitive: do not change the default model or structured JSON generation path without deterministic evidence.
 - Generated templates and prompt contracts are high-impact surfaces; use a dedicated worktree before changing them.
 - The TypeScript and authenticated OpenAPI generation paths are covered by real-key smokes.
-- Full OpenAI provider generation remains gated until OpenAI-specific planning and generation
-  smokes pass.
+- Full OpenAI provider generation remains gated by default. The real CLI path can only
+  be exercised for smokes with `MCPFORGE_ENABLE_OPENAI_PROVIDER=1`.
 
 ## Recommended Next Moves
 
-1. Set `OPENAI_API_KEY` and run the opt-in OpenAI structured-output hosted smoke.
-2. Add OpenAI planning/generation hosted smokes before moving OpenAI provider support out of gated status.
+1. Set `OPENAI_API_KEY` and run the opt-in OpenAI structured-output, planning, and generation hosted smokes.
+2. Move OpenAI out of gated status only after all OpenAI hosted smokes pass repeatedly.
 3. Keep the `fastmcp-builder` PyPI distribution name in install docs while preserving the `mcpforge` command and import surface.

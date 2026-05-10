@@ -7,7 +7,7 @@ from typing import Protocol
 from pydantic import BaseModel
 
 from mcpforge.api_client import DEFAULT_MODEL, AnthropicClient
-from mcpforge.openai_client import DEFAULT_OPENAI_MODEL
+from mcpforge.openai_client import DEFAULT_OPENAI_MODEL, OpenAIClient
 
 DEFAULT_PROVIDER = "anthropic"
 
@@ -106,9 +106,13 @@ def create_provider_client(
     if normalized == "anthropic":
         return AnthropicClient(model=model)
     if normalized == "openai":
+        import os
+
+        if os.environ.get("MCPFORGE_ENABLE_OPENAI_PROVIDER") == "1":
+            return OpenAIClient(model=model or DEFAULT_OPENAI_MODEL)
         raise ValueError(
             "OpenAI provider support is gated until hosted planning and generation "
-            "smokes prove the full mcpforge path. Structured-output smokes are "
-            "available through OpenAIClient."
+            "smokes prove the full mcpforge path. Set MCPFORGE_ENABLE_OPENAI_PROVIDER=1 "
+            "only for opt-in smoke testing."
         )
     raise ValueError(f"Unsupported provider: {provider}")

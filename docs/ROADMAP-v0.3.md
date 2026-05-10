@@ -25,15 +25,18 @@ mcpforge is moving from "generate a runnable MCP server" to "generate a reliable
 - Hardened nested template injection checks across all plan content, not just top-level fields.
 - Added authenticated OpenAPI hosted smoke coverage and a checked-in authenticated OpenAPI fixture.
 - Added deterministic structured-output smoke tests for the current provider interface.
-- Added OpenAI structured-output client support plus an opt-in hosted smoke, while keeping full OpenAI generation gated.
+- Added OpenAI structured-output client support plus opt-in hosted structured-output,
+  planning, and generation smokes, while keeping full OpenAI generation gated by default.
 - Added remote MCP readiness docs/config profiles and inspection readiness signals.
 - Expanded OpenAPI planning with response schema summaries, error cases, OAuth token placeholders, and pagination context.
+- Switched OpenAPI generated test suites to deterministic local `httpx.AsyncClient`
+  fakes so OpenAPI validation checks auth/query/body wiring without LLM-written mocks.
 
 ## Remaining v0.3 Work
 
-- Run the OpenAI hosted structured-output smoke once `OPENAI_API_KEY` is available.
-- Keep OpenAI provider generation gated until OpenAI planning and generation hosted smokes pass.
-- Run a release-candidate verification pass that includes hosted Anthropic, authenticated OpenAPI, and OpenAI structured-output smokes before the next tag.
+- Run the OpenAI hosted structured-output, planning, and generation smokes once `OPENAI_API_KEY` is available.
+- Keep OpenAI provider generation gated until those smokes pass repeatedly.
+- Run a release-candidate verification pass that includes hosted Anthropic, authenticated OpenAPI, and all OpenAI smokes before the next tag.
 
 ## Release Gate
 
@@ -54,6 +57,8 @@ Hosted smokes remain opt-in:
 MCPFORGE_RUN_HOSTED_SMOKE=1 ANTHROPIC_API_KEY=... uv run pytest tests/test_hosted_generation_smoke.py
 MCPFORGE_RUN_HOSTED_OPENAPI_SMOKE=1 ANTHROPIC_API_KEY=... uv run pytest tests/test_hosted_generation_smoke.py::test_hosted_generate_openapi_auth_server
 MCPFORGE_RUN_HOSTED_OPENAI_SMOKE=1 OPENAI_API_KEY=... uv run pytest tests/test_hosted_generation_smoke.py::test_hosted_openai_structured_output_smoke
+MCPFORGE_RUN_HOSTED_OPENAI_PLANNING_SMOKE=1 OPENAI_API_KEY=... uv run pytest tests/test_hosted_generation_smoke.py::test_hosted_openai_planning_smoke
+MCPFORGE_RUN_HOSTED_OPENAI_GENERATION_SMOKE=1 MCPFORGE_ENABLE_OPENAI_PROVIDER=1 OPENAI_API_KEY=... uv run pytest tests/test_hosted_generation_smoke.py::test_hosted_openai_generate_echo_server
 ```
 
 ## Research Anchors

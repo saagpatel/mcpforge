@@ -107,3 +107,48 @@ class TestGenerateTests:
         await generate_tests(plan, "code", client)
         user_msg = client.generate.call_args.kwargs["user_message"]
         assert plan.name in user_msg
+
+    async def test_openapi_plan_uses_deterministic_tests(self):
+        client = AsyncMock(spec=AnthropicClient)
+        plan = ServerPlan(
+            name="Ticket API",
+            description="Ticket operations",
+            tools=[
+                ToolDef(
+                    name="get_ticket",
+                    description="Get a ticket",
+                    params=[
+                        ToolParam(
+                            name="ticket_id",
+                            type="str",
+                            description="Ticket ID",
+                            location="path",
+                        ),
+                        ToolParam(
+                            name="include_history",
+                            type="bool",
+                            description="Include history",
+                            required=False,
+                            location="query",
+                        ),
+                    ],
+                    method="GET",
+                    path="/tickets/{ticket_id}",
+                    auth="api_key",
+                    auth_env_var="TICKET_API_KEY",
+                    auth_location="header",
+                    auth_parameter_name="X-API-Key",
+                )
+            ],
+            env_vars=["BASE_URL", "TICKET_API_KEY", "REQUEST_TIMEOUT_SECONDS"],
+            external_packages=["httpx"],
+            openapi_metadata={"source": "openapi"},
+        )
+
+        result = await generate_tests(plan, "server code should not be sent", client)
+
+        assert "FakeAsyncClient" in result
+        assert "test_openapi_tool_http_wiring" in result
+        assert "X-API-Key" in result
+        assert "include_history" in result
+        client.generate.assert_not_called()
