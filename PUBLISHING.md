@@ -21,6 +21,18 @@ The first `v0.2.0` publish attempt on 2026-05-10 built and tested
 successfully, then failed at the PyPI publish step with `invalid-publisher`
 because PyPI had no matching trusted publisher.
 
+As of 2026-05-10, PyPI still returns 404 for `mcpforge`, so use PyPI's
+pending-publisher flow at:
+
+```text
+https://pypi.org/manage/account/publishing/
+```
+
+PyPI requires an authenticated account session before this can be added.
+The setup attempt reached the login page for that publishing URL, so the next
+manual action is to log in and add the pending GitHub Actions publisher with
+the values above.
+
 ## Manual release steps
 
 For `v0.2.0`, `src/mcpforge/__init__.py` and `pyproject.toml` already report
