@@ -1,6 +1,6 @@
 # mcpforge Current State
 
-Last updated: 2026-05-09
+Last updated: 2026-05-10
 
 ## Big Picture
 
@@ -30,6 +30,8 @@ mcpforge is a Python 3.12+ CLI and MCP server that generates runnable FastMCP 3.
   actual test summary, and removed a duplicate `npm install` from the TypeScript CLI flow.
 - Added TypeScript-generated project metadata so `mcpforge list` can discover
   TypeScript servers alongside Python servers.
+- Tightened hosted TypeScript test generation so generated Vitest suites handle
+  strict MCP result typing, then verified the hosted `--language typescript` path.
 
 ## Current Command Surface
 
@@ -59,7 +61,7 @@ Latest local result on 2026-05-10:
 
 - `uv run ruff check .`: passed
 - `uv run ruff format --check .`: passed
-- `uv run pytest`: 300 passed, 1 skipped
+- `uv run pytest`: 300 passed, 2 skipped
 - `uv run mcpforge validate examples/todo-server`: syntax, lint, import, and 11 tests passed
 - `uv build`: built `dist/mcpforge-0.2.0.tar.gz` and `dist/mcpforge-0.2.0-py3-none-any.whl`
 - CLI smoke: `mcpforge --help`, `mcpforge version`, and `mcpforge list examples --recursive` passed
@@ -68,6 +70,7 @@ Latest local result on 2026-05-10:
   temporary copy and reports 2 tests run, 0 failed
 - Discovery smoke: `mcpforge list examples --recursive` now includes the TypeScript todo example
 - Hosted generation smoke: passed with `ANTHROPIC_API_KEY` loaded from Keychain
+- Hosted TypeScript generation smoke: passed with `ANTHROPIC_API_KEY` loaded from Keychain
 
 Opt-in hosted smoke command:
 
@@ -91,14 +94,14 @@ uv run --directory examples/weather-server pytest
 
 - Provider/model behavior is sensitive: do not change the default model or structured JSON generation path without deterministic evidence.
 - Generated templates and prompt contracts are high-impact surfaces; use a dedicated worktree before changing them.
-- The TypeScript validation path has representative local coverage, but hosted
-  TypeScript generation still needs a real-key smoke before being positioned as release-grade.
+- The TypeScript generation path is now covered by a real-key smoke, but provider/model
+  behavior still needs deterministic evidence before any provider expansion.
 
 ## Recommended Next Moves
 
 1. Decide whether this verified `0.2.0` state is a publish/tag moment or a continue-building moment.
 2. If releasing, tag/publish `0.2.0` from the current green `main`.
 3. If continuing, prioritize one focused lane:
-   - hosted TypeScript `generate --language typescript` smoke with a real API key,
    - generated-template polish,
+   - provider/model controls,
    - or richer coordination/workflow features.

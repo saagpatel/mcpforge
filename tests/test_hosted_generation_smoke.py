@@ -48,3 +48,38 @@ def test_hosted_generate_echo_server(tmp_path: Path) -> None:
     assert (output_dir / "server.py").exists()
     assert (output_dir / "test_server.py").exists()
     assert "VALID" in result.output
+
+
+@pytest.mark.skipif(
+    os.environ.get("MCPFORGE_RUN_HOSTED_TS_SMOKE") != "1",
+    reason="set MCPFORGE_RUN_HOSTED_TS_SMOKE=1 to run the hosted TypeScript smoke",
+)
+@pytest.mark.skipif(
+    not os.environ.get("ANTHROPIC_API_KEY"),
+    reason="ANTHROPIC_API_KEY is required for hosted TypeScript generation smoke",
+)
+def test_hosted_generate_typescript_echo_server(tmp_path: Path) -> None:
+    """Generate and validate a tiny TypeScript server through the real hosted model."""
+    output_dir = tmp_path / "hosted-ts-echo-server"
+    runner = CliRunner()
+
+    result = runner.invoke(
+        cli,
+        [
+            "generate",
+            "A tiny echo MCP server with one tool named echo_message that returns "
+            "the provided message.",
+            "--language",
+            "typescript",
+            "--output",
+            str(output_dir),
+            "--yes",
+        ],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 0, result.output
+    assert (output_dir / "src" / "server.ts").exists()
+    assert (output_dir / "src" / "server.test.ts").exists()
+    assert (output_dir / "config.json").exists()
+    assert "VALID" in result.output
