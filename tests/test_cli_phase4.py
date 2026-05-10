@@ -113,6 +113,28 @@ class TestInitCommand:
         result = runner.invoke(cli, ["init", "Offline", "--output", str(out)], env=env)
         assert result.exit_code == 0
 
+    def test_init_profiles_write_env_example(self, tmp_path):
+        out = tmp_path / "out"
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            [
+                "init",
+                "Profiled",
+                "--output",
+                str(out),
+                "--auth-profile",
+                "jwt",
+                "--middleware-profile",
+                "rate-limit",
+            ],
+        )
+
+        assert result.exit_code == 0
+        env_example = (out / ".env.example").read_text(encoding="utf-8")
+        assert "JWT_JWKS_URI=" in env_example
+        assert "RATE_LIMIT_RPS=" in env_example
+
 
 class TestInspectAndDoctorCommands:
     def test_inspect_json(self, tmp_path):

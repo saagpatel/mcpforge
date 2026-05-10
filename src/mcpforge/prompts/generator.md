@@ -83,12 +83,32 @@ if __name__ == "__main__":
 15. **Security**: Never pass MCP client bearer tokens through to downstream APIs. Use
     environment variables for downstream API credentials and keep secrets out of logs.
 16. **OpenAPI operations**: If a tool has `method` and `path`, implement it as an
-    async HTTP operation using `httpx.AsyncClient`, `BASE_URL`, and the tool params.
-    Path params replace `{name}` tokens, query params go in `params=`, and `body`
-    goes to `json=body`.
-17. **Auth metadata**: If a tool has `auth`, read the matching credential from an
-    environment variable listed in `env_vars`. Use Bearer headers for bearer/oauth2
-    auth and API-key headers for api_key auth. Do not hardcode credentials.
+    async HTTP operation using `httpx.AsyncClient`, `BASE_URL`, `REQUEST_TIMEOUT_SECONDS`,
+    and the tool params. Partition parameters by each param's `location` field:
+    `path` params replace `{name}` tokens in the route, `query` params go only in
+    `params=`, `header` params go only in request headers, `cookie` params go only
+    in request cookies, and the `body` param goes to `json=body`. Never put path,
+    header, cookie, or body fields into the query string. Normalize HTTP errors
+    into `RuntimeError` with status and safe response detail. For tools where
+    `retry_safe` is true, retry 429 and 5xx responses with small exponential
+    backoff before raising.
+17. **Auth metadata**: If a tool has `auth`, read the credential from
+    `tool.auth_env_var` when present, otherwise from a relevant env var listed in
+    `env_vars`. Use Bearer headers for `bearer` or `oauth2` auth. For `api_key`
+    auth, place the credential according to `tool.auth_location` and
+    `tool.auth_parameter_name`: header, query parameter, or cookie. Never hardcode
+    credentials and never log or return raw credential values.
+18. **Runtime auth profile**: If `auth_profile` is `api-key`, generate a clear
+    placeholder helper that reads `MCPFORGE_SERVER_API_KEY` and documents where
+    to enforce it for HTTP deployments; do not pass MCP client tokens downstream.
+    If `auth_profile` is `jwt`, prefer FastMCP's JWT verifier when enough env
+    config is available (`JWT_JWKS_URI`, `JWT_ISSUER`, `JWT_AUDIENCE`) and keep
+    the generated README clear about required values.
+19. **Middleware profiles**: If `middleware_profiles` contains `logging`, use
+    FastMCP `LoggingMiddleware` with payload logging disabled. If it contains
+    `timing`, use `TimingMiddleware`. If it contains `rate-limit`, use
+    `RateLimitingMiddleware` with values read from env vars. Attach middleware
+    through `FastMCP(..., middleware=[...])` so local and HTTP runs behave the same.
 
 ## Full Example
 

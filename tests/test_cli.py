@@ -41,6 +41,8 @@ class TestHelp:
         assert "--transport" in result.output
         assert "--dry-run" in result.output
         assert "--yes" in result.output
+        assert "--auth-profile" in result.output
+        assert "--middleware-profile" in result.output
 
     def test_validate_help(self):
         runner = CliRunner()
@@ -141,6 +143,60 @@ class TestGenerate:
             result = runner.invoke(cli, ["generate", "A todo server", "--dry-run", "--yes"])
         assert result.exit_code == 0
         mock_generate.assert_not_called()
+
+    def test_generate_profiles_apply_to_plan(self, tmp_path):
+        runner = CliRunner()
+        with (
+            patch("mcpforge.cli.AnthropicClient"),
+            patch("mcpforge.cli.extract_plan", new=AsyncMock(return_value=_mock_plan())),
+            patch("mcpforge.cli.generate_server", new=AsyncMock(return_value="code")),
+            patch("mcpforge.cli.generate_tests", new=AsyncMock(return_value="tests")),
+            patch("mcpforge.cli.write_server", return_value=tmp_path) as mock_write,
+            patch("mcpforge.cli.uv_sync", new=AsyncMock()),
+            patch("mcpforge.cli.validate_server", new=AsyncMock(return_value=_valid_result())),
+        ):
+            result = runner.invoke(
+                cli,
+                [
+                    "generate",
+                    "A todo server",
+                    "--yes",
+                    "--output",
+                    str(tmp_path),
+                    "--auth-profile",
+                    "api-key",
+                    "--middleware-profile",
+                    "logging",
+                ],
+            )
+
+        assert result.exit_code == 0
+        plan = mock_write.call_args.args[0]
+        assert plan.auth_profile == "api-key"
+        assert plan.middleware_profiles == ["logging"]
+        assert "MCPFORGE_SERVER_API_KEY" in plan.env_vars
+
+    def test_typescript_rejects_python_profiles(self):
+        runner = CliRunner()
+        with (
+            patch("mcpforge.cli.AnthropicClient"),
+            patch("mcpforge.cli.extract_plan", new=AsyncMock(return_value=_mock_plan())),
+        ):
+            result = runner.invoke(
+                cli,
+                [
+                    "generate",
+                    "A todo server",
+                    "--language",
+                    "typescript",
+                    "--auth-profile",
+                    "api-key",
+                    "--yes",
+                ],
+            )
+
+        assert result.exit_code != 0
+        assert "Python-only" in result.output
 
     def test_generate_self_heal_path(self, tmp_path):
         """When first validate returns invalid, attempt_fix is called and server.py is rewritten."""

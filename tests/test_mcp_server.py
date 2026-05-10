@@ -92,6 +92,36 @@ class TestMcpServerTools:
         assert "plan" in result
         assert "valid" in result
 
+    async def test_generate_tool_applies_profiles(self, tmp_path: Path, monkeypatch):
+        """generate() tool applies Python auth and middleware profiles."""
+        from mcpforge.mcp_server import generate
+
+        monkeypatch.setenv("MCPFORGE_WORKSPACE", str(tmp_path))
+        with (
+            patch("mcpforge.mcp_server.AnthropicClient"),
+            patch("mcpforge.mcp_server.extract_plan", new=AsyncMock(return_value=_mock_plan())),
+            patch("mcpforge.mcp_server.generate_server", new=AsyncMock(return_value="code")),
+            patch("mcpforge.mcp_server.generate_tests", new=AsyncMock(return_value="tests")),
+            patch("mcpforge.mcp_server.write_server", return_value=tmp_path) as mock_write,
+            patch("mcpforge.mcp_server.uv_sync", new=AsyncMock()),
+            patch(
+                "mcpforge.mcp_server.validate_server",
+                new=AsyncMock(return_value=_valid_result()),
+            ),
+        ):
+            os.environ["ANTHROPIC_API_KEY"] = "test-key"
+            result = await generate(
+                "A todo server",
+                output_path=str(tmp_path),
+                auth_profile="api-key",
+                middleware_profiles=["timing"],
+            )
+            del os.environ["ANTHROPIC_API_KEY"]
+
+        plan = mock_write.call_args.args[0]
+        assert result["plan"]["auth_profile"] == "api-key"
+        assert plan.middleware_profiles == ["timing"]
+
     async def test_update_tool_calls_update_server(self, tmp_path: Path, monkeypatch):
         """update() tool calls update_server and writes files."""
         from mcpforge.mcp_server import update

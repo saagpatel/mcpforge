@@ -24,6 +24,7 @@ from mcpforge.inspection import inspect_server
 from mcpforge.models import ServerPlan, ToolDef, ValidationResult
 from mcpforge.openapi import load_spec, parse_openapi
 from mcpforge.planner import extract_plan, refine_plan
+from mcpforge.profiles import apply_generation_profiles
 from mcpforge.prompts import load_prompt
 from mcpforge.providers import DEFAULT_PROVIDER, create_provider_client
 from mcpforge.self_heal import attempt_fix
@@ -140,6 +141,8 @@ async def _run_generate(
     openapi_exclude_tags: tuple[str, ...] = (),
     openapi_operations: tuple[str, ...] = (),
     openapi_limit: int | None = None,
+    auth_profile: str = "none",
+    middleware_profiles: tuple[str, ...] = (),
 ) -> None:
     """Async orchestration for the generate command."""
     client = None
@@ -161,6 +164,15 @@ async def _run_generate(
             task = progress.add_task("Planning server structure...", total=None)
             plan = await extract_plan(description, client, transport)
             progress.remove_task(task)
+
+    if language == "typescript" and (auth_profile != "none" or middleware_profiles):
+        raise ValueError("Auth and middleware generation profiles are Python-only for now.")
+    if language == "python":
+        plan = apply_generation_profiles(
+            plan,
+            auth_profile=auth_profile,
+            middleware_profiles=middleware_profiles,
+        )
 
     _display_plan(plan)
 
@@ -624,6 +636,20 @@ def cli() -> None:
     default=False,
     help="Treat lint errors as validation failures (halt on lint issues).",
 )
+@click.option(
+    "--auth-profile",
+    default="none",
+    show_default=True,
+    type=click.Choice(["none", "api-key", "jwt"], case_sensitive=False),
+    help="Add optional Python auth profile metadata and env docs.",
+)
+@click.option(
+    "--middleware-profile",
+    "middleware_profiles",
+    multiple=True,
+    type=click.Choice(["logging", "timing", "rate-limit"], case_sensitive=False),
+    help="Add optional Python middleware profile. Repeatable.",
+)
 def generate(
     description: str,
     output: str | None,
@@ -645,6 +671,8 @@ def generate(
     multi_file: bool,
     no_execute: bool,
     strict: bool,
+    auth_profile: str,
+    middleware_profiles: tuple[str, ...],
 ) -> None:
     """Generate a complete MCP server from a plain-English DESCRIPTION."""
     try:
@@ -671,6 +699,8 @@ def generate(
                 openapi_exclude_tags=openapi_exclude_tags,
                 openapi_operations=openapi_operations,
                 openapi_limit=openapi_limit,
+                auth_profile=auth_profile,
+                middleware_profiles=middleware_profiles,
             )
         )
     except click.exceptions.Abort:
@@ -874,7 +904,28 @@ def doctor_cmd(workspace: str, json_output: bool) -> None:
     default=False,
     help="Overwrite existing output directory.",
 )
-def init(name: str, output: str | None, transport: str, force: bool) -> None:
+@click.option(
+    "--auth-profile",
+    default="none",
+    show_default=True,
+    type=click.Choice(["none", "api-key", "jwt"], case_sensitive=False),
+    help="Add optional Python auth profile metadata and env docs.",
+)
+@click.option(
+    "--middleware-profile",
+    "middleware_profiles",
+    multiple=True,
+    type=click.Choice(["logging", "timing", "rate-limit"], case_sensitive=False),
+    help="Add optional Python middleware profile. Repeatable.",
+)
+def init(
+    name: str,
+    output: str | None,
+    transport: str,
+    force: bool,
+    auth_profile: str,
+    middleware_profiles: tuple[str, ...],
+) -> None:
     """Scaffold a minimal FastMCP server named NAME without LLM generation."""
     from jinja2 import BaseLoader
     from jinja2.sandbox import SandboxedEnvironment
@@ -885,6 +936,11 @@ def init(name: str, output: str | None, transport: str, force: bool) -> None:
         description=f"A FastMCP server named {name}",
         tools=[ToolDef(name="echo", description="Echo a message", params=[])],
         transport=transport,
+    )
+    plan = apply_generation_profiles(
+        plan,
+        auth_profile=auth_profile,
+        middleware_profiles=middleware_profiles,
     )
     output_path = Path(output) if output else Path(plan.slug)
 

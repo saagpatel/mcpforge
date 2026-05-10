@@ -29,7 +29,12 @@ Return a JSON object where keys are relative file paths and values are complete 
 - Handle invalid user input with `ValueError` and external-service failures with `RuntimeError`
 - Read all config (URLs, API keys) from environment variables
 - For OpenAPI-derived tools with `method` and `path`, use `httpx.AsyncClient`, `BASE_URL`,
-  path/query/body handling, timeouts, and env-var credentials from the plan
+  path/query/header/cookie/body handling based on each param's `location`, timeouts,
+  safe retries for idempotent operations, and env-var credentials from the plan.
+  Use `tool.auth_env_var`, `tool.auth_location`, and `tool.auth_parameter_name`
+  for downstream auth placement, never hardcoded secrets.
+- If `auth_profile` or `middleware_profiles` are present, add the same auth/middleware
+  setup in `server.py` that a single-file server would use.
 - Never pass MCP client bearer tokens through to downstream APIs
 - Return ONLY the JSON object — no markdown fences, no explanation
 

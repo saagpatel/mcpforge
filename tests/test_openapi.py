@@ -116,6 +116,20 @@ def test_parse_openapi_request_body_adds_body_param() -> None:
     assert "body" in param_names
     body_param = next(p for p in create_pet.params if p.name == "body")
     assert body_param.type == "dict"
+    assert body_param.location == "body"
+    assert body_param.media_type == "application/json"
+
+
+def test_parse_openapi_tracks_parameter_locations() -> None:
+    plan = parse_openapi(SAMPLE_SPEC)
+    list_pets = next(t for t in plan.tools if t.name == "list_pets")
+    limit_param = next(p for p in list_pets.params if p.name == "limit")
+    assert limit_param.location == "query"
+
+    get_pet = next(t for t in plan.tools if t.name == "get_pet")
+    id_param = next(p for p in get_pet.params if p.name == "id")
+    assert id_param.location == "path"
+    assert id_param.required is True
 
 
 def test_parse_openapi_raises_for_empty_paths() -> None:
@@ -201,8 +215,45 @@ def test_parse_openapi_auth_metadata_and_env_vars() -> None:
     plan = parse_openapi(SECURED_SPEC)
     create_pet = next(tool for tool in plan.tools if tool.name == "create_pet")
     assert create_pet.auth == "api_key"
+    assert create_pet.auth_scheme == "apiKeyAuth"
+    assert create_pet.auth_env_var == "APIKEYAUTH_API_KEY"
+    assert create_pet.auth_location == "header"
+    assert create_pet.auth_parameter_name == "X-API-Key"
+    assert create_pet.retry_safe is False
     assert create_pet.method == "POST"
     assert create_pet.path == "/pets"
     assert "BEARERAUTH_BEARER_TOKEN" in plan.env_vars
     assert "APIKEYAUTH_API_KEY" in plan.env_vars
+    assert "REQUEST_TIMEOUT_SECONDS" in plan.env_vars
+    assert "httpx" in plan.external_packages
     assert plan.openapi_metadata["source"] == "openapi"
+
+
+def test_parse_openapi_path_level_parameters_are_inherited() -> None:
+    spec = {
+        "openapi": "3.0.0",
+        "info": {"title": "Path Params", "version": "1.0"},
+        "paths": {
+            "/orgs/{org_id}/users": {
+                "parameters": [
+                    {
+                        "name": "org_id",
+                        "in": "path",
+                        "required": True,
+                        "schema": {"type": "string"},
+                    }
+                ],
+                "get": {
+                    "operationId": "list_users",
+                    "parameters": [{"name": "limit", "in": "query", "schema": {"type": "integer"}}],
+                    "responses": {"200": {"description": "ok"}},
+                },
+            }
+        },
+    }
+
+    plan = parse_openapi(spec)
+    tool = plan.tools[0]
+    locations = {param.name: param.location for param in tool.params}
+    assert locations == {"org_id": "path", "limit": "query"}
+    assert tool.retry_safe is True

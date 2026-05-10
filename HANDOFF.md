@@ -33,6 +33,9 @@ mcpforge generates complete FastMCP 3.x server projects from natural-language de
   support, and nested template injection hardening.
 - Added live generated fixtures for REST API, filesystem, database, and TypeScript todo
   profiles, including generated `.env.example`, README, config, tests, and validation checks.
+- Added the next v0.3 hardening pass: OpenAPI parameter/auth placement metadata,
+  optional Python auth/middleware generation profiles, clean install verification script,
+  and fixture regression checks.
 
 ## Current Command Surface
 
@@ -68,10 +71,10 @@ MCPFORGE_RUN_HOSTED_SMOKE=1 ANTHROPIC_API_KEY=... uv run pytest tests/test_hoste
 
 ## Remaining Decisions
 
-1. Finish v0.3 release hardening and run the full baseline.
+1. PyPI trusted-publisher setup still requires an authenticated PyPI account session.
 2. Keep OpenAI provider support gated until deterministic structured-output and hosted smoke evidence exists.
-3. Add deeper generated REST client behavior and optional auth/middleware profiles.
+3. Prove the new OpenAPI REST/auth prompt contract through another hosted generation smoke before tagging.
 
 ## Best Next Step
 
-Continue on `codex/v03-builder-roadmap`, run the full verification baseline, then merge back to `main` when clean.
+Log in to PyPI to add the pending publisher, then run one authenticated OpenAPI hosted generation smoke against the new profile metadata.

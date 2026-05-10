@@ -63,6 +63,8 @@ class ToolParam(BaseModel):
     description: str
     required: bool = True
     default: str | None = None
+    location: str | None = None
+    media_type: str | None = None
 
 
 class ToolDef(BaseModel):
@@ -78,6 +80,11 @@ class ToolDef(BaseModel):
     method: str | None = None
     path: str | None = None
     auth: str | None = None
+    auth_scheme: str | None = None
+    auth_env_var: str | None = None
+    auth_location: str | None = None
+    auth_parameter_name: str | None = None
+    retry_safe: bool = False
 
 
 class ResourceDef(BaseModel):
@@ -125,6 +132,8 @@ class ServerPlan(BaseModel):
     external_packages: list[str] = Field(default_factory=list)
     transport: str = "streamable-http"
     auth: str | None = None
+    auth_profile: str | None = None
+    middleware_profiles: list[str] = Field(default_factory=list)
     openapi_metadata: dict[str, str | list[str]] = Field(default_factory=dict)
 
     @field_validator("external_packages", mode="before")

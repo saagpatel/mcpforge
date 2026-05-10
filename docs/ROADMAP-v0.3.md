@@ -17,14 +17,17 @@ mcpforge is moving from "generate a runnable MCP server" to "generate a reliable
 - Added generated `.env.example`, Python `fastmcp.json`, and TypeScript README/env output.
 - Added live generated fixture examples for REST API, filesystem, database, and TypeScript todo profiles.
 - Expanded OpenAPI parsing with tag filters, operation allowlists, limits, auth/env metadata, operation method/path metadata, and schema-aware body descriptions.
+- Expanded OpenAPI metadata with path/query/header/cookie/body parameter locations, auth placement, timeout env vars, retry-safety hints, and HTTP client package metadata.
+- Added optional Python generation profiles for API-key/JWT auth metadata and logging/timing/rate-limit middleware.
+- Added clean install verification script at `scripts/verify_clean_install.sh`.
+- Added fixture regression checks for committed v0.3 generated examples.
 - Added first-class `PromptDef`, expanded resources, prompt/resource conformance checks, and prompt guidance for generating resources and prompts.
 - Hardened nested template injection checks across all plan content, not just top-level fields.
 
 ## Remaining v0.3 Work
 
-- Add deeper generated REST client behavior for OpenAPI plans, including robust path/query/body partitioning and auth header generation.
-- Add optional auth/middleware profiles for generated Python servers.
-- Add clean install verification from a temporary environment.
+- Prove the new OpenAPI REST/auth prompt contract through another hosted generation smoke before tagging.
+- Add generated fixture coverage for an authenticated OpenAPI spec once the hosted smoke is stable.
 - Keep OpenAI provider support gated until strict structured-output and hosted smoke evidence exists.
 
 ## Release Gate
@@ -37,6 +40,7 @@ uv run ruff format --check .
 uv run pytest
 uv run mcpforge validate examples/todo-server
 uv build
+scripts/verify_clean_install.sh
 ```
 
 Hosted smokes remain opt-in:

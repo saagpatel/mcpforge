@@ -14,6 +14,7 @@ from mcpforge.generator_ts import generate_server_ts, generate_tests_ts
 from mcpforge.inspection import inspect_server
 from mcpforge.openapi import load_spec, parse_openapi
 from mcpforge.planner import extract_plan
+from mcpforge.profiles import apply_generation_profiles
 from mcpforge.providers import DEFAULT_PROVIDER, create_provider_client
 from mcpforge.template_hints import TEMPLATE_HINTS
 from mcpforge.test_generator import generate_tests
@@ -85,6 +86,8 @@ async def generate(
     no_execute: bool = False,
     strict: bool = False,
     dry_run: bool = False,
+    auth_profile: str = "none",
+    middleware_profiles: list[str] | None = None,
 ) -> dict:
     """Generate a complete FastMCP 3.x server from a plain-English description.
 
@@ -96,6 +99,16 @@ async def generate(
     else:
         client = _get_client(model, provider)
         server_plan = await extract_plan(description, client, transport)
+
+    middleware_tuple = tuple(middleware_profiles or [])
+    if language == "typescript" and (auth_profile != "none" or middleware_tuple):
+        raise ToolError("Auth and middleware generation profiles are Python-only for now.")
+    if language == "python":
+        server_plan = apply_generation_profiles(
+            server_plan,
+            auth_profile=auth_profile,
+            middleware_profiles=middleware_tuple,
+        )
 
     if dry_run:
         return {"plan": server_plan.model_dump(), "dry_run": True}

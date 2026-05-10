@@ -124,6 +124,36 @@ class TestWriteServer:
         content = (out / "README.md").read_text()
         assert "API_KEY" in content
 
+    def test_readme_lists_openapi_locations_and_profiles(self, tmp_path):
+        plan = _sample_plan(
+            tools=[
+                ToolDef(
+                    name="get_item",
+                    description="Get item",
+                    params=[
+                        ToolParam(
+                            name="item_id",
+                            type="str",
+                            description="Item ID",
+                            location="path",
+                        )
+                    ],
+                    auth="api_key",
+                    auth_env_var="ITEMS_API_KEY",
+                )
+            ],
+            auth_profile="api-key",
+            middleware_profiles=["logging", "timing"],
+            env_vars=["ITEMS_API_KEY", "MCPFORGE_SERVER_API_KEY"],
+        )
+        out = tmp_path / "output"
+        write_server(plan, "s", "t", out)
+        content = (out / "README.md").read_text()
+        assert "`item_id` (`str`, path)" in content
+        assert "Auth credential env var: `ITEMS_API_KEY`" in content
+        assert "Auth profile: `api-key`" in content
+        assert "`logging`" in content
+
     def test_writes_env_example_and_fastmcp_config(self, tmp_path):
         plan = _sample_plan(env_vars=["API_KEY"], external_packages=["httpx"])
         out = tmp_path / "output"

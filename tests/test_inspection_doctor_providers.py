@@ -8,6 +8,8 @@ import pytest
 
 from mcpforge.doctor import run_doctor
 from mcpforge.inspection import inspect_server
+from mcpforge.models import ServerPlan
+from mcpforge.profiles import apply_generation_profiles
 from mcpforge.providers import create_provider_client, provider_capabilities
 
 
@@ -94,3 +96,20 @@ def test_provider_capabilities_and_openai_gate() -> None:
     assert provider_capabilities("anthropic").structured_json is True
     with pytest.raises(ValueError, match="OpenAI provider support is planned"):
         create_provider_client("openai")
+
+
+def test_apply_generation_profiles_adds_env_and_metadata() -> None:
+    plan = ServerPlan(name="Demo", description="Demo", tools=[])
+
+    updated = apply_generation_profiles(
+        plan,
+        auth_profile="jwt",
+        middleware_profiles=("logging", "rate-limit", "logging"),
+    )
+
+    assert updated.auth_profile == "jwt"
+    assert updated.middleware_profiles == ["logging", "rate-limit"]
+    assert "JWT_JWKS_URI" in updated.env_vars
+    assert "JWT_ISSUER" in updated.env_vars
+    assert "JWT_AUDIENCE" in updated.env_vars
+    assert "RATE_LIMIT_RPS" in updated.env_vars

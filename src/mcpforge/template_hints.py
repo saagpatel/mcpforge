@@ -3,9 +3,11 @@
 TEMPLATE_HINTS: dict[str, str] = {
     "rest-api": (
         "This server wraps a REST API. Use async httpx.AsyncClient for all HTTP calls. "
-        "Read API keys from environment variables. Handle HTTP errors (4xx, 5xx) by raising "
-        "RuntimeError with descriptive messages. Include the base URL as a module-level constant "
-        "read from an env var."
+        "Read API keys from environment variables. Partition path, query, header, cookie, "
+        "and JSON body values explicitly instead of mirroring all inputs into query params. "
+        "Handle HTTP errors (4xx, 5xx) by raising RuntimeError with descriptive messages. "
+        "Include the base URL and timeout as module-level constants read from env vars, and "
+        "retry only idempotent operations on 429/5xx responses."
     ),
     "database": (
         "This server queries a database. Use aiosqlite for SQLite or asyncpg for PostgreSQL. "

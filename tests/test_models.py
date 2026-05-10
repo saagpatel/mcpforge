@@ -25,6 +25,18 @@ class TestToolParam:
         param = ToolParam(name="x", type="str", description="x")
         assert param.required is True
         assert param.default is None
+        assert param.location is None
+
+    def test_openapi_metadata_fields(self):
+        param = ToolParam(
+            name="id",
+            type="str",
+            description="ID",
+            location="path",
+            media_type="application/json",
+        )
+        assert param.location == "path"
+        assert param.media_type == "application/json"
 
     def test_optional_param(self):
         param = ToolParam(
@@ -60,6 +72,26 @@ class TestToolDef:
         assert tool.return_type == "dict"
         assert tool.is_async is True
         assert tool.error_cases == []
+        assert tool.auth_env_var is None
+        assert tool.retry_safe is False
+
+    def test_openapi_auth_metadata_fields(self):
+        tool = ToolDef(
+            name="list_items",
+            description="List",
+            params=[],
+            method="GET",
+            path="/items",
+            auth="api_key",
+            auth_scheme="apiKeyAuth",
+            auth_env_var="API_KEY",
+            auth_location="header",
+            auth_parameter_name="X-API-Key",
+            retry_safe=True,
+        )
+        assert tool.auth_env_var == "API_KEY"
+        assert tool.auth_location == "header"
+        assert tool.retry_safe is True
 
     def test_custom_return_type(self):
         tool = ToolDef(name="list_items", description="List", params=[], return_type="list[dict]")
@@ -161,6 +193,8 @@ class TestServerPlan:
         assert plan.prompts == []
         assert plan.env_vars == []
         assert plan.external_packages == []
+        assert plan.auth_profile is None
+        assert plan.middleware_profiles == []
 
     def test_with_tools(self):
         tool = ToolDef(

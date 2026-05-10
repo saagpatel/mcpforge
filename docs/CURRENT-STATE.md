@@ -99,6 +99,10 @@ Latest v0.3 feature-lane result on 2026-05-10:
 - Added MCP server parity for language/template/OpenAPI/multi-file/no-execute/strict/dry-run generation options.
 - Added generated `.env.example`, Python `fastmcp.json`, and TypeScript README/env scaffolding.
 - Added OpenAPI curation and auth/env operation metadata.
+- Added OpenAPI path/query/header/cookie/body parameter-location metadata, auth placement metadata, request timeout env metadata, retry-safety hints, and `httpx` package metadata.
+- Added optional Python `--auth-profile` and repeatable `--middleware-profile` generation flags for API-key/JWT auth metadata and logging/timing/rate-limit middleware profiles.
+- Added `scripts/verify_clean_install.sh` for clean wheel install/run verification.
+- Added regression checks for committed v0.3 generated fixtures.
 - Added provider abstraction with Anthropic stable and OpenAI planned/gated.
 - Added first-class prompt model support, expanded resources, and resource/prompt conformance checks.
 - Added live generated fixtures for REST API, filesystem, database, and TypeScript todo profiles.
@@ -160,6 +164,7 @@ uv run --directory examples/weather-server pytest
 
 ## Recommended Next Moves
 
-1. Continue v0.3 hardening with deeper generated REST client behavior and optional auth/middleware profiles.
-2. Add deterministic structured-output smokes before enabling OpenAI provider support.
-3. Keep the `fastmcp-builder` PyPI distribution name in install docs while preserving the `mcpforge` command and import surface.
+1. Prove the new OpenAPI REST/auth prompt contract through an authenticated hosted generation smoke before the next release tag.
+2. Add an authenticated OpenAPI generated fixture once that smoke is stable.
+3. Add deterministic structured-output smokes before enabling OpenAI provider support.
+4. Keep the `fastmcp-builder` PyPI distribution name in install docs while preserving the `mcpforge` command and import surface.

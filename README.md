@@ -63,6 +63,8 @@ Useful generation flags:
 - `--from-openapi FILE` generates from an OpenAPI 3.x spec.
 - `--openapi-include-tag TAG`, `--openapi-exclude-tag TAG`, `--openapi-operation ID`, and `--openapi-limit N` curate OpenAPI conversion.
 - `--language python|typescript` chooses the target server language.
+- `--auth-profile none|api-key|jwt` adds optional Python auth profile metadata and env docs.
+- `--middleware-profile logging|timing|rate-limit` adds optional Python middleware profiles; repeat it to combine profiles.
 - `--provider anthropic|openai` selects the generation provider. OpenAI is listed as planned and remains gated until deterministic structured-output smokes are implemented.
 
 Useful status flags:
