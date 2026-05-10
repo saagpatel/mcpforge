@@ -65,7 +65,7 @@ uv run mcpforge validate examples/todo-server
 uv build
 ```
 
-Latest local result on 2026-05-10: the baseline above passed for the `0.3.0` release lane, `uv build` produced the `fastmcp-builder` source distribution and wheel, discovery/inspection/doctor JSON smokes passed, the stable todo example validated with 11 tests run and 0 failed, the TypeScript todo example validated with 2 tests run and 0 failed, the new v0.3 REST/filesystem/database/TypeScript/authenticated-OpenAPI fixtures validated with 33/48/49/31/23 tests run and 0 failed, and hosted Python, TypeScript, and authenticated OpenAPI generation passed with `ANTHROPIC_API_KEY` loaded from Keychain.
+Latest local result on 2026-05-10: the baseline above passed, `uv run pytest -q` reported 339 passed and 3 skipped, `uv build` produced the `fastmcp-builder` source distribution and wheel, `scripts/verify_clean_install.sh` reported `mcpforge 0.3.0`, the stable todo example validated with 11 tests run and 0 failed, the TypeScript todo example validated with 2 tests run and 0 failed, the new v0.3 REST/filesystem/database/TypeScript/authenticated-OpenAPI fixtures validated with 33/48/49/31/23 tests run and 0 failed, and hosted Python, TypeScript, and authenticated OpenAPI generation passed with `ANTHROPIC_API_KEY` loaded from Keychain.
 
 Opt-in hosted smoke command:
 
@@ -77,9 +77,9 @@ MCPFORGE_RUN_HOSTED_OPENAPI_SMOKE=1 ANTHROPIC_API_KEY=... uv run pytest tests/te
 ## Remaining Decisions
 
 1. Keep OpenAI provider support gated until OpenAI-specific hosted smoke evidence exists.
-2. Run one release-candidate verification pass before the next tag.
-3. Keep install docs on the `fastmcp-builder` distribution name while preserving the `mcpforge` command/import surface.
+2. Keep install docs on the `fastmcp-builder` distribution name while preserving the `mcpforge` command/import surface.
+3. Run one release-candidate verification pass before the next tag.
 
 ## Best Next Step
 
-Run the release-candidate verification pass, including the authenticated OpenAPI hosted smoke, before the next tag.
+Add OpenAI-specific hosted structured-output smoke coverage before moving OpenAI provider support out of gated status.

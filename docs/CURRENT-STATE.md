@@ -68,9 +68,11 @@ Latest local result on 2026-05-10 after the v0.3 fixture lane:
 
 - `uv run ruff check .`: passed
 - `uv run ruff format --check .`: passed
-- `uv run pytest -q`: 337 passed, 3 skipped
+- `uv run pytest -q`: 339 passed, 3 skipped
 - `uv run mcpforge validate examples/todo-server`: syntax, lint, import, and 11 tests passed
+- `uv run mcpforge validate examples/v03-authenticated-openapi-server`: syntax, lint, import, and 23 tests passed
 - `uv build`: built `dist/fastmcp_builder-0.3.0.tar.gz` and `dist/fastmcp_builder-0.3.0-py3-none-any.whl`
+- `scripts/verify_clean_install.sh`: passed and reported `mcpforge 0.3.0`
 - CLI smoke: `mcpforge list examples --recursive --json`, `mcpforge inspect`, and `mcpforge doctor --json` passed
 - Python example tests: todo, file-reader, database-query, slack-notifier, and weather examples passed with `uv run --directory ... pytest`
 - TypeScript example validation: the `examples/ts-todo-server` path validates from a
@@ -165,11 +167,11 @@ uv run --directory examples/weather-server pytest
 
 - Provider/model behavior is sensitive: do not change the default model or structured JSON generation path without deterministic evidence.
 - Generated templates and prompt contracts are high-impact surfaces; use a dedicated worktree before changing them.
-- The TypeScript generation path is now covered by a real-key smoke, but provider/model
-  behavior still needs deterministic evidence before any provider expansion.
+- The TypeScript and authenticated OpenAPI generation paths are covered by real-key smokes,
+  but OpenAI provider support still needs OpenAI-specific hosted evidence before expansion.
 
 ## Recommended Next Moves
 
 1. Keep OpenAI provider support gated until OpenAI-specific hosted smoke evidence exists.
-2. Add a release-candidate verification pass that includes the authenticated OpenAPI smoke before the next tag.
+2. Add OpenAI-specific hosted structured-output smoke coverage before moving OpenAI provider support out of gated status.
 3. Keep the `fastmcp-builder` PyPI distribution name in install docs while preserving the `mcpforge` command and import surface.
