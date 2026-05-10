@@ -23,9 +23,9 @@ because PyPI had no matching trusted publisher. After account verification,
 PyPI rejected the original `mcpforge` distribution name as too similar to
 existing projects including `mcp-forge` and `mcp-forge-cli`.
 
-As of 2026-05-10, PyPI has a pending trusted publisher for `fastmcp-builder`
+As of 2026-05-10, PyPI trusted publishing is working for `fastmcp-builder`
 with repository `saagpatel/mcpforge`, workflow `publish.yml`, and environment
-`pypi`.
+`pypi`. The `v0.3.0` tag published successfully through GitHub Actions.
 
 ```text
 https://pypi.org/manage/account/publishing/
@@ -47,7 +47,7 @@ For `v0.3.0`, `src/mcpforge/__init__.py` and `pyproject.toml` should report
 5. GitHub Actions will automatically run tests and publish to PyPI
 
 If publishing fails with `invalid-publisher`, confirm PyPI still has the
-pending publisher above before rerunning the failed `Publish to PyPI` workflow
+trusted publisher above before rerunning the failed `Publish to PyPI` workflow
 for the tag.
 
 ## Manual publish (without CI)

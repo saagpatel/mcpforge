@@ -13,8 +13,8 @@ mcpforge is a Python 3.12+ CLI and MCP server that generates runnable FastMCP 3.
 - Package version: `0.3.0`
 - PyPI distribution name: `fastmcp-builder`
 - Import package and commands: `mcpforge`, `mcpforge-server`
-- GitHub release: `v0.2.0` exists
-- PyPI publish: pending `v0.3.0` release after distribution rename
+- GitHub release: `v0.3.0` exists
+- PyPI publish: `fastmcp-builder==0.3.0` published successfully
 - Current v0.3 builder lane: merged into `main` after verification
 - GitHub PR queue: cleared during the latest cleanup pass
 - Dependabot alerts: cleared during the latest cleanup pass
@@ -126,6 +126,12 @@ Latest v0.3 release-prep result on 2026-05-10:
   `uvx --from /tmp/mcpforge-dist-check/fastmcp_builder-0.3.0-py3-none-any.whl mcpforge version --json`
   returned `0.3.0`.
 - `uv run mcpforge doctor --json`: passed with `mcpforge` package version `0.3.0`.
+- GitHub release `v0.3.0`: created on 2026-05-10.
+- PyPI publish workflow for tag `v0.3.0`: passed on 2026-05-10.
+- PyPI JSON verification: `fastmcp-builder` reports version `0.3.0` with wheel
+  and sdist files.
+- Clean PyPI install smoke:
+  `uvx --from fastmcp-builder==0.3.0 mcpforge version --json` returned `0.3.0`.
 
 Opt-in hosted smoke command:
 
@@ -154,9 +160,6 @@ uv run --directory examples/weather-server pytest
 
 ## Recommended Next Moves
 
-1. Commit the `fastmcp-builder` distribution rename and `0.3.0` version bump.
-2. Tag `v0.3.0` and let the `Publish to PyPI` workflow create the first PyPI
-   release through the pending trusted publisher.
-3. After PyPI publish succeeds, run a clean install smoke:
-   `uvx --from fastmcp-builder==0.3.0 mcpforge version`.
-4. Continue v0.3 hardening with deeper generated REST client behavior and optional auth/middleware profiles.
+1. Continue v0.3 hardening with deeper generated REST client behavior and optional auth/middleware profiles.
+2. Add deterministic structured-output smokes before enabling OpenAI provider support.
+3. Keep the `fastmcp-builder` PyPI distribution name in install docs while preserving the `mcpforge` command and import surface.
