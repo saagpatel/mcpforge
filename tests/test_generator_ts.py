@@ -6,6 +6,7 @@ import pytest
 
 from mcpforge.generator_ts import generate_server_ts, generate_tests_ts
 from mcpforge.models import ServerPlan, ToolDef, ToolParam
+from mcpforge.prompts import load_prompt
 
 
 @pytest.fixture()
@@ -63,6 +64,14 @@ async def test_generate_tests_ts_includes_server_code(
     call_kwargs = mock_client.generate.call_args
     user_message = call_kwargs.kwargs.get("user_message") or call_kwargs.args[1]
     assert server_code in user_message
+
+
+def test_type_script_test_prompt_handles_unknown_call_tool_content() -> None:
+    """The TS test prompt must account for strict MCP result typing."""
+    prompt = load_prompt("test_gen_ts")
+    assert "result content as `unknown`" in prompt
+    assert "Do not access `result.content[...]` directly" in prompt
+    assert "server.test.ts" in prompt
 
 
 async def test_strip_code_fences_typescript(sample_plan: ServerPlan) -> None:

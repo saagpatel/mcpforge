@@ -1,6 +1,6 @@
 # mcpforge Handoff
 
-Last updated: 2026-05-09
+Last updated: 2026-05-10
 
 ## Status
 
@@ -26,6 +26,8 @@ mcpforge generates complete FastMCP 3.x server projects from natural-language de
   summary, and removed a duplicate dependency install from TypeScript generation.
 - Added TypeScript-generated project metadata so `mcpforge list` discovers
   TypeScript servers alongside Python servers.
+- Tightened TypeScript test generation so hosted `--language typescript` output
+  validates under strict MCP result typing.
 
 ## Current Command Surface
 
@@ -49,7 +51,7 @@ uv run mcpforge validate examples/todo-server
 uv build
 ```
 
-Latest local result on 2026-05-10: the baseline above passed, `uv build` produced the `0.2.0` source distribution and wheel, `uv run pytest` reported 300 passed and 1 skipped, CLI help/version/list smokes passed, all five Python example server test files passed when run from their own example projects, the TypeScript todo example validated from a temporary copy with 2 tests run and 0 failed, and hosted generation passed with `ANTHROPIC_API_KEY` loaded from Keychain.
+Latest local result on 2026-05-10: the baseline above passed, `uv build` produced the `0.2.0` source distribution and wheel, `uv run pytest` reported 301 passed and 2 skipped, CLI help/version/list smokes passed, all five Python example server test files passed when run from their own example projects, the TypeScript todo example validated from a temporary copy with 2 tests run and 0 failed, and hosted Python plus TypeScript generation passed with `ANTHROPIC_API_KEY` loaded from Keychain.
 
 Opt-in hosted smoke command:
 
@@ -61,7 +63,7 @@ MCPFORGE_RUN_HOSTED_SMOKE=1 ANTHROPIC_API_KEY=... uv run pytest tests/test_hoste
 
 1. Decide whether to publish/tag the current verified `0.2.0` state or continue building before release.
 2. If releasing, tag/publish `0.2.0` from the current green `main`.
-3. Pick the next feature lane: hosted TypeScript generation smoke, generated-template polish, provider/model controls, or coordination/workflow expansion.
+3. Pick the next feature lane: generated-template polish, provider/model controls, or coordination/workflow expansion.
 
 ## Best Next Step
 
