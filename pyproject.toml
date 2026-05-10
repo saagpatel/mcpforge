@@ -1,6 +1,6 @@
 [project]
-name = "mcpforge"
-version = "0.2.0"
+name = "fastmcp-builder"
+version = "0.3.0"
 description = "Generate complete, runnable FastMCP 3.x MCP servers from plain-English descriptions"
 authors = [
     { name = "saagpatel", email = "saagarpatel08@gmail.com" },
@@ -40,6 +40,9 @@ Repository = "https://github.com/saagpatel/mcpforge"
 [build-system]
 requires = ["uv_build>=0.11.2,<0.12.0"]
 build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "mcpforge"
 
 [dependency-groups]
 dev = [

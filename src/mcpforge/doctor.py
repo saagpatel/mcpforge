@@ -45,6 +45,10 @@ def _package_version(package: str) -> str:
         return ""
 
 
+def _mcpforge_version() -> str:
+    return _package_version("fastmcp-builder") or _package_version("mcpforge")
+
+
 def _workspace_writable(path: Path) -> dict[str, Any]:
     root = path.resolve()
     try:
@@ -74,7 +78,7 @@ def run_doctor(workspace: Path | None = None) -> dict[str, Any]:
         "commands": commands,
         "packages": {
             "fastmcp": _package_version("fastmcp"),
-            "mcpforge": _package_version("mcpforge"),
+            "mcpforge": _mcpforge_version(),
         },
         "anthropic_api_key": {
             "ok": bool(os.environ.get("ANTHROPIC_API_KEY")),

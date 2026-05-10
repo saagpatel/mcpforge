@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 No unreleased changes.
 
+## [0.3.0] - 2026-05-10
+
+### Added
+
+- Read-only generated-server inspection through `mcpforge inspect`.
+- Local readiness diagnostics through `mcpforge doctor`.
+- JSON output for status-oriented commands including `list`, `validate`, and `version`.
+- MCP server parity for generation options, inspection, doctor checks, and server discovery.
+- OpenAPI curation controls for tags, operations, limits, auth/env metadata, and method/path metadata.
+- Generated `.env.example`, Python `fastmcp.json`, and TypeScript README/env scaffolding.
+- Live generated fixture examples for REST API, filesystem, database, and TypeScript todo profiles.
+- Provider abstraction with Anthropic stable and OpenAI explicitly gated until deterministic evidence exists.
+- First-class prompt/resource model support and prompt/resource conformance checks.
+
+### Changed
+
+- Publish the Python distribution as `fastmcp-builder` while preserving the `mcpforge` import package and console commands.
+- Hardened TypeScript validation so Vitest test counts come from the real test summary.
+- Hardened nested template-injection checks across plan content.
+
 ## [0.2.0] - 2026-05-10
 
 ### Added
@@ -36,6 +56,7 @@ No unreleased changes.
 - Initial project scaffold
 - Basic FastMCP server generation prototype
 
-[Unreleased]: https://github.com/saagpatel/mcpforge/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/saagpatel/mcpforge/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/saagpatel/mcpforge/releases/tag/v0.3.0
 [0.2.0]: https://github.com/saagpatel/mcpforge/releases/tag/v0.2.0
 [0.1.0]: https://github.com/saagpatel/mcpforge/releases/tag/v0.1.0

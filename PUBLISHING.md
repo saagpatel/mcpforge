@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- PyPI project or trusted publishing setup for `mcpforge`
+- PyPI project or trusted publishing setup for `fastmcp-builder`
 - GitHub Actions `pypi` environment configured for trusted publishing
 - `uv` installed
 
@@ -11,7 +11,7 @@
 The publish workflow uses PyPI trusted publishing. Configure the PyPI project
 publisher to match these GitHub claims:
 
-- PyPI project: `mcpforge`
+- PyPI project: `fastmcp-builder`
 - Owner: `saagpatel`
 - Repository: `mcpforge`
 - Workflow: `publish.yml`
@@ -19,24 +19,26 @@ publisher to match these GitHub claims:
 
 The first `v0.2.0` publish attempt on 2026-05-10 built and tested
 successfully, then failed at the PyPI publish step with `invalid-publisher`
-because PyPI had no matching trusted publisher.
+because PyPI had no matching trusted publisher. After account verification,
+PyPI rejected the original `mcpforge` distribution name as too similar to
+existing projects including `mcp-forge` and `mcp-forge-cli`.
 
-As of 2026-05-10, PyPI still returns 404 for `mcpforge`, so use PyPI's
-pending-publisher flow at:
+As of 2026-05-10, PyPI has a pending trusted publisher for `fastmcp-builder`
+with repository `saagpatel/mcpforge`, workflow `publish.yml`, and environment
+`pypi`.
 
 ```text
 https://pypi.org/manage/account/publishing/
 ```
 
-PyPI requires an authenticated account session before this can be added.
-The setup attempt reached the login page for that publishing URL, so the next
-manual action is to log in and add the pending GitHub Actions publisher with
-the values above.
+The package import and console commands intentionally remain `mcpforge` and
+`mcpforge-server`; only the PyPI distribution name changed.
 
 ## Manual release steps
 
-For `v0.2.0`, `src/mcpforge/__init__.py` and `pyproject.toml` already report
-`0.2.0`. Do not bump again unless intentionally cutting a later release.
+For `v0.3.0`, `src/mcpforge/__init__.py` and `pyproject.toml` should report
+`0.3.0`, and `pyproject.toml` should use distribution name
+`fastmcp-builder`.
 
 1. Confirm version in `src/mcpforge/__init__.py` and `pyproject.toml`
 2. Commit the release-prep changes.
@@ -44,8 +46,9 @@ For `v0.2.0`, `src/mcpforge/__init__.py` and `pyproject.toml` already report
 4. Push tag: `git push origin vX.Y.Z`
 5. GitHub Actions will automatically run tests and publish to PyPI
 
-If publishing fails with `invalid-publisher`, configure the trusted publisher
-above, then rerun the failed `Publish to PyPI` workflow for the existing tag.
+If publishing fails with `invalid-publisher`, confirm PyPI still has the
+pending publisher above before rerunning the failed `Publish to PyPI` workflow
+for the tag.
 
 ## Manual publish (without CI)
 
@@ -60,7 +63,7 @@ twine upload dist/*
 
 ```bash
 uv build
-python -m zipfile -l dist/mcpforge-*.whl | grep -E "(prompts|templates)"
+python -m zipfile -l dist/fastmcp_builder-*.whl | grep -E "(prompts|templates)"
 ```
 
 The wheel must include files under `mcpforge/prompts/` and `mcpforge/templates/`.

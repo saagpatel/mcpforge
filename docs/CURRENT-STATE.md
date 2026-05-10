@@ -10,9 +10,11 @@ mcpforge is a Python 3.12+ CLI and MCP server that generates runnable FastMCP 3.
 
 - Branch: `main`
 - Remote state: `main` pushed to `origin/main`
-- Package version: `0.2.0`
+- Package version: `0.3.0`
+- PyPI distribution name: `fastmcp-builder`
+- Import package and commands: `mcpforge`, `mcpforge-server`
 - GitHub release: `v0.2.0` exists
-- PyPI publish: blocked on trusted publisher setup
+- PyPI publish: pending `v0.3.0` release after distribution rename
 - Current v0.3 builder lane: merged into `main` after verification
 - GitHub PR queue: cleared during the latest cleanup pass
 - Dependabot alerts: cleared during the latest cleanup pass
@@ -85,6 +87,11 @@ Latest local result on 2026-05-10 after the v0.3 fixture lane:
 - PyPI trusted-publisher setup attempt: reached
   `https://pypi.org/manage/account/publishing/`, but PyPI required account
   login before a pending publisher could be created
+- PyPI trusted-publisher follow-up: account access was verified, PyPI rejected
+  the original `mcpforge` project name as too similar to existing projects
+  including `mcp-forge` and `mcp-forge-cli`, and a pending trusted publisher was
+  registered for `fastmcp-builder` with repository `saagpatel/mcpforge`,
+  workflow `publish.yml`, and environment `pypi`
 
 Latest v0.3 feature-lane result on 2026-05-10:
 
@@ -101,6 +108,24 @@ Latest v0.3 feature-lane result on 2026-05-10:
   - Filesystem fixture: 48 tests run, 0 failed
   - Database fixture: 49 tests run, 0 failed
   - TypeScript todo fixture: 31 tests run, 0 failed
+
+Latest v0.3 release-prep result on 2026-05-10:
+
+- PyPI pending trusted publisher exists for `fastmcp-builder`.
+- `pyproject.toml`: distribution `fastmcp-builder`, version `0.3.0`.
+- `src/mcpforge/__init__.py`: CLI/runtime version `0.3.0`.
+- `uv run ruff check .`: passed.
+- `uv run ruff format --check .`: passed.
+- `uv run pytest -q`: 322 passed, 2 skipped.
+- `uv run mcpforge validate examples/todo-server`: syntax, lint, import, and 11 tests passed.
+- `uv build --out-dir /tmp/mcpforge-dist-check --clear`: built
+  `fastmcp_builder-0.3.0.tar.gz` and `fastmcp_builder-0.3.0-py3-none-any.whl`.
+- Wheel metadata smoke: `Name: fastmcp-builder`, `Version: 0.3.0`.
+- Wheel entry point smoke: `mcpforge` and `mcpforge-server` console scripts are present.
+- Local wheel install smoke:
+  `uvx --from /tmp/mcpforge-dist-check/fastmcp_builder-0.3.0-py3-none-any.whl mcpforge version --json`
+  returned `0.3.0`.
+- `uv run mcpforge doctor --json`: passed with `mcpforge` package version `0.3.0`.
 
 Opt-in hosted smoke command:
 
@@ -129,11 +154,9 @@ uv run --directory examples/weather-server pytest
 
 ## Recommended Next Moves
 
-1. Configure PyPI trusted publishing for project `mcpforge` with owner
-   `saagpatel`, repository `mcpforge`, workflow `publish.yml`, and environment
-   `pypi`. Because the project is not on PyPI yet, use PyPI's pending-publisher
-   page after logging in: `https://pypi.org/manage/account/publishing/`.
-2. Rerun the failed `Publish to PyPI` workflow for tag `v0.2.0`.
+1. Commit the `fastmcp-builder` distribution rename and `0.3.0` version bump.
+2. Tag `v0.3.0` and let the `Publish to PyPI` workflow create the first PyPI
+   release through the pending trusted publisher.
 3. After PyPI publish succeeds, run a clean install smoke:
-   `uvx --from mcpforge==0.2.0 mcpforge version`.
+   `uvx --from fastmcp-builder==0.3.0 mcpforge version`.
 4. Continue v0.3 hardening with deeper generated REST client behavior and optional auth/middleware profiles.

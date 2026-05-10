@@ -29,8 +29,11 @@ mcpforge generates production-ready FastMCP 3.x MCP servers from plain-English d
 
 ### Installation
 ```bash
-uv tool install mcpforge
+uv tool install fastmcp-builder
 ```
+
+The PyPI distribution is `fastmcp-builder`; the installed commands remain
+`mcpforge` and `mcpforge-server`.
 
 ### Usage
 ```bash
@@ -87,7 +90,7 @@ The `generate` command sends the user's description to Claude with a structured 
 
 ## Current Status
 
-As of May 10, 2026, `main` was a verified `0.2.0` base. Active `v0.3 Builder` work is expanding mcpforge from runnable-server generation into a production integration builder with inspection, doctor checks, richer generated scaffolds, OpenAPI curation, MCP server parity, provider abstraction, and live generated fixture examples for REST API, filesystem, database, and TypeScript profiles. See `docs/CURRENT-STATE.md` and `docs/ROADMAP-v0.3.md`.
+As of May 10, 2026, `main` is prepared as `0.3.0` for the `fastmcp-builder` PyPI distribution. The v0.3 builder lane expands mcpforge from runnable-server generation into a production integration builder with inspection, doctor checks, richer generated scaffolds, OpenAPI curation, MCP server parity, provider abstraction, and live generated fixture examples for REST API, filesystem, database, and TypeScript profiles. See `docs/CURRENT-STATE.md` and `docs/ROADMAP-v0.3.md`.
 
 ## License
 
