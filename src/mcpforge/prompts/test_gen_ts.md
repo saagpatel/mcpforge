@@ -36,5 +36,9 @@ describe("tool_name", () => {
 - Treat `client.callTool()` result content as `unknown`: define a local helper or type
   assertion before accessing `content[0].text`, `content[0].type`, or content length
 - Do not access `result.content[...]` directly in assertions; use the typed helper
+- For invalid arguments, do not use `await expect(client.callTool(...)).rejects`.
+  The MCP SDK returns a tool result with `isError: true` and text content for many
+  validation/tool errors. Assert `result.isError === true` and inspect the error
+  text instead.
 - Do NOT use markdown code fences in your output
 - Generate ONE complete `server.test.ts` file

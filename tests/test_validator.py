@@ -2,7 +2,7 @@
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from mcpforge.models import ServerPlan, ToolDef
+from mcpforge.models import PromptDef, ResourceDef, ServerPlan, ToolDef
 from mcpforge.validator import (
     check_lint,
     check_plan_conformance,
@@ -260,6 +260,32 @@ async def bonus_tool():
         assert len(warnings) == 1
         assert "extra tools" in warnings[0]
         assert "bonus_tool" in warnings[0]
+
+    def test_missing_resource_and_prompt_reported(self):
+        code = """
+from fastmcp import FastMCP
+mcp = FastMCP("Test")
+
+@mcp.tool
+async def create_todo():
+    pass
+"""
+        plan = ServerPlan(
+            name="Test",
+            description="Test",
+            tools=[ToolDef(name="create_todo", description="Create", params=[])],
+            resources=[
+                ResourceDef(
+                    uri_pattern="data://config",
+                    name="config_resource",
+                    description="Config",
+                )
+            ],
+            prompts=[PromptDef(name="summarize", description="Summarize")],
+        )
+        warnings = check_plan_conformance(code, plan)
+        assert any("missing resources" in warning for warning in warnings)
+        assert any("missing prompts" in warning for warning in warnings)
 
     def test_syntax_error_returns_empty(self):
         plan = self._plan_with_tools("create_todo")

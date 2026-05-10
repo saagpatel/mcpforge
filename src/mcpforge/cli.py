@@ -2,7 +2,9 @@
 
 import asyncio
 import importlib.resources
+import json
 from pathlib import Path
+from typing import Any
 
 import click
 from rich.console import Console
@@ -15,12 +17,15 @@ from rich.text import Text
 from mcpforge import __version__
 from mcpforge.api_client import DEFAULT_MODEL, AnthropicClient
 from mcpforge.discovery import find_servers
+from mcpforge.doctor import run_doctor
 from mcpforge.generator import generate_server, generate_server_multi
 from mcpforge.generator_ts import generate_server_ts, generate_tests_ts
+from mcpforge.inspection import inspect_server
 from mcpforge.models import ServerPlan, ToolDef, ValidationResult
 from mcpforge.openapi import load_spec, parse_openapi
 from mcpforge.planner import extract_plan, refine_plan
 from mcpforge.prompts import load_prompt
+from mcpforge.providers import DEFAULT_PROVIDER, create_provider_client
 from mcpforge.self_heal import attempt_fix
 from mcpforge.template_hints import TEMPLATE_HINTS
 from mcpforge.test_generator import generate_tests
@@ -31,6 +36,33 @@ from mcpforge.validator_ts import validate_server_ts
 from mcpforge.writer import write_server, write_server_multi, write_server_ts
 
 console = Console()
+
+
+def _create_cli_client(provider: str, model: str):
+    """Create a generation client while preserving existing Anthropic test seams."""
+    if provider.lower() == "anthropic":
+        return AnthropicClient(model=model)
+    return create_provider_client(provider, model=model)
+
+
+def _print_json(data: Any) -> None:
+    """Print stable JSON for machine-readable CLI output."""
+    click.echo(json.dumps(data, indent=2, sort_keys=True))
+
+
+def _validation_result_dict(result: ValidationResult) -> dict[str, Any]:
+    """Serialize validation state for CLI and MCP output."""
+    return {
+        "valid": _validation_passed(result),
+        "structurally_valid": result.is_valid,
+        "tests_ok": result.tests_ok,
+        "syntax_ok": result.syntax_ok,
+        "import_ok": result.import_ok,
+        "lint_errors": result.lint_errors,
+        "tests_run": result.tests_run,
+        "tests_failed": result.tests_failed,
+        "errors": result.errors,
+    }
 
 
 def _load_init_template(name: str) -> str:
@@ -91,6 +123,7 @@ async def _run_generate(
     description: str,
     output: str | None,
     model: str,
+    provider: str,
     transport: str,
     dry_run: bool,
     yes: bool,
@@ -103,14 +136,25 @@ async def _run_generate(
     multi_file: bool = False,
     no_execute: bool = False,
     strict: bool = False,
+    openapi_include_tags: tuple[str, ...] = (),
+    openapi_exclude_tags: tuple[str, ...] = (),
+    openapi_operations: tuple[str, ...] = (),
+    openapi_limit: int | None = None,
 ) -> None:
     """Async orchestration for the generate command."""
-    client = AnthropicClient(model=model)
+    client = None
 
     # Stage 1: Plan
     if openapi_path:
-        plan = parse_openapi(load_spec(Path(openapi_path)))
+        plan = parse_openapi(
+            load_spec(Path(openapi_path)),
+            include_tags=set(openapi_include_tags) or None,
+            exclude_tags=set(openapi_exclude_tags) or None,
+            operations=set(openapi_operations) or None,
+            operation_limit=openapi_limit,
+        )
     else:
+        client = _create_cli_client(provider, model)
         with Progress(
             SpinnerColumn(), TextColumn("{task.description}"), console=console
         ) as progress:
@@ -136,6 +180,9 @@ async def _run_generate(
 
     if dry_run:
         return
+
+    if client is None:
+        client = _create_cli_client(provider, model)
 
     if not yes:
         click.confirm("Generate server?", abort=True)
@@ -306,11 +353,12 @@ async def _run_update(
     path: str,
     request: str,
     model: str,
+    provider: str,
     yes: bool,
 ) -> None:
     """Async orchestration for the update command."""
     output_dir = Path(path)
-    client = AnthropicClient(model=model)
+    client = _create_cli_client(provider, model)
 
     console.print(Panel(request, title="Update request"))
 
@@ -374,21 +422,47 @@ async def _run_update(
         raise SystemExit(1)
 
 
-async def _validate_command(path: str) -> None:
+async def _validate_command(path: str, json_output: bool = False) -> None:
     """Async logic for the validate command."""
     output_dir = Path(path)
     server_py = output_dir / "server.py"
-    if not server_py.exists():
-        console.print(f"[red]Error:[/red] No server.py found in {output_dir}")
+    server_ts = output_dir / "src" / "server.ts"
+    if not server_py.exists() and not server_ts.exists():
+        if json_output:
+            _print_json(
+                {
+                    "path": str(output_dir.resolve()),
+                    "valid": False,
+                    "error": "No server.py or src/server.ts found",
+                }
+            )
+        else:
+            console.print(f"[red]Error:[/red] No server.py or src/server.ts found in {output_dir}")
         raise SystemExit(1)
 
+    if json_output:
+        if server_ts.exists() and not server_py.exists():
+            result = await validate_server_ts(output_dir)
+        else:
+            await uv_sync(output_dir)
+            result = await validate_server(output_dir)
+        payload = {"path": str(output_dir.resolve()), **_validation_result_dict(result)}
+        _print_json(payload)
+        if not _validation_passed(result):
+            raise SystemExit(1)
+        return
+
     with Progress(SpinnerColumn(), TextColumn("{task.description}"), console=console) as progress:
-        task = progress.add_task("Installing dependencies (uv sync)...", total=None)
-        sync_err = await uv_sync(output_dir)
-        if sync_err:
-            console.print(f"[yellow]Warning:[/yellow] {sync_err}")
-        progress.update(task, description="Validating server...")
-        result = await validate_server(output_dir)
+        if server_ts.exists() and not server_py.exists():
+            task = progress.add_task("Validating TypeScript server...", total=None)
+            result = await validate_server_ts(output_dir)
+        else:
+            task = progress.add_task("Installing dependencies (uv sync)...", total=None)
+            sync_err = await uv_sync(output_dir)
+            if sync_err:
+                console.print(f"[yellow]Warning:[/yellow] {sync_err}")
+            progress.update(task, description="Validating server...")
+            result = await validate_server(output_dir)
         progress.remove_task(task)
 
     table = Table(title="Validation Results")
@@ -437,6 +511,13 @@ def cli() -> None:
     help="Override the LLM model used for generation.",
 )
 @click.option(
+    "--provider",
+    default=DEFAULT_PROVIDER,
+    show_default=True,
+    type=click.Choice(["anthropic", "openai"], case_sensitive=False),
+    help="Generation provider. OpenAI is gated until structured-output smokes land.",
+)
+@click.option(
     "--transport",
     "-t",
     default="streamable-http",
@@ -477,6 +558,30 @@ def cli() -> None:
     default=None,
     metavar="FILE",
     help="Generate from an OpenAPI 3.x spec (JSON or YAML). Skips the planning stage.",
+)
+@click.option(
+    "--openapi-include-tag",
+    "openapi_include_tags",
+    multiple=True,
+    help="Only include OpenAPI operations with this tag. Repeatable.",
+)
+@click.option(
+    "--openapi-exclude-tag",
+    "openapi_exclude_tags",
+    multiple=True,
+    help="Exclude OpenAPI operations with this tag. Repeatable.",
+)
+@click.option(
+    "--openapi-operation",
+    "openapi_operations",
+    multiple=True,
+    help="Only include this OpenAPI operationId. Repeatable.",
+)
+@click.option(
+    "--openapi-limit",
+    type=int,
+    default=None,
+    help="Maximum number of OpenAPI operations to convert.",
 )
 @click.option(
     "--language",
@@ -523,12 +628,17 @@ def generate(
     description: str,
     output: str | None,
     model: str,
+    provider: str,
     transport: str,
     dry_run: bool,
     yes: bool,
     force: bool,
     template: str | None,
     openapi_path: str | None,
+    openapi_include_tags: tuple[str, ...],
+    openapi_exclude_tags: tuple[str, ...],
+    openapi_operations: tuple[str, ...],
+    openapi_limit: int | None,
     language: str,
     interactive: bool,
     stream: bool,
@@ -544,6 +654,7 @@ def generate(
                 description,
                 output,
                 model,
+                provider,
                 transport,
                 dry_run,
                 yes,
@@ -556,6 +667,10 @@ def generate(
                 multi_file=multi_file,
                 no_execute=no_execute,
                 strict=strict,
+                openapi_include_tags=openapi_include_tags,
+                openapi_exclude_tags=openapi_exclude_tags,
+                openapi_operations=openapi_operations,
+                openapi_limit=openapi_limit,
             )
         )
     except click.exceptions.Abort:
@@ -579,16 +694,23 @@ def generate(
     help="Override the LLM model used for generation.",
 )
 @click.option(
+    "--provider",
+    default=DEFAULT_PROVIDER,
+    show_default=True,
+    type=click.Choice(["anthropic", "openai"], case_sensitive=False),
+    help="Generation provider. OpenAI is gated until structured-output smokes land.",
+)
+@click.option(
     "--yes",
     "-y",
     is_flag=True,
     default=False,
     help="Skip confirmation prompts.",
 )
-def update(path: str, request: str, model: str, yes: bool) -> None:
+def update(path: str, request: str, model: str, provider: str, yes: bool) -> None:
     """Apply a modification REQUEST to an existing MCP server at PATH."""
     try:
-        asyncio.run(_run_update(path, request, model, yes))
+        asyncio.run(_run_update(path, request, model, provider, yes))
     except click.exceptions.Abort:
         console.print("[yellow]Aborted.[/yellow]")
     except FileNotFoundError as exc:
@@ -601,14 +723,19 @@ def update(path: str, request: str, model: str, yes: bool) -> None:
 
 @cli.command()
 @click.argument("path")
-def validate(path: str) -> None:
+@click.option("--json", "json_output", is_flag=True, help="Print machine-readable JSON.")
+def validate(path: str, json_output: bool) -> None:
     """Validate an existing MCP server at PATH."""
-    asyncio.run(_validate_command(path))
+    asyncio.run(_validate_command(path, json_output=json_output))
 
 
 @cli.command("version")
-def version_cmd() -> None:
+@click.option("--json", "json_output", is_flag=True, help="Print machine-readable JSON.")
+def version_cmd(json_output: bool) -> None:
     """Print the mcpforge version."""
+    if json_output:
+        _print_json({"version": __version__})
+        return
     console.print(f"mcpforge {__version__}")
 
 
@@ -621,10 +748,28 @@ def version_cmd() -> None:
     default=False,
     help="Search subdirectories recursively.",
 )
-def list_servers(path: str, recursive: bool) -> None:
+@click.option("--json", "json_output", is_flag=True, help="Print machine-readable JSON.")
+def list_servers(path: str, recursive: bool, json_output: bool) -> None:
     """List mcpforge-generated servers found at PATH (default: current directory)."""
     root = Path(path).resolve()
     servers = find_servers(root, recursive=recursive)
+    if json_output:
+        _print_json(
+            {
+                "root": str(root),
+                "servers": [
+                    {
+                        "path": str(server.path),
+                        "name": server.name,
+                        "language": server.language,
+                        "tool_count": server.tool_count,
+                        "has_tests": server.has_tests,
+                    }
+                    for server in servers
+                ],
+            }
+        )
+        return
     if not servers:
         console.print("[dim]No mcpforge servers found.[/dim]")
         return
@@ -643,6 +788,67 @@ def list_servers(path: str, recursive: bool) -> None:
             str(server.path),
         )
     console.print(table)
+
+
+@cli.command("inspect")
+@click.argument("path")
+@click.option("--json", "json_output", is_flag=True, help="Print machine-readable JSON.")
+def inspect_cmd(path: str, json_output: bool) -> None:
+    """Inspect a generated MCP server without running it."""
+    info = inspect_server(Path(path))
+    if json_output:
+        _print_json(info)
+        return
+
+    table = Table(title=f"mcpforge inspect: {info['name']}")
+    table.add_column("Field", style="cyan")
+    table.add_column("Value")
+    table.add_row("Path", info["path"])
+    table.add_row("Language", info["language"])
+    table.add_row(
+        "Tools", f"{info['tools']['count']} ({', '.join(info['tools']['names']) or 'none'})"
+    )
+    table.add_row(
+        "Resources",
+        f"{info['resources']['count']} ({', '.join(info['resources']['names']) or 'none'})",
+    )
+    table.add_row(
+        "Prompts", f"{info['prompts']['count']} ({', '.join(info['prompts']['names']) or 'none'})"
+    )
+    table.add_row("Tests", "present" if info["tests"]["present"] else "missing")
+    table.add_row("Env Vars", ", ".join(info["env_vars"]) or "none")
+    table.add_row("Validation Ready", "yes" if info["validation_ready"] else "no")
+    if info["missing_files"]:
+        table.add_row("Missing", ", ".join(info["missing_files"]))
+    console.print(table)
+
+
+@cli.command("doctor")
+@click.option("--path", "workspace", default=".", help="Workspace path to check for writability.")
+@click.option("--json", "json_output", is_flag=True, help="Print machine-readable JSON.")
+def doctor_cmd(workspace: str, json_output: bool) -> None:
+    """Check local mcpforge prerequisites and provider readiness."""
+    report = run_doctor(Path(workspace))
+    if json_output:
+        _print_json(report)
+        return
+
+    table = Table(title="mcpforge doctor")
+    table.add_column("Check", style="cyan")
+    table.add_column("Result")
+    table.add_row(
+        "Python", f"{'OK' if report['python']['ok'] else 'FAIL'} {report['python']['version']}"
+    )
+    for command in report["commands"]:
+        table.add_row(command["name"], "OK" if command["ok"] else "missing")
+    table.add_row("FastMCP", report["packages"]["fastmcp"] or "not installed")
+    table.add_row("Anthropic key", "set" if report["anthropic_api_key"]["ok"] else "not set")
+    table.add_row("Workspace writable", "yes" if report["workspace"]["ok"] else "no")
+    table.add_row("Default provider", report["provider"]["default_provider"])
+    table.add_row("Default model", report["provider"]["default_model"])
+    console.print(table)
+    if not report["ok"]:
+        raise SystemExit(1)
 
 
 @cli.command()

@@ -19,10 +19,18 @@ Return a JSON object where keys are relative file paths and values are complete 
 - `server.py` is the entry point — creates the FastMCP instance and imports tools from submodules
 - Group related tools into the same file (aim for 3-6 tools per file)
 - Tool files should export their functions and decorate them with `@mcp.tool` via the imported mcp instance
+- If the plan includes resources, register read-only `@mcp.resource("...")`
+  functions with names matching the plan. Resources must return `str`, `bytes`,
+  or a list of MCP resource content objects. Serialize structured data with
+  `json.dumps(...)`; do not return a bare `dict` from a resource.
+- If the plan includes prompts, register `@mcp.prompt` functions with names matching the plan
 - Include `models.py` only if multiple tools share Pydantic input/output models
 - All tools must be `async def`
 - Handle invalid user input with `ValueError` and external-service failures with `RuntimeError`
 - Read all config (URLs, API keys) from environment variables
+- For OpenAPI-derived tools with `method` and `path`, use `httpx.AsyncClient`, `BASE_URL`,
+  path/query/body handling, timeouts, and env-var credentials from the plan
+- Never pass MCP client bearer tokens through to downstream APIs
 - Return ONLY the JSON object — no markdown fences, no explanation
 
 ## Example server.py structure

@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "sqlite-analytics-server": {
+
+      "url": "http://localhost:8000/mcp",
+      "transport": "streamable-http"
+
+    }
+  }
+}

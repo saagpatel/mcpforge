@@ -163,17 +163,18 @@ async def run_tests(output_dir: Path) -> tuple[bool, int, int, str]:
 
 
 def check_plan_conformance(code: str, plan: ServerPlan) -> list[str]:
-    """Verify generated code contains tool functions matching the plan.
+    """Verify generated code contains components matching the plan.
 
-    Returns a list of warning strings for missing or extra tools.
+    Returns a list of warning strings for missing or extra MCP components.
     """
     try:
         tree = ast.parse(code)
     except SyntaxError:
         return []  # Syntax checking is handled elsewhere
 
-    # Find all async functions decorated with @mcp.tool
     generated_tools: set[str] = set()
+    generated_resources: set[str] = set()
+    generated_prompts: set[str] = set()
     for node in ast.walk(tree):
         if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             continue
@@ -186,8 +187,27 @@ def check_plan_conformance(code: str, plan: ServerPlan) -> list[str]:
             )
             if is_mcp_tool:
                 generated_tools.add(node.name)
+            is_mcp_resource = (
+                isinstance(decorator, ast.Call)
+                and isinstance(decorator.func, ast.Attribute)
+                and isinstance(decorator.func.value, ast.Name)
+                and decorator.func.value.id == "mcp"
+                and decorator.func.attr == "resource"
+            )
+            if is_mcp_resource:
+                generated_resources.add(node.name)
+            is_mcp_prompt = (
+                isinstance(decorator, ast.Attribute)
+                and isinstance(decorator.value, ast.Name)
+                and decorator.value.id == "mcp"
+                and decorator.attr == "prompt"
+            )
+            if is_mcp_prompt:
+                generated_prompts.add(node.name)
 
     planned_tools = {t.name for t in plan.tools}
+    planned_resources = {r.name for r in plan.resources}
+    planned_prompts = {p.name for p in plan.prompts}
     warnings: list[str] = []
 
     missing = planned_tools - generated_tools
@@ -197,6 +217,14 @@ def check_plan_conformance(code: str, plan: ServerPlan) -> list[str]:
     extra = generated_tools - planned_tools
     if extra:
         warnings.append(f"Plan-to-code: extra tools not in plan: {', '.join(sorted(extra))}")
+
+    missing_resources = planned_resources - generated_resources
+    if missing_resources:
+        warnings.append(f"Plan-to-code: missing resources: {', '.join(sorted(missing_resources))}")
+
+    missing_prompts = planned_prompts - generated_prompts
+    if missing_prompts:
+        warnings.append(f"Plan-to-code: missing prompts: {', '.join(sorted(missing_prompts))}")
 
     return warnings
 

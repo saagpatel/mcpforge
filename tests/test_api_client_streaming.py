@@ -1,8 +1,37 @@
 """Tests for AnthropicClient.generate_stream()."""
 
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import anthropic
+import httpx
+
 from mcpforge.api_client import AnthropicClient
+
+
+class TestGenerate:
+    async def test_retries_connection_errors(self):
+        """generate retries transient provider connection drops."""
+        request = httpx.Request("POST", "https://api.anthropic.com/v1/messages")
+        connection_error = anthropic.APIConnectionError(request=request)
+        response = SimpleNamespace(content=[SimpleNamespace(text="ok")])
+
+        mock_messages = MagicMock()
+        mock_messages.create = AsyncMock(side_effect=[connection_error, response])
+
+        mock_anthropic = MagicMock()
+        mock_anthropic.messages = mock_messages
+
+        with (
+            patch("mcpforge.api_client.anthropic.AsyncAnthropic", return_value=mock_anthropic),
+            patch("mcpforge.api_client.asyncio.sleep", new=AsyncMock()) as mock_sleep,
+        ):
+            client = AnthropicClient(api_key="test-key")
+            result = await client.generate("system", "user")
+
+        assert result == "ok"
+        assert mock_messages.create.await_count == 2
+        mock_sleep.assert_awaited_once()
 
 
 class TestGenerateStream:

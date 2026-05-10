@@ -4,7 +4,7 @@ Last updated: 2026-05-10
 
 ## Status
 
-`main` is the active branch and was pushed after the latest cleanup pass. The repo is no longer in PR/security cleanup mode: open GitHub PRs were cleared, Dependabot alerts were cleared, and the latest GitHub `main` checks were green.
+`main` was the verified `0.2.0` base after the cleanup pass. Active `v0.3 Builder` work is happening on `codex/v03-builder-roadmap` in a dedicated worktree. The repo is no longer in PR/security cleanup mode: open GitHub PRs were cleared, Dependabot alerts were cleared, and the latest GitHub `main` checks were green before this feature lane began.
 
 ## What This Project Is
 
@@ -28,6 +28,11 @@ mcpforge generates complete FastMCP 3.x server projects from natural-language de
   TypeScript servers alongside Python servers.
 - Tightened TypeScript test generation so hosted `--language typescript` output
   validates under strict MCP result typing.
+- Started the `v0.3 Builder` roadmap: inspection, doctor, JSON outputs, MCP server parity,
+  richer generated scaffolds, OpenAPI curation, provider abstraction, prompt/resource model
+  support, and nested template injection hardening.
+- Added live generated fixtures for REST API, filesystem, database, and TypeScript todo
+  profiles, including generated `.env.example`, README, config, tests, and validation checks.
 
 ## Current Command Surface
 
@@ -35,11 +40,13 @@ mcpforge generates complete FastMCP 3.x server projects from natural-language de
 - `mcpforge update PATH REQUEST`
 - `mcpforge validate PATH`
 - `mcpforge list [PATH]`
+- `mcpforge inspect PATH`
+- `mcpforge doctor`
 - `mcpforge init NAME`
 - `mcpforge version`
 - `mcpforge-server`
 
-Note: there is no current `mcpforge inspect` command.
+Status-like commands now support `--json` where useful.
 
 ## Verification To Re-Run
 
@@ -51,7 +58,7 @@ uv run mcpforge validate examples/todo-server
 uv build
 ```
 
-Latest local result on 2026-05-10: the baseline above passed, `uv build` produced the `0.2.0` source distribution and wheel, `uv run pytest` reported 301 passed and 2 skipped, CLI help/version/list smokes passed, all five Python example server test files passed when run from their own example projects, the TypeScript todo example validated from a temporary copy with 2 tests run and 0 failed, and hosted Python plus TypeScript generation passed with `ANTHROPIC_API_KEY` loaded from Keychain.
+Latest local result on 2026-05-10: the baseline above passed, `uv build` produced the `0.2.0` source distribution and wheel, `uv run pytest -q` reported 322 passed and 2 skipped, discovery/inspection/doctor JSON smokes passed, the stable todo example validated with 11 tests run and 0 failed, the TypeScript todo example validated with 2 tests run and 0 failed, the new v0.3 REST/filesystem/database/TypeScript fixtures validated with 33/48/49/31 tests run and 0 failed, and hosted Python plus TypeScript generation passed with `ANTHROPIC_API_KEY` loaded from Keychain.
 
 Opt-in hosted smoke command:
 
@@ -61,10 +68,10 @@ MCPFORGE_RUN_HOSTED_SMOKE=1 ANTHROPIC_API_KEY=... uv run pytest tests/test_hoste
 
 ## Remaining Decisions
 
-1. Decide whether to publish/tag the current verified `0.2.0` state or continue building before release.
-2. If releasing, tag/publish `0.2.0` from the current green `main`.
-3. Pick the next feature lane: generated-template polish, provider/model controls, or coordination/workflow expansion.
+1. Finish v0.3 release hardening and run the full baseline.
+2. Keep OpenAI provider support gated until deterministic structured-output and hosted smoke evidence exists.
+3. Add deeper generated REST client behavior and optional auth/middleware profiles.
 
 ## Best Next Step
 
-Either prepare a release tag or open a focused branch for the next feature lane.
+Continue on `codex/v03-builder-roadmap`, run the full verification baseline, then merge back to `main` when clean.

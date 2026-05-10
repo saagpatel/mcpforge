@@ -5,6 +5,7 @@ from pydantic import ValidationError
 
 from mcpforge.models import (
     KNOWN_PACKAGES,
+    PromptDef,
     ResourceDef,
     ServerPlan,
     ToolDef,
@@ -109,6 +110,24 @@ class TestResourceDef:
         assert restored == res
 
 
+class TestPromptDef:
+    def test_basic_construction(self):
+        prompt = PromptDef(name="summarize", description="Summarize items")
+        assert prompt.name == "summarize"
+        assert prompt.params == []
+        assert prompt.template == ""
+
+    def test_roundtrip(self):
+        prompt = PromptDef(
+            name="summarize",
+            description="Summarize items",
+            params=[ToolParam(name="style", type="str", description="Style")],
+            template="Summarize with the requested style.",
+        )
+        restored = PromptDef.model_validate(prompt.model_dump())
+        assert restored == prompt
+
+
 class TestServerPlan:
     def _minimal_plan(self, **kwargs) -> ServerPlan:
         defaults = {
@@ -139,6 +158,7 @@ class TestServerPlan:
     def test_defaults(self):
         plan = self._minimal_plan()
         assert plan.resources == []
+        assert plan.prompts == []
         assert plan.env_vars == []
         assert plan.external_packages == []
 

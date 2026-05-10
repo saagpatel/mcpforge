@@ -1,5 +1,6 @@
 """Phase 4 CLI integration tests: list, init, stream."""
 
+import json
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -73,6 +74,23 @@ class TestListCommand:
         assert result.exit_code == 0
         assert "--recursive" in result.output
 
+    def test_list_json_outputs_servers(self, tmp_path):
+        mock_servers = [
+            ServerInfo(
+                path=tmp_path / "server-a",
+                name="server-a",
+                tool_count=3,
+                has_tests=True,
+                language="python",
+            ),
+        ]
+        runner = CliRunner()
+        with patch("mcpforge.cli.find_servers", return_value=mock_servers):
+            result = runner.invoke(cli, ["list", str(tmp_path), "--json"])
+        assert result.exit_code == 0
+        payload = json.loads(result.output)
+        assert payload["servers"][0]["name"] == "server-a"
+
 
 class TestInitCommand:
     def test_init_exits_0(self, tmp_path):
@@ -94,6 +112,49 @@ class TestInitCommand:
         runner = CliRunner()
         result = runner.invoke(cli, ["init", "Offline", "--output", str(out)], env=env)
         assert result.exit_code == 0
+
+
+class TestInspectAndDoctorCommands:
+    def test_inspect_json(self, tmp_path):
+        (tmp_path / "config.json").write_text(
+            json.dumps({"mcpServers": {"demo": {"command": "uv"}}}), encoding="utf-8"
+        )
+        (tmp_path / "server.py").write_text(
+            "\n".join(
+                [
+                    "from fastmcp import FastMCP",
+                    "mcp = FastMCP('Demo')",
+                    "@mcp.tool",
+                    "async def ping(): return {}",
+                ]
+            ),
+            encoding="utf-8",
+        )
+        (tmp_path / "test_server.py").write_text("def test_ok(): pass", encoding="utf-8")
+        (tmp_path / "pyproject.toml").write_text("[project]\nname='demo'\n", encoding="utf-8")
+        (tmp_path / "README.md").write_text("# Demo", encoding="utf-8")
+
+        runner = CliRunner()
+        result = runner.invoke(cli, ["inspect", str(tmp_path), "--json"])
+
+        assert result.exit_code == 0
+        payload = json.loads(result.output)
+        assert payload["tools"]["names"] == ["ping"]
+
+    def test_doctor_json(self, tmp_path):
+        runner = CliRunner()
+        with patch("mcpforge.cli.run_doctor", return_value={"ok": True, "provider": {}}):
+            result = runner.invoke(cli, ["doctor", "--path", str(tmp_path), "--json"])
+
+        assert result.exit_code == 0
+        assert json.loads(result.output)["ok"] is True
+
+    def test_version_json(self):
+        runner = CliRunner()
+        result = runner.invoke(cli, ["version", "--json"])
+
+        assert result.exit_code == 0
+        assert "version" in json.loads(result.output)
 
 
 class TestMultiFileFlag:

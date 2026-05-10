@@ -15,13 +15,27 @@ _JINJA_SYNTAX_RE = re.compile(r"\{\{.*?\}\}|\{%.*?%\}")
 
 def _validate_template_context(plan: ServerPlan) -> None:
     """Reject plan fields containing Jinja2 template syntax to prevent SSTI."""
-    for field_name in ("name", "description"):
-        value = getattr(plan, field_name)
-        if _JINJA_SYNTAX_RE.search(value):
-            raise ValueError(
-                f"Plan {field_name} contains Jinja2 template syntax — "
-                f"this is not allowed: {value!r}"
-            )
+
+    def walk(value: object, path: str) -> None:
+        if isinstance(value, str):
+            if _JINJA_SYNTAX_RE.search(value):
+                raise ValueError(
+                    f"Plan {path} contains Jinja2 template syntax — this is not allowed: {value!r}"
+                )
+            return
+        if isinstance(value, list):
+            for idx, item in enumerate(value):
+                walk(item, f"{path}[{idx}]")
+            return
+        if isinstance(value, dict):
+            for key, item in value.items():
+                walk(str(key), f"{path}.key")
+                walk(item, f"{path}.{key}")
+            return
+        if hasattr(value, "model_dump"):
+            walk(value.model_dump(), path)
+
+    walk(plan, "plan")
 
 
 def _validate_rel_path(rel_path: str, output_dir: Path) -> Path:
@@ -89,6 +103,8 @@ def write_server(
         ("pyproject.toml.j2", "pyproject.toml"),
         ("README.md.j2", "README.md"),
         ("config.json.j2", "config.json"),
+        ("env.example.j2", ".env.example"),
+        ("fastmcp.json.j2", "fastmcp.json"),
     ]:
         template_src = _load_template(tmpl_name)
         rendered = env.from_string(template_src).render(**context)
@@ -133,6 +149,8 @@ def write_server_multi(
         ("pyproject.toml.j2", "pyproject.toml"),
         ("README.md.j2", "README.md"),
         ("config.json.j2", "config.json"),
+        ("env.example.j2", ".env.example"),
+        ("fastmcp.json.j2", "fastmcp.json"),
     ]:
         template_src = _load_template(tmpl_name)
         rendered = env.from_string(template_src).render(**context)
@@ -178,6 +196,8 @@ def write_server_ts(
         ("ts/tsconfig.json.j2", "tsconfig.json"),
         ("ts/config.json.j2", "config.json"),
         ("ts/gitignore.j2", ".gitignore"),
+        ("ts/env.example.j2", ".env.example"),
+        ("ts/README.md.j2", "README.md"),
     ]:
         template_src = _load_template(tmpl_name)
         rendered = env.from_string(template_src).render(**context)

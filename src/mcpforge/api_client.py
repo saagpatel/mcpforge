@@ -51,7 +51,7 @@ class AnthropicClient:
     ) -> str:
         """Send a message and return the text response.
 
-        Retries up to 3 times with exponential backoff on 429 and 5xx errors.
+        Retries up to 3 times with exponential backoff on transient provider errors.
         """
         last_exc: Exception | None = None
         for attempt in range(3):
@@ -65,6 +65,12 @@ class AnthropicClient:
                 )
                 return response.content[0].text  # type: ignore[union-attr]
             except anthropic.RateLimitError as exc:
+                last_exc = exc
+                if attempt == 2:
+                    raise
+                wait = (2**attempt) + random.uniform(0.0, 1.0)
+                await asyncio.sleep(wait)
+            except anthropic.APIConnectionError as exc:
                 last_exc = exc
                 if attempt == 2:
                     raise
