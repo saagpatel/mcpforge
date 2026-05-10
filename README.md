@@ -65,7 +65,7 @@ Useful generation flags:
 - `--language python|typescript` chooses the target server language.
 - `--auth-profile none|api-key|jwt` adds optional Python auth profile metadata and env docs.
 - `--middleware-profile logging|timing|rate-limit` adds optional Python middleware profiles; repeat it to combine profiles.
-- `--provider anthropic|openai` selects the generation provider. OpenAI is listed as planned and remains gated until OpenAI-specific hosted smoke evidence exists.
+- `--provider anthropic|openai` selects the generation provider. OpenAI structured-output support has an opt-in smoke, but full OpenAI generation remains gated until planning and generation smokes pass.
 
 Useful status flags:
 - `mcpforge list --json`
@@ -79,7 +79,7 @@ Useful status flags:
 | Layer | Technology |
 |-------|------------|
 | Language | Python 3.12+ |
-| Generation | Anthropic Claude via `anthropic` SDK |
+| Generation | Anthropic Claude via `anthropic` SDK; OpenAI structured-output smoke support is gated |
 | MCP framework | FastMCP 3.x |
 | CLI | Click 8 |
 | Templates | Jinja2 |
@@ -92,7 +92,7 @@ The `generate` command sends the user's description to Claude with a structured 
 
 ## Current Status
 
-As of May 10, 2026, `0.3.0` is published to PyPI as the `fastmcp-builder` distribution. The v0.3 builder lane expands mcpforge from runnable-server generation into a production integration builder with inspection, doctor checks, richer generated scaffolds, OpenAPI curation, MCP server parity, provider abstraction, and live generated fixture examples for REST API, filesystem, database, and TypeScript profiles. See `docs/CURRENT-STATE.md` and `docs/ROADMAP-v0.3.md`.
+As of May 10, 2026, `0.3.0` is published to PyPI as the `fastmcp-builder` distribution. The v0.3 builder lane expands mcpforge from runnable-server generation into a production integration builder with inspection, doctor checks, richer generated scaffolds, OpenAPI curation, MCP server parity, provider abstraction, remote MCP readiness docs, and live generated fixture examples for REST API, filesystem, database, authenticated OpenAPI, and TypeScript profiles. See `docs/CURRENT-STATE.md` and `docs/ROADMAP-v0.3.md`.
 
 ## License
 

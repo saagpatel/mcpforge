@@ -40,6 +40,8 @@ Return a JSON object where keys are relative file paths and values are complete 
   Use `tool.auth_env_var`, `tool.auth_location`, and `tool.auth_parameter_name`
   for downstream auth placement, never hardcoded secrets. Missing downstream
   credentials must raise inside the tool/helper call path, not during import.
+  If tool descriptions identify pagination parameters, pass them through exactly
+  as query parameters and return upstream cursor/page fields unchanged.
 - If `auth_profile` or `middleware_profiles` are present, add the same auth/middleware
   setup in `server.py` that a single-file server would use.
 - Never pass MCP client bearer tokens through to downstream APIs

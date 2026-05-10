@@ -163,6 +163,19 @@ class TestWriteServer:
         config = json.loads((out / "fastmcp.json").read_text())
         assert config["source"]["entrypoint"] == "mcp"
         assert "httpx" in config["environment"]["dependencies"]
+        assert config["deployment"]["profiles"]["local_http"]["url"] == "http://127.0.0.1:8000/mcp/"
+        assert config["deployment"]["profiles"]["production_http"]["requires_auth"] is False
+        assert "env" not in config["deployment"]
+
+    def test_readme_includes_remote_mcp_readiness(self, tmp_path):
+        plan = _sample_plan(auth_profile="api-key", env_vars=["MCPFORGE_SERVER_API_KEY"])
+        out = tmp_path / "output"
+        write_server(plan, "s", "t", out)
+
+        content = (out / "README.md").read_text()
+        assert "## Remote MCP Readiness" in content
+        assert "Production HTTP" in content
+        assert "MCPFORGE_SERVER_API_KEY" in content
 
     def test_readme_lists_resources_and_prompts(self, tmp_path):
         plan = _sample_plan(

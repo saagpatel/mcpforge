@@ -18,16 +18,20 @@
     "port": 8000,
     "path": "/mcp/",
     "log_level": "INFO",
-    "env": {
-
-      "BASE_URL": "${BASE_URL}",
-
-      "HOSTED_AUTH_API_KEY": "${HOSTED_AUTH_API_KEY}",
-
-      "REQUEST_TIMEOUT_SECONDS": "${REQUEST_TIMEOUT_SECONDS}",
-
-      "MCPFORGE_SERVER_API_KEY": "${MCPFORGE_SERVER_API_KEY}"
-
+    "profiles": {
+      "local_stdio": {
+        "transport": "stdio",
+        "command": "fastmcp run server.py"
+      },
+      "local_http": {
+        "transport": "http",
+        "url": "http://127.0.0.1:8000/mcp/"
+      },
+      "production_http": {
+        "transport": "http",
+        "url": "https://your-domain.example/mcp/",
+        "requires_auth": true
+      }
     }
   }
 }

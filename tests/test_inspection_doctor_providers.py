@@ -17,8 +17,13 @@ def test_inspect_python_server_counts_components_and_env(tmp_path: Path) -> None
     (tmp_path / "config.json").write_text(
         json.dumps({"mcpServers": {"demo": {"command": "uv"}}}), encoding="utf-8"
     )
+    (tmp_path / "fastmcp.json").write_text(
+        json.dumps({"deployment": {"transport": "http", "path": "/mcp/"}}), encoding="utf-8"
+    )
     (tmp_path / "pyproject.toml").write_text("[project]\nname='demo'\n", encoding="utf-8")
-    (tmp_path / "README.md").write_text("# demo", encoding="utf-8")
+    (tmp_path / "README.md").write_text(
+        "# demo\n\n## Remote MCP Readiness\n\n## Security Notes\n", encoding="utf-8"
+    )
     (tmp_path / "test_server.py").write_text("def test_ok(): pass", encoding="utf-8")
     (tmp_path / ".env.example").write_text("API_KEY=\n", encoding="utf-8")
     (tmp_path / "server.py").write_text(
@@ -50,6 +55,7 @@ def summarize() -> str:
     assert result["prompts"]["names"] == ["summarize"]
     assert result["env_vars"] == ["API_KEY"]
     assert result["validation_ready"] is True
+    assert result["remote_mcp"]["ready"] is True
 
 
 def test_inspect_typescript_server_counts_tools(tmp_path: Path) -> None:
@@ -71,6 +77,7 @@ def test_inspect_typescript_server_counts_tools(tmp_path: Path) -> None:
     assert result["language"] == "typescript"
     assert result["tools"]["names"] == ["search_items"]
     assert result["validation_ready"] is True
+    assert result["remote_mcp"]["ready"] is False
 
 
 def test_doctor_reports_provider_capabilities(tmp_path: Path) -> None:
@@ -87,14 +94,17 @@ def test_doctor_reports_provider_capabilities(tmp_path: Path) -> None:
     assert result["ok"] is True
     assert result["provider"]["default_provider"] == "anthropic"
     assert any(
-        cap["name"] == "openai" and cap["status"] == "planned"
+        cap["name"] == "openai" and cap["status"] == "gated"
         for cap in result["provider"]["capabilities"]
     )
+    assert "openai_api_key" in result
 
 
 def test_provider_capabilities_and_openai_gate() -> None:
     assert provider_capabilities("anthropic").structured_json is True
-    with pytest.raises(ValueError, match="OpenAI provider support is planned"):
+    assert provider_capabilities("openai").structured_json is True
+    assert provider_capabilities("openai").status == "gated"
+    with pytest.raises(ValueError, match="OpenAI provider support is gated"):
         create_provider_client("openai")
 
 

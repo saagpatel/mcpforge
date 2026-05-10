@@ -7,6 +7,7 @@ from typing import Protocol
 from pydantic import BaseModel
 
 from mcpforge.api_client import DEFAULT_MODEL, AnthropicClient
+from mcpforge.openai_client import DEFAULT_OPENAI_MODEL
 
 DEFAULT_PROVIDER = "anthropic"
 
@@ -68,12 +69,12 @@ _CAPABILITIES: dict[str, ProviderCapabilities] = {
     ),
     "openai": ProviderCapabilities(
         name="openai",
-        default_model="",
-        structured_json=False,
+        default_model=DEFAULT_OPENAI_MODEL,
+        structured_json=True,
         streaming=False,
         temperature_zero=False,
-        hosted_smoke=False,
-        status="planned",
+        hosted_smoke=True,
+        status="gated",
     ),
 }
 
@@ -98,15 +99,16 @@ def create_provider_client(
 ) -> LLMProviderClient:
     """Create the configured generation client.
 
-    OpenAI is intentionally listed but not implemented until strict structured-output
-    smokes are added. This preserves the existing Anthropic default behavior.
+    OpenAI has a strict structured-output client, but full generation remains gated
+    until hosted planning and generation smokes prove the whole path.
     """
     normalized = provider.lower()
     if normalized == "anthropic":
         return AnthropicClient(model=model)
     if normalized == "openai":
         raise ValueError(
-            "OpenAI provider support is planned but gated until deterministic "
-            "structured-output and hosted generation smokes are implemented."
+            "OpenAI provider support is gated until hosted planning and generation "
+            "smokes prove the full mcpforge path. Structured-output smokes are "
+            "available through OpenAIClient."
         )
     raise ValueError(f"Unsupported provider: {provider}")

@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+from mcpforge.inspection import inspect_server
+
 ROOT = Path(__file__).resolve().parents[1]
 EXAMPLES = ROOT / "examples"
 
@@ -70,3 +72,5 @@ def test_authenticated_openapi_fixture_preserves_auth_and_request_shape() -> Non
     assert "params=query_params or None" in server_py
     assert "json=body" in server_py
     assert "Auth credential env var: `HOSTED_AUTH_API_KEY`" in readme
+    assert "## Remote MCP Readiness" in readme
+    assert inspect_server(root)["remote_mcp"]["ready"] is True

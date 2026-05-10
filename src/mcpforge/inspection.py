@@ -120,6 +120,28 @@ def inspect_server(path: Path) -> dict[str, Any]:
         next(iter(server_names.keys()), root.name) if isinstance(server_names, dict) else root.name
     )
     env_vars = _env_vars_from_env_example(root / ".env.example") or _env_vars_from_text(code)
+    readme = _read_text(root / "README.md")
+    deployment = fastmcp_config.get("deployment", {})
+    has_http_config = bool(
+        isinstance(deployment, dict)
+        and deployment.get("transport") in {"http", "streamable-http"}
+        and deployment.get("path")
+    )
+    has_security_notes = "## Security Notes" in readme
+    has_remote_checklist = "## Remote MCP Readiness" in readme
+    has_auth_boundary = bool(
+        "MCPFORGE_SERVER_API_KEY" in env_vars
+        or "JWT_JWKS_URI" in env_vars
+        or "deployment boundary" in readme
+        or "gateway" in readme
+    )
+    remote_ready = bool(
+        language == "python"
+        and fastmcp_config
+        and has_http_config
+        and has_security_notes
+        and has_remote_checklist
+    )
 
     return {
         "path": str(root),
@@ -139,6 +161,13 @@ def inspect_server(path: Path) -> dict[str, Any]:
             "has_fastmcp_json": bool(fastmcp_config),
             "has_pyproject": pyproject.exists(),
             "has_package_json": package_json.exists(),
+        },
+        "remote_mcp": {
+            "ready": remote_ready,
+            "has_http_config": has_http_config,
+            "has_security_notes": has_security_notes,
+            "has_remote_checklist": has_remote_checklist,
+            "has_auth_boundary": has_auth_boundary,
         },
         "missing_files": missing_files,
         "validation_ready": bool(root.exists() and language != "unknown" and not missing_files),

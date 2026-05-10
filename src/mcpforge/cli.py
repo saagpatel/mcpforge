@@ -847,6 +847,7 @@ def inspect_cmd(path: str, json_output: bool) -> None:
     )
     table.add_row("Tests", "present" if info["tests"]["present"] else "missing")
     table.add_row("Env Vars", ", ".join(info["env_vars"]) or "none")
+    table.add_row("Remote MCP Ready", "yes" if info["remote_mcp"]["ready"] else "no")
     table.add_row("Validation Ready", "yes" if info["validation_ready"] else "no")
     if info["missing_files"]:
         table.add_row("Missing", ", ".join(info["missing_files"]))
@@ -873,6 +874,7 @@ def doctor_cmd(workspace: str, json_output: bool) -> None:
         table.add_row(command["name"], "OK" if command["ok"] else "missing")
     table.add_row("FastMCP", report["packages"]["fastmcp"] or "not installed")
     table.add_row("Anthropic key", "set" if report["anthropic_api_key"]["ok"] else "not set")
+    table.add_row("OpenAI key", "set" if report["openai_api_key"]["ok"] else "not set")
     table.add_row("Workspace writable", "yes" if report["workspace"]["ok"] else "no")
     table.add_row("Default provider", report["provider"]["default_provider"])
     table.add_row("Default model", report["provider"]["default_model"])

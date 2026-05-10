@@ -4,7 +4,7 @@ Last updated: 2026-05-10
 
 ## Status
 
-`main` is the published `0.3.0` base. This follow-up hardening pass is happening on `codex/openapi-auth-smoke-fixture` in a dedicated worktree. The repo is no longer in PR/security cleanup mode: open GitHub PRs were cleared, Dependabot alerts were cleared, and `fastmcp-builder==0.3.0` is published on PyPI.
+`main` is the published `0.3.0` base. This follow-up hardening pass is happening on `codex/openai-remote-openapi-readiness` in a dedicated worktree. The repo is no longer in PR/security cleanup mode: open GitHub PRs were cleared, Dependabot alerts were cleared, and `fastmcp-builder==0.3.0` is published on PyPI.
 
 ## What This Project Is
 
@@ -40,6 +40,10 @@ mcpforge generates complete FastMCP 3.x server projects from natural-language de
   `v03-authenticated-openapi-server` fixture.
 - Added deterministic structured-output smoke tests for the Anthropic provider
   interface while keeping OpenAI provider support gated.
+- Added a gated OpenAI structured-output client and opt-in hosted smoke.
+- Added remote MCP readiness docs/config profiles and inspection readiness signals.
+- Expanded OpenAPI planning with richer response summaries, non-2xx error cases,
+  OAuth token placeholder guidance, and pagination context.
 
 ## Current Command Surface
 
@@ -65,21 +69,22 @@ uv run mcpforge validate examples/todo-server
 uv build
 ```
 
-Latest local result on 2026-05-10: the baseline above passed, `uv run pytest -q` reported 339 passed and 3 skipped, `uv build` produced the `fastmcp-builder` source distribution and wheel, `scripts/verify_clean_install.sh` reported `mcpforge 0.3.0`, the stable todo example validated with 11 tests run and 0 failed, the TypeScript todo example validated with 2 tests run and 0 failed, the new v0.3 REST/filesystem/database/TypeScript/authenticated-OpenAPI fixtures validated with 33/48/49/31/23 tests run and 0 failed, and hosted Python, TypeScript, and authenticated OpenAPI generation passed with `ANTHROPIC_API_KEY` loaded from Keychain.
+Latest local result on 2026-05-10: the baseline above passed, `uv run pytest -q` reported 345 passed and 4 skipped, `uv build` produced the `fastmcp-builder` source distribution and wheel, `scripts/verify_clean_install.sh` reported `mcpforge 0.3.0`, the stable todo example validated with 11 tests run and 0 failed, the authenticated OpenAPI fixture validated with 23 tests run and 0 failed, `mcpforge inspect` reported the authenticated OpenAPI fixture as remote MCP ready, the authenticated fixture started through `fastmcp run fastmcp.json` on a local HTTP test port with env vars set, hosted Python, TypeScript, and authenticated OpenAPI generation passed with `ANTHROPIC_API_KEY` loaded from Keychain, and the new OpenAI hosted structured-output smoke is present but skipped until `OPENAI_API_KEY` is set.
 
 Opt-in hosted smoke command:
 
 ```bash
 MCPFORGE_RUN_HOSTED_SMOKE=1 ANTHROPIC_API_KEY=... uv run pytest tests/test_hosted_generation_smoke.py
 MCPFORGE_RUN_HOSTED_OPENAPI_SMOKE=1 ANTHROPIC_API_KEY=... uv run pytest tests/test_hosted_generation_smoke.py::test_hosted_generate_openapi_auth_server
+MCPFORGE_RUN_HOSTED_OPENAI_SMOKE=1 OPENAI_API_KEY=... uv run pytest tests/test_hosted_generation_smoke.py::test_hosted_openai_structured_output_smoke
 ```
 
 ## Remaining Decisions
 
-1. Keep OpenAI provider support gated until OpenAI-specific hosted smoke evidence exists.
-2. Keep install docs on the `fastmcp-builder` distribution name while preserving the `mcpforge` command/import surface.
-3. Run one release-candidate verification pass before the next tag.
+1. Keep full OpenAI provider generation gated until OpenAI planning and generation hosted smokes pass.
+2. Run the OpenAI structured-output hosted smoke once `OPENAI_API_KEY` is available.
+3. Keep install docs on the `fastmcp-builder` distribution name while preserving the `mcpforge` command/import surface.
 
 ## Best Next Step
 
-Add OpenAI-specific hosted structured-output smoke coverage before moving OpenAI provider support out of gated status.
+Set `OPENAI_API_KEY`, run the opt-in OpenAI structured-output hosted smoke, then add OpenAI planning/generation hosted smokes before moving OpenAI provider support out of gated status.

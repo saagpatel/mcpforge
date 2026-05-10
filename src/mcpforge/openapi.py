@@ -40,26 +40,103 @@ def _map_type(schema_type: str) -> str:
 
 def _response_return_type(operation: dict) -> str:
     """Determine return type from operation responses."""
-    try:
-        schema = operation["responses"]["200"]["content"]["application/json"]["schema"]
-        t = schema.get("type", "dict")
-        if t == "array":
-            return "list[dict]"
+    schema = _first_json_response_schema(operation)
+    if not schema:
         return "dict"
-    except (KeyError, TypeError):
-        return "dict"
+    schema_type = schema.get("type", "dict")
+    if schema_type == "array":
+        return "list[dict]"
+    return "dict"
 
 
-def _schema_summary(schema: dict) -> str:
+def _resolve_ref(schema: dict, components: dict) -> dict:
+    """Resolve local component refs when available."""
+    ref = schema.get("$ref")
+    if not isinstance(ref, str) or not ref.startswith("#/components/schemas/"):
+        return schema
+    name = ref.rsplit("/", 1)[-1]
+    resolved = components.get("schemas", {}).get(name, {})
+    return resolved if isinstance(resolved, dict) else schema
+
+
+def _schema_summary(schema: dict, components: dict | None = None) -> str:
     """Return a compact schema summary for tool descriptions."""
     if not isinstance(schema, dict):
         return ""
-    schema_type = schema.get("type")
-    if schema_type:
-        return str(schema_type)
+    if components is not None:
+        schema = _resolve_ref(schema, components)
     if "$ref" in schema:
         return str(schema["$ref"]).rsplit("/", 1)[-1]
+    schema_type = schema.get("type")
+    if schema_type == "object":
+        properties = schema.get("properties", {})
+        if isinstance(properties, dict) and properties:
+            fields = ", ".join(str(key) for key in list(properties)[:5])
+            suffix = ", ..." if len(properties) > 5 else ""
+            return f"object fields: {fields}{suffix}"
+        return "object"
+    if schema_type == "array":
+        items = schema.get("items", {})
+        item_summary = _schema_summary(items, components) if isinstance(items, dict) else ""
+        return f"array[{item_summary}]" if item_summary else "array"
+    enum = schema.get("enum")
+    if isinstance(enum, list) and enum:
+        values = ", ".join(repr(value) for value in enum[:5])
+        suffix = ", ..." if len(enum) > 5 else ""
+        return f"enum: {values}{suffix}"
+    if schema_type:
+        return str(schema_type)
     return ""
+
+
+def _first_json_response_schema(operation: dict) -> dict | None:
+    """Return the first successful JSON response schema."""
+    responses = operation.get("responses", {})
+    if not isinstance(responses, dict):
+        return None
+    for status, response in responses.items():
+        if not str(status).startswith("2") or not isinstance(response, dict):
+            continue
+        content = response.get("content", {})
+        if not isinstance(content, dict):
+            continue
+        for media_type, media in content.items():
+            if not isinstance(media, dict):
+                continue
+            if media_type == "application/json" or str(media_type).endswith("+json"):
+                schema = media.get("schema", {})
+                return schema if isinstance(schema, dict) else None
+    return None
+
+
+def _error_cases(operation: dict) -> list[str]:
+    """Return compact non-2xx response summaries."""
+    responses = operation.get("responses", {})
+    if not isinstance(responses, dict):
+        return []
+    cases: list[str] = []
+    for status, response in responses.items():
+        if str(status).startswith("2") or not isinstance(response, dict):
+            continue
+        description = str(response.get("description") or "Upstream error")
+        cases.append(f"HTTP {status}: {description}")
+    return cases
+
+
+def _pagination_params(params: list[ToolParam]) -> list[str]:
+    """Return common pagination parameter names present in the operation."""
+    common = {
+        "cursor",
+        "next_cursor",
+        "after",
+        "before",
+        "page",
+        "page_token",
+        "per_page",
+        "limit",
+        "offset",
+    }
+    return [param.name for param in params if param.location == "query" and param.name in common]
 
 
 def _auth_metadata(scheme_name: str, scheme: dict) -> dict[str, str] | None:
@@ -147,6 +224,7 @@ def parse_openapi(
     info = spec.get("info", {})
     name: str = info.get("title", "Generated Server")
     description: str = info.get("description", name)
+    components = spec.get("components", {})
 
     tools: list[ToolDef] = []
     env_vars: list[str] = []
@@ -212,7 +290,7 @@ def parse_openapi(
             body_info = _first_json_body(operation)
             if body_info:
                 body_schema, media_type, body_required = body_info
-                schema_summary = _schema_summary(body_schema)
+                schema_summary = _schema_summary(body_schema, components)
                 params.append(
                     ToolParam(
                         name="body",
@@ -229,6 +307,11 @@ def parse_openapi(
                 )
 
             return_type = _response_return_type(operation)
+            response_schema = _first_json_response_schema(operation)
+            response_summary = (
+                _schema_summary(response_schema, components) if response_schema else ""
+            )
+            pagination = _pagination_params(params)
             security = operation.get("security", spec.get("security", []))
             auth_label: str | None = None
             auth_scheme: str | None = None
@@ -250,13 +333,23 @@ def parse_openapi(
                             break
                     if auth_label:
                         break
+            description_parts = [tool_description]
+            if response_summary:
+                description_parts.append(f"Returns {response_summary}.")
+            if pagination:
+                description_parts.append(f"Pagination parameters: {', '.join(pagination)}.")
+            if auth_label == "oauth2" and auth_env_var:
+                description_parts.append(
+                    f"Uses OAuth access token from {auth_env_var}; never proxy MCP client tokens."
+                )
 
             tools.append(
                 ToolDef(
                     name=tool_name,
-                    description=tool_description,
+                    description=" ".join(description_parts),
                     params=params,
                     return_type=return_type,
+                    error_cases=_error_cases(operation),
                     tags=operation_tags,
                     method=method.upper(),
                     path=path_str,

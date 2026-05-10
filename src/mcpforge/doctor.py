@@ -84,6 +84,10 @@ def run_doctor(workspace: Path | None = None) -> dict[str, Any]:
             "ok": bool(os.environ.get("ANTHROPIC_API_KEY")),
             "detail": "set" if os.environ.get("ANTHROPIC_API_KEY") else "not set",
         },
+        "openai_api_key": {
+            "ok": bool(os.environ.get("OPENAI_API_KEY")),
+            "detail": "set" if os.environ.get("OPENAI_API_KEY") else "not set",
+        },
         "workspace": _workspace_writable(workspace_path),
         "provider": {
             "default_provider": DEFAULT_PROVIDER,

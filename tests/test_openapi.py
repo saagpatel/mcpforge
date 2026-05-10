@@ -257,3 +257,84 @@ def test_parse_openapi_path_level_parameters_are_inherited() -> None:
     locations = {param.name: param.location for param in tool.params}
     assert locations == {"org_id": "path", "limit": "query"}
     assert tool.retry_safe is True
+
+
+def test_parse_openapi_adds_schema_error_and_pagination_context() -> None:
+    spec = {
+        "openapi": "3.0.0",
+        "info": {"title": "Paged API", "version": "1.0"},
+        "paths": {
+            "/items": {
+                "get": {
+                    "operationId": "list_items",
+                    "summary": "List items",
+                    "parameters": [
+                        {"name": "cursor", "in": "query", "schema": {"type": "string"}},
+                        {"name": "limit", "in": "query", "schema": {"type": "integer"}},
+                    ],
+                    "responses": {
+                        "200": {
+                            "description": "ok",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "properties": {
+                                            "items": {"type": "array"},
+                                            "next_cursor": {"type": "string"},
+                                        },
+                                    }
+                                }
+                            },
+                        },
+                        "429": {"description": "Too many requests"},
+                    },
+                }
+            }
+        },
+    }
+
+    plan = parse_openapi(spec)
+    tool = plan.tools[0]
+
+    assert "Returns object fields: items, next_cursor." in tool.description
+    assert "Pagination parameters: cursor, limit." in tool.description
+    assert tool.error_cases == ["HTTP 429: Too many requests"]
+
+
+def test_parse_openapi_oauth_placeholder_uses_env_token_and_guidance() -> None:
+    spec = {
+        "openapi": "3.0.0",
+        "info": {"title": "OAuth API", "version": "1.0"},
+        "components": {
+            "securitySchemes": {
+                "oauth": {
+                    "type": "oauth2",
+                    "flows": {
+                        "clientCredentials": {
+                            "tokenUrl": "https://auth.example.test/token",
+                            "scopes": {"items:read": "Read items"},
+                        }
+                    },
+                }
+            }
+        },
+        "paths": {
+            "/items": {
+                "get": {
+                    "operationId": "list_items",
+                    "summary": "List items",
+                    "security": [{"oauth": ["items:read"]}],
+                    "responses": {"200": {"description": "ok"}},
+                }
+            }
+        },
+    }
+
+    plan = parse_openapi(spec)
+    tool = plan.tools[0]
+
+    assert tool.auth == "oauth2"
+    assert tool.auth_env_var == "OAUTH_ACCESS_TOKEN"
+    assert "OAUTH_ACCESS_TOKEN" in plan.env_vars
+    assert "never proxy MCP client tokens" in tool.description

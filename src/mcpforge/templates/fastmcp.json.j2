@@ -17,11 +17,21 @@
     "host": "127.0.0.1",
     "port": 8000,
     "path": "/mcp/",
-    "log_level": "INFO"{% if plan.env_vars %},
-    "env": {
-{% for var in plan.env_vars %}
-      "{{ var }}": "${{ '{' }}{{ var }}{{ '}' }}"{% if not loop.last %},{% endif %}
-{% endfor %}
-    }{% endif %}
+    "log_level": "INFO",
+    "profiles": {
+      "local_stdio": {
+        "transport": "stdio",
+        "command": "fastmcp run server.py"
+      },
+      "local_http": {
+        "transport": "http",
+        "url": "http://127.0.0.1:8000/mcp/"
+      },
+      "production_http": {
+        "transport": "http",
+        "url": "https://your-domain.example/mcp/",
+        "requires_auth": {% if plan.auth_profile %}true{% else %}false{% endif %}
+      }
+    }
   }
 }

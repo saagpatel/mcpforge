@@ -96,7 +96,9 @@ if __name__ == "__main__":
     header, cookie, or body fields into the query string. Normalize HTTP errors
     into `RuntimeError` with status and safe response detail. For tools where
     `retry_safe` is true, retry 429 and 5xx responses with small exponential
-    backoff before raising.
+    backoff before raising. If a tool description names pagination parameters,
+    preserve those values exactly in the query string and include any returned
+    cursor/page fields in the response without inventing pagination state.
 17. **Auth metadata**: If a tool has `auth`, read the credential from
     `tool.auth_env_var` when present, otherwise from a relevant env var listed in
     `env_vars`. Use Bearer headers for `bearer` or `oauth2` auth. For `api_key`

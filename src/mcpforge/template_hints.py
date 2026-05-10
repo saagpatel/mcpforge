@@ -9,7 +9,8 @@ TEMPLATE_HINTS: dict[str, str] = {
         "tool/helper call paths so generated servers remain importable for validation. "
         "Handle HTTP errors (4xx, 5xx) by raising RuntimeError with descriptive messages. "
         "Include the base URL and timeout as module-level constants read from env vars, and "
-        "retry only idempotent operations on 429/5xx responses."
+        "retry only idempotent operations on 429/5xx responses. Preserve pagination params "
+        "such as cursor, page, limit, and offset exactly as query parameters."
     ),
     "database": (
         "This server queries a database. Use aiosqlite for SQLite or asyncpg for PostgreSQL. "

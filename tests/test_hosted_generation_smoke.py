@@ -14,11 +14,21 @@ from pathlib import Path
 
 import pytest
 from click.testing import CliRunner
+from pydantic import BaseModel
 
 from mcpforge.cli import cli
+from mcpforge.openai_client import OpenAIClient
 
 ROOT = Path(__file__).resolve().parents[1]
 AUTH_OPENAPI_SPEC = ROOT / "tests" / "fixtures" / "openapi-auth-tickets.json"
+
+
+class OpenAIStructuredSmoke(BaseModel):
+    """Small schema used by the OpenAI hosted structured-output smoke."""
+
+    name: str
+    count: int
+    ready: bool
 
 
 def _assert_valid_generation(result_output: str) -> None:
@@ -145,3 +155,25 @@ def test_hosted_generate_openapi_auth_server(tmp_path: Path) -> None:
     assert "json=body" in server_code
     assert "Auth credential env var: `HOSTED_AUTH_API_KEY`" in readme
     _assert_valid_generation(result.output)
+
+
+@pytest.mark.skipif(
+    os.environ.get("MCPFORGE_RUN_HOSTED_OPENAI_SMOKE") != "1",
+    reason="set MCPFORGE_RUN_HOSTED_OPENAI_SMOKE=1 to run the hosted OpenAI smoke",
+)
+@pytest.mark.skipif(
+    not os.environ.get("OPENAI_API_KEY"),
+    reason="OPENAI_API_KEY is required for hosted OpenAI structured-output smoke",
+)
+async def test_hosted_openai_structured_output_smoke() -> None:
+    """Prove OpenAI structured outputs before enabling the full provider path."""
+    client = OpenAIClient()
+
+    result = await client.generate_json(
+        "Return only the requested structured readiness object.",
+        "Return name='openai', count=3, ready=true.",
+        OpenAIStructuredSmoke,
+        max_tokens=256,
+    )
+
+    assert result == OpenAIStructuredSmoke(name="openai", count=3, ready=True)
