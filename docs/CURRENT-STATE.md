@@ -11,6 +11,8 @@ mcpforge is a Python 3.12+ CLI and MCP server that generates runnable FastMCP 3.
 - Branch: `main`
 - Remote state: `main` pushed to `origin/main`
 - Package version: `0.2.0`
+- GitHub release: `v0.2.0` exists
+- PyPI publish: blocked on trusted publisher setup
 - GitHub PR queue: cleared during the latest cleanup pass
 - Dependabot alerts: cleared during the latest cleanup pass
 - CI posture: green on the latest pushed `main`
@@ -71,6 +73,12 @@ Latest local result on 2026-05-10:
 - Discovery smoke: `mcpforge list examples --recursive` now includes the TypeScript todo example
 - Hosted generation smoke: passed with `ANTHROPIC_API_KEY` loaded from Keychain
 - Hosted TypeScript generation smoke: passed with `ANTHROPIC_API_KEY` loaded from Keychain
+- Release-prep cleanup: `AGENTS.md`, `CHANGELOG.md`, `PUBLISHING.md`, and
+  packaging metadata were refreshed for `0.2.0`
+- GitHub release `v0.2.0`: created on 2026-05-10
+- PyPI publish workflow: build and tests passed, publish failed with
+  `invalid-publisher` because PyPI has no matching trusted publisher for
+  `repo:saagpatel/mcpforge:environment:pypi`
 
 Opt-in hosted smoke command:
 
@@ -99,9 +107,13 @@ uv run --directory examples/weather-server pytest
 
 ## Recommended Next Moves
 
-1. Decide whether this verified `0.2.0` state is a publish/tag moment or a continue-building moment.
-2. If releasing, tag/publish `0.2.0` from the current green `main`.
-3. If continuing, prioritize one focused lane:
+1. Configure PyPI trusted publishing for project `mcpforge` with owner
+   `saagpatel`, repository `mcpforge`, workflow `publish.yml`, and environment
+   `pypi`.
+2. Rerun the failed `Publish to PyPI` workflow for tag `v0.2.0`.
+3. After PyPI publish succeeds, run a clean install smoke:
+   `uvx --from mcpforge==0.2.0 mcpforge version`.
+4. If continuing after release, prioritize one focused lane:
    - generated-template polish,
    - provider/model controls,
    - or richer coordination/workflow features.
