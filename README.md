@@ -4,7 +4,7 @@
 
 > One sentence. One command. A complete MCP server, ready to run.
 
-mcpforge generates production-ready FastMCP 3.x MCP servers from plain-English descriptions. You describe what you want; it produces tools, input validation, error handling, a pytest test suite, and a `pyproject.toml` — all wired together and ready to install.
+mcpforge generates production-ready FastMCP 3.x MCP servers from plain-English descriptions. You describe what you want; it produces tools, input validation, error handling, a pytest test suite, run configuration, and client setup docs — all wired together and ready to inspect, validate, and install.
 
 ## Features
 
@@ -14,8 +14,11 @@ mcpforge generates production-ready FastMCP 3.x MCP servers from plain-English d
 - **Validate before running** — `mcpforge validate` runs syntax, security, lint, import, and pytest checks against generated servers
 - **Iterate safely** — `mcpforge update` modifies an existing generated server and backs up changed files before writing
 - **Discover generated servers** — `mcpforge list` finds mcpforge-generated projects in a workspace
+- **Inspect and diagnose** — `mcpforge inspect` summarizes generated server shape, while `mcpforge doctor` checks local readiness
+- **Machine-readable output** — status-like commands expose `--json` for agent workflows
+- **OpenAPI curation controls** — include/exclude tags, operation allowlists, and operation limits keep generated integrations focused
 - **Scaffold without an LLM** — `mcpforge init` creates a minimal FastMCP server skeleton for local iteration
-- **MCP server mode** — `mcpforge-server` exposes generation itself as an MCP tool, so AI assistants can generate servers on demand
+- **MCP server mode** — `mcpforge-server` exposes generation, planning, validation, inspection, doctor, and discovery tools so AI assistants can build safely
 
 ## Quick Start
 
@@ -42,6 +45,12 @@ mcpforge update ./my-server "Add a tool to export todos as CSV"
 
 # Find generated servers in the current workspace
 mcpforge list . --recursive
+
+# Inspect a generated server without executing it
+mcpforge inspect ./my-server
+
+# Check local prerequisites and provider readiness
+mcpforge doctor
 ```
 
 Useful generation flags:
@@ -49,7 +58,16 @@ Useful generation flags:
 - `--no-execute` writes files but skips import and test execution.
 - `--strict` treats lint errors as hard validation failures.
 - `--from-openapi FILE` generates from an OpenAPI 3.x spec.
+- `--openapi-include-tag TAG`, `--openapi-exclude-tag TAG`, `--openapi-operation ID`, and `--openapi-limit N` curate OpenAPI conversion.
 - `--language python|typescript` chooses the target server language.
+- `--provider anthropic|openai` selects the generation provider. OpenAI is listed as planned and remains gated until deterministic structured-output smokes are implemented.
+
+Useful status flags:
+- `mcpforge list --json`
+- `mcpforge inspect PATH --json`
+- `mcpforge validate PATH --json`
+- `mcpforge doctor --json`
+- `mcpforge version --json`
 
 ## Tech Stack
 
@@ -69,7 +87,7 @@ The `generate` command sends the user's description to Claude with a structured 
 
 ## Current Status
 
-As of May 9, 2026, `main` is green after the validation, example, CI, and dependency cleanup pass. Open GitHub PRs and Dependabot alerts were cleared, and the release-readiness baseline is tracked in `docs/CURRENT-STATE.md`.
+As of May 10, 2026, `main` was a verified `0.2.0` base. Active `v0.3 Builder` work is expanding mcpforge from runnable-server generation into a production integration builder with inspection, doctor checks, richer generated scaffolds, OpenAPI curation, MCP server parity, provider abstraction, and live generated fixture examples for REST API, filesystem, database, and TypeScript profiles. See `docs/CURRENT-STATE.md` and `docs/ROADMAP-v0.3.md`.
 
 ## License
 

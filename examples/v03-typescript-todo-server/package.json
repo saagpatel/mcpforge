@@ -1,0 +1,23 @@
+{
+  "name": "typescript-todo-workflow",
+  "version": "0.1.0",
+  "description": "An MCP server for managing a TypeScript todo workflow with in-memory storage, supporting add, list, complete, delete, and workload summarization.",
+  "type": "module",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "tsx src/server.ts",
+    "test": "vitest run",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.16.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.0.0"
+  }
+}

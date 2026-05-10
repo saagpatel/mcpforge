@@ -30,6 +30,22 @@ async def tool_name(param: str, count: int = 10) -> dict:
     return {"result": ...}
 ```
 
+**Correct resource decorator:**
+```python
+@mcp.resource("data://config")
+async def get_config() -> str:
+    """Return read-only configuration context."""
+    return json.dumps({"status": "ok"})
+```
+
+**Correct prompt decorator:**
+```python
+@mcp.prompt
+def summarize_items() -> str:
+    """Prompt for summarizing items."""
+    return "Summarize these items and identify risks."
+```
+
 **Correct entry point:**
 ```python
 if __name__ == "__main__":
@@ -58,6 +74,21 @@ if __name__ == "__main__":
     `list[dict]`. For deletions, return `{"deleted": True, "id": ...}`.
 12. **Entry point**: Always end with `if __name__ == "__main__": mcp.run(transport="...")`.
     Use the `transport` value from the plan JSON.
+13. **Resources**: If the plan includes resources, generate `@mcp.resource("...")`
+    functions with names matching the plan. Resources must be read-only and return
+    `str`, `bytes`, or a list of MCP resource content objects. Serialize structured
+    data with `json.dumps(...)`; do not return a bare `dict` from a resource.
+14. **Prompts**: If the plan includes prompts, generate `@mcp.prompt` functions with
+    names matching the plan. Return the prompt template string from the plan when present.
+15. **Security**: Never pass MCP client bearer tokens through to downstream APIs. Use
+    environment variables for downstream API credentials and keep secrets out of logs.
+16. **OpenAPI operations**: If a tool has `method` and `path`, implement it as an
+    async HTTP operation using `httpx.AsyncClient`, `BASE_URL`, and the tool params.
+    Path params replace `{name}` tokens, query params go in `params=`, and `body`
+    goes to `json=body`.
+17. **Auth metadata**: If a tool has `auth`, read the matching credential from an
+    environment variable listed in `env_vars`. Use Bearer headers for bearer/oauth2
+    auth and API-key headers for api_key auth. Do not hardcode credentials.
 
 ## Full Example
 

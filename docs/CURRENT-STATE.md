@@ -6,11 +6,14 @@ Last updated: 2026-05-10
 
 mcpforge is a Python 3.12+ CLI and MCP server that generates runnable FastMCP 3.x servers from plain-English descriptions. It uses a structured planning stage before code generation, validates LLM output before trusting it, and includes example generated servers for regression coverage.
 
+The active direction is now `v0.3 Builder`: expand from runnable-server generation into reliable production integration generation for agent builders.
+
 ## Current Repo State
 
 - Branch: `main`
 - Remote state: `main` pushed to `origin/main`
 - Package version: `0.2.0`
+- Active feature work: `codex/v03-builder-roadmap` in a dedicated worktree
 - GitHub PR queue: cleared during the latest cleanup pass
 - Dependabot alerts: cleared during the latest cleanup pass
 - CI posture: green on the latest pushed `main`
@@ -39,11 +42,13 @@ mcpforge is a Python 3.12+ CLI and MCP server that generates runnable FastMCP 3.
 - `mcpforge update PATH REQUEST`
 - `mcpforge validate PATH`
 - `mcpforge list [PATH]`
+- `mcpforge inspect PATH`
+- `mcpforge doctor`
 - `mcpforge init NAME`
 - `mcpforge version`
 - `mcpforge-server`
 
-There is no current `mcpforge inspect` command. Older docs that mention it should be treated as stale.
+Status-like commands now support `--json` where useful.
 
 ## Verification Baseline
 
@@ -57,20 +62,36 @@ uv run mcpforge validate examples/todo-server
 uv build
 ```
 
-Latest local result on 2026-05-10:
+Latest local result on 2026-05-10 after the v0.3 fixture lane:
 
 - `uv run ruff check .`: passed
 - `uv run ruff format --check .`: passed
-- `uv run pytest`: 301 passed, 2 skipped
+- `uv run pytest -q`: 322 passed, 2 skipped
 - `uv run mcpforge validate examples/todo-server`: syntax, lint, import, and 11 tests passed
 - `uv build`: built `dist/mcpforge-0.2.0.tar.gz` and `dist/mcpforge-0.2.0-py3-none-any.whl`
-- CLI smoke: `mcpforge --help`, `mcpforge version`, and `mcpforge list examples --recursive` passed
+- CLI smoke: `mcpforge list examples --recursive --json`, `mcpforge inspect`, and `mcpforge doctor --json` passed
 - Python example tests: todo, file-reader, database-query, slack-notifier, and weather examples passed with `uv run --directory ... pytest`
 - TypeScript example validation: the `examples/ts-todo-server` path validates from a
   temporary copy and reports 2 tests run, 0 failed
 - Discovery smoke: `mcpforge list examples --recursive` now includes the TypeScript todo example
 - Hosted generation smoke: passed with `ANTHROPIC_API_KEY` loaded from Keychain
 - Hosted TypeScript generation smoke: passed with `ANTHROPIC_API_KEY` loaded from Keychain
+
+Latest v0.3 feature-lane result on 2026-05-10:
+
+- Added `inspect`, `doctor`, and JSON output surfaces.
+- Added MCP server parity for language/template/OpenAPI/multi-file/no-execute/strict/dry-run generation options.
+- Added generated `.env.example`, Python `fastmcp.json`, and TypeScript README/env scaffolding.
+- Added OpenAPI curation and auth/env operation metadata.
+- Added provider abstraction with Anthropic stable and OpenAI planned/gated.
+- Added first-class prompt model support, expanded resources, and resource/prompt conformance checks.
+- Added live generated fixtures for REST API, filesystem, database, and TypeScript todo profiles.
+- Focused feature tests: 182 passed.
+- New generated fixture validation:
+  - REST API fixture: 33 tests run, 0 failed
+  - Filesystem fixture: 48 tests run, 0 failed
+  - Database fixture: 49 tests run, 0 failed
+  - TypeScript todo fixture: 31 tests run, 0 failed
 
 Opt-in hosted smoke command:
 
@@ -99,9 +120,6 @@ uv run --directory examples/weather-server pytest
 
 ## Recommended Next Moves
 
-1. Decide whether this verified `0.2.0` state is a publish/tag moment or a continue-building moment.
-2. If releasing, tag/publish `0.2.0` from the current green `main`.
-3. If continuing, prioritize one focused lane:
-   - generated-template polish,
-   - provider/model controls,
-   - or richer coordination/workflow features.
+1. Finish v0.3 release hardening on the feature branch.
+2. Run the full baseline plus hosted smokes before merging.
+3. Add deeper generated REST client behavior and optional auth/middleware profiles.

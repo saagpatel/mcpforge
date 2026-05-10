@@ -43,6 +43,39 @@ SAMPLE_SPEC: dict = {
     },
 }
 
+SECURED_SPEC: dict = {
+    **SAMPLE_SPEC,
+    "components": {
+        "securitySchemes": {
+            "bearerAuth": {"type": "http", "scheme": "bearer"},
+            "apiKeyAuth": {"type": "apiKey", "in": "header", "name": "X-API-Key"},
+        }
+    },
+    "security": [{"bearerAuth": []}],
+    "paths": {
+        "/pets": {
+            "get": {
+                "operationId": "list_pets",
+                "summary": "List all pets",
+                "tags": ["pets", "read"],
+                "responses": {"200": {"description": "ok"}},
+            },
+            "post": {
+                "operationId": "create_pet",
+                "summary": "Create a pet",
+                "tags": ["pets", "write"],
+                "security": [{"apiKeyAuth": []}],
+                "requestBody": {
+                    "content": {
+                        "application/json": {"schema": {"$ref": "#/components/schemas/Pet"}}
+                    }
+                },
+                "responses": {"201": {"description": "Created"}},
+            },
+        }
+    },
+}
+
 
 def test_parse_openapi_extracts_correct_tool_count() -> None:
     """parse_openapi extracts 3 tools from the sample spec."""
@@ -146,3 +179,30 @@ def test_parse_openapi_description_from_info() -> None:
     """parse_openapi uses info.description as server description."""
     plan = parse_openapi(SAMPLE_SPEC)
     assert plan.description == "A pet store API"
+
+
+def test_parse_openapi_filters_include_tags() -> None:
+    plan = parse_openapi(SECURED_SPEC, include_tags={"write"})
+    assert [tool.name for tool in plan.tools] == ["create_pet"]
+
+
+def test_parse_openapi_filters_exclude_tags() -> None:
+    plan = parse_openapi(SECURED_SPEC, exclude_tags={"write"})
+    assert [tool.name for tool in plan.tools] == ["list_pets"]
+
+
+def test_parse_openapi_filters_operations_and_limit() -> None:
+    plan = parse_openapi(SECURED_SPEC, operations={"create_pet"}, operation_limit=1)
+    assert len(plan.tools) == 1
+    assert plan.tools[0].name == "create_pet"
+
+
+def test_parse_openapi_auth_metadata_and_env_vars() -> None:
+    plan = parse_openapi(SECURED_SPEC)
+    create_pet = next(tool for tool in plan.tools if tool.name == "create_pet")
+    assert create_pet.auth == "api_key"
+    assert create_pet.method == "POST"
+    assert create_pet.path == "/pets"
+    assert "BEARERAUTH_BEARER_TOKEN" in plan.env_vars
+    assert "APIKEYAUTH_API_KEY" in plan.env_vars
+    assert plan.openapi_metadata["source"] == "openapi"

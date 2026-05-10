@@ -2,6 +2,7 @@
 
 from mcpforge.api_client import DEFAULT_MODEL
 from mcpforge.models import (
+    PromptDef,
     ResourceDef,
     ServerPlan,
     ToolDef,
@@ -11,6 +12,7 @@ from mcpforge.models import (
 
 __version__ = "0.2.0"
 __all__ = [
+    "PromptDef",
     "ResourceDef",
     "ServerPlan",
     "ToolDef",

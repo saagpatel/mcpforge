@@ -1,0 +1,96 @@
+"""Tests for v0.3 inspection, doctor, and provider planning surfaces."""
+
+import json
+from pathlib import Path
+from unittest.mock import patch
+
+import pytest
+
+from mcpforge.doctor import run_doctor
+from mcpforge.inspection import inspect_server
+from mcpforge.providers import create_provider_client, provider_capabilities
+
+
+def test_inspect_python_server_counts_components_and_env(tmp_path: Path) -> None:
+    (tmp_path / "config.json").write_text(
+        json.dumps({"mcpServers": {"demo": {"command": "uv"}}}), encoding="utf-8"
+    )
+    (tmp_path / "pyproject.toml").write_text("[project]\nname='demo'\n", encoding="utf-8")
+    (tmp_path / "README.md").write_text("# demo", encoding="utf-8")
+    (tmp_path / "test_server.py").write_text("def test_ok(): pass", encoding="utf-8")
+    (tmp_path / ".env.example").write_text("API_KEY=\n", encoding="utf-8")
+    (tmp_path / "server.py").write_text(
+        """
+from fastmcp import FastMCP
+mcp = FastMCP("Demo")
+
+@mcp.tool
+async def search_items(query: str) -> dict:
+    return {"query": query}
+
+@mcp.resource("data://config")
+def config_resource() -> dict:
+    return {}
+
+@mcp.prompt
+def summarize() -> str:
+    return "Summarize."
+""",
+        encoding="utf-8",
+    )
+
+    result = inspect_server(tmp_path)
+
+    assert result["name"] == "demo"
+    assert result["language"] == "python"
+    assert result["tools"]["names"] == ["search_items"]
+    assert result["resources"]["names"] == ["config_resource"]
+    assert result["prompts"]["names"] == ["summarize"]
+    assert result["env_vars"] == ["API_KEY"]
+    assert result["validation_ready"] is True
+
+
+def test_inspect_typescript_server_counts_tools(tmp_path: Path) -> None:
+    src = tmp_path / "src"
+    src.mkdir()
+    (tmp_path / "config.json").write_text(
+        json.dumps({"mcpServers": {"ts-demo": {"command": "npm"}}}), encoding="utf-8"
+    )
+    (tmp_path / "package.json").write_text("{}", encoding="utf-8")
+    (tmp_path / "tsconfig.json").write_text("{}", encoding="utf-8")
+    (src / "server.test.ts").write_text("test('ok', () => {})", encoding="utf-8")
+    (src / "server.ts").write_text(
+        'server.tool("search_items", "Search", {}, async () => ({ content: [] }));',
+        encoding="utf-8",
+    )
+
+    result = inspect_server(tmp_path)
+
+    assert result["language"] == "typescript"
+    assert result["tools"]["names"] == ["search_items"]
+    assert result["validation_ready"] is True
+
+
+def test_doctor_reports_provider_capabilities(tmp_path: Path) -> None:
+    with patch("mcpforge.doctor._command_version") as command_version:
+        command_version.side_effect = lambda name, *args: {
+            "name": name,
+            "ok": name in {"uv", "ruff", "pytest"},
+            "path": f"/bin/{name}",
+            "version": "test",
+            "detail": "",
+        }
+        result = run_doctor(tmp_path)
+
+    assert result["ok"] is True
+    assert result["provider"]["default_provider"] == "anthropic"
+    assert any(
+        cap["name"] == "openai" and cap["status"] == "planned"
+        for cap in result["provider"]["capabilities"]
+    )
+
+
+def test_provider_capabilities_and_openai_gate() -> None:
+    assert provider_capabilities("anthropic").structured_json is True
+    with pytest.raises(ValueError, match="OpenAI provider support is planned"):
+        create_provider_client("openai")

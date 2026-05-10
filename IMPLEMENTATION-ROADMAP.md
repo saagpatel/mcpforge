@@ -1,5 +1,9 @@
 # mcpforge — Implementation Roadmap
 
+> Historical roadmap note: this file captures the original implementation plan. The active
+> pre-release roadmap is `docs/ROADMAP-v0.3.md`, and current verified state is tracked in
+> `docs/CURRENT-STATE.md`.
+
 ## Architecture
 
 ### System Overview
@@ -57,12 +61,16 @@ mcpforge/
 │   └── fixtures/
 │       ├── sample_descriptions.py   # 10+ diverse test input descriptions
 │       └── sample_plans.py          # Expected ServerPlan outputs for fixtures
-├── examples/                        # 5 pre-generated example servers
+├── examples/                        # Stable examples plus live v0.3 generated fixtures
 │   ├── todo-server/
 │   ├── weather-server/
 │   ├── file-reader-server/
 │   ├── database-query-server/
-│   └── slack-notifier-server/
+│   ├── slack-notifier-server/
+│   ├── v03-rest-api-server/
+│   ├── v03-filesystem-server/
+│   ├── v03-database-server/
+│   └── v03-typescript-todo-server/
 ├── pyproject.toml                   # mcpforge's own project config
 ├── README.md
 ├── LICENSE                          # MIT

@@ -27,6 +27,11 @@ await server.connect(transport);
 ## Rules
 - Use `@modelcontextprotocol/sdk` package
 - Use `zod` for parameter validation
+- Use `StdioServerTransport` from `@modelcontextprotocol/sdk/server/stdio.js`
+  for TypeScript output.
+- Do not use `StreamableHTTPServerTransport`, `SSEServerTransport`, HTTP servers,
+  or transport option objects in generated TypeScript code. TypeScript HTTP
+  transport support is intentionally deferred.
 - All tools must be async
 - Return content as `[{ type: "text" as const, text: JSON.stringify(result) }]`
 - Read API keys and config from `process.env`

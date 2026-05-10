@@ -3,6 +3,7 @@
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import yaml
 from click.testing import CliRunner
 
 from mcpforge import DEFAULT_MODEL, __version__
@@ -219,6 +220,39 @@ class TestGenerate:
         assert result.exit_code == 0
         _, kwargs = mock_w.call_args
         assert kwargs.get("force") is True
+
+    def test_openapi_dry_run_does_not_require_api_key(self, tmp_path):
+        spec = {
+            "openapi": "3.0.0",
+            "info": {"title": "Dry API", "version": "1.0"},
+            "paths": {
+                "/ping": {
+                    "get": {
+                        "operationId": "ping",
+                        "summary": "Ping",
+                        "responses": {"200": {"description": "ok"}},
+                    }
+                }
+            },
+        }
+        spec_path = tmp_path / "openapi.yaml"
+        spec_path.write_text(yaml.safe_dump(spec), encoding="utf-8")
+        runner = CliRunner()
+
+        result = runner.invoke(
+            cli,
+            [
+                "generate",
+                "ignored",
+                "--from-openapi",
+                str(spec_path),
+                "--dry-run",
+            ],
+            env={"ANTHROPIC_API_KEY": ""},
+        )
+
+        assert result.exit_code == 0
+        assert "Dry API" in result.output
 
 
 class TestValidate:

@@ -42,6 +42,7 @@ KNOWN_PACKAGES: frozenset[str] = frozenset(
         "scipy",
         "scikit-learn",
         "seaborn",
+        "sqlparse",
         "sqlalchemy",
         "starlette",
         "tenacity",
@@ -73,6 +74,10 @@ class ToolDef(BaseModel):
     return_type: str = "dict"
     is_async: bool = True
     error_cases: list[str] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
+    method: str | None = None
+    path: str | None = None
+    auth: str | None = None
 
 
 class ResourceDef(BaseModel):
@@ -82,6 +87,8 @@ class ResourceDef(BaseModel):
     name: str
     description: str
     is_template: bool = False
+    return_type: str = "str"
+    tags: list[str] = Field(default_factory=list)
 
     @field_validator("uri_pattern", mode="before")
     @classmethod
@@ -94,6 +101,16 @@ class ResourceDef(BaseModel):
         return v
 
 
+class PromptDef(BaseModel):
+    """Definition of an MCP prompt to generate."""
+
+    name: str
+    description: str
+    params: list[ToolParam] = Field(default_factory=list)
+    template: str = ""
+    tags: list[str] = Field(default_factory=list)
+
+
 class ServerPlan(BaseModel):
     """Complete structured plan for an MCP server, extracted from natural language."""
 
@@ -103,9 +120,12 @@ class ServerPlan(BaseModel):
     version: str = "0.1.0"
     tools: list[ToolDef]
     resources: list[ResourceDef] = Field(default_factory=list)
+    prompts: list[PromptDef] = Field(default_factory=list)
     env_vars: list[str] = Field(default_factory=list)
     external_packages: list[str] = Field(default_factory=list)
     transport: str = "streamable-http"
+    auth: str | None = None
+    openapi_metadata: dict[str, str | list[str]] = Field(default_factory=dict)
 
     @field_validator("external_packages", mode="before")
     @classmethod

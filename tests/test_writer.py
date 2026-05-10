@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from mcpforge.models import ServerPlan, ToolDef, ToolParam
+from mcpforge.models import PromptDef, ResourceDef, ServerPlan, ToolDef, ToolParam
 from mcpforge.writer import _validate_rel_path, write_server, write_server_multi, write_server_ts
 
 
@@ -124,6 +124,33 @@ class TestWriteServer:
         content = (out / "README.md").read_text()
         assert "API_KEY" in content
 
+    def test_writes_env_example_and_fastmcp_config(self, tmp_path):
+        plan = _sample_plan(env_vars=["API_KEY"], external_packages=["httpx"])
+        out = tmp_path / "output"
+        write_server(plan, "s", "t", out)
+
+        assert (out / ".env.example").read_text() == "API_KEY=\n"
+        config = json.loads((out / "fastmcp.json").read_text())
+        assert config["source"]["entrypoint"] == "mcp"
+        assert "httpx" in config["environment"]["dependencies"]
+
+    def test_readme_lists_resources_and_prompts(self, tmp_path):
+        plan = _sample_plan(
+            resources=[
+                ResourceDef(
+                    uri_pattern="data://config",
+                    name="config_resource",
+                    description="Read config",
+                )
+            ],
+            prompts=[PromptDef(name="summarize", description="Summarize items")],
+        )
+        out = tmp_path / "output"
+        write_server(plan, "s", "t", out)
+        content = (out / "README.md").read_text()
+        assert "data://config" in content
+        assert "summarize" in content
+
     def test_creates_nested_output_dir(self, tmp_path):
         plan = _sample_plan()
         out = tmp_path / "nested" / "deep" / "output"
@@ -168,6 +195,14 @@ class TestWriteServerTs:
         parsed = json.loads((out / "package.json").read_text())
         assert parsed["scripts"]["start"] == "tsx src/server.ts"
         assert "tsx" in parsed["devDependencies"]
+
+    def test_typescript_writes_readme_and_env_example(self, tmp_path):
+        plan = _sample_plan(env_vars=["API_KEY"])
+        out = tmp_path / "output"
+        write_server_ts(plan, "server code", "test code", out)
+
+        assert (out / "README.md").exists()
+        assert (out / ".env.example").read_text() == "API_KEY=\n"
 
 
 class TestPathTraversal:
@@ -228,6 +263,20 @@ class TestTemplateInjection:
 
     def test_rejects_jinja_block_in_description(self, tmp_path):
         plan = _sample_plan(description="{% import os %}")
+        out = tmp_path / "output"
+        with pytest.raises(ValueError, match="Jinja2 template syntax"):
+            write_server(plan, "s", "t", out)
+
+    def test_rejects_jinja_syntax_in_nested_tool_param(self, tmp_path):
+        plan = _sample_plan(
+            tools=[
+                ToolDef(
+                    name="create_todo",
+                    description="Create a todo",
+                    params=[ToolParam(name="title", type="str", description="{{ bad }}")],
+                )
+            ]
+        )
         out = tmp_path / "output"
         with pytest.raises(ValueError, match="Jinja2 template syntax"):
             write_server(plan, "s", "t", out)

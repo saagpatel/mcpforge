@@ -1,0 +1,20 @@
+[project]
+name = "sqlite-analytics-server"
+version = "0.1.0"
+description = "A read-only MCP server for querying and exploring a local SQLite analytics database with safe SELECT execution and schema inspection."
+requires-python = ">=3.12"
+dependencies = [
+    "fastmcp>=3.1.0",
+
+    "aiosqlite",
+
+    "sqlparse",
+
+]
+
+[dependency-groups]
+dev = ["pytest>=8.0.0", "pytest-asyncio>=0.23.0"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["."]

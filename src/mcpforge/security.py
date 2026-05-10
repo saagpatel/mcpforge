@@ -28,6 +28,7 @@ ALLOWED_IMPORTS: frozenset[str] = frozenset(
         "pathlib",
         "re",
         "secrets",
+        "stat",
         "string",
         "textwrap",
         "typing",
@@ -45,6 +46,7 @@ ALLOWED_IMPORTS: frozenset[str] = frozenset(
         "pydantic",
         "redis",
         "requests",
+        "sqlparse",
         "websockets",
     }
 )

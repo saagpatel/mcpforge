@@ -1,0 +1,27 @@
+{
+  "$schema": "https://gofastmcp.com/public/schemas/fastmcp.json/v1.json",
+  "source": {
+    "path": "server.py",
+    "entrypoint": "mcp"
+  },
+  "environment": {
+    "type": "uv",
+    "python": ">=3.12",
+    "dependencies": [
+      "fastmcp>=3.1.0"{% for package in plan.external_packages %},
+      "{{ package }}"{% endfor %}
+    ]
+  },
+  "deployment": {
+    "transport": "{% if plan.transport == 'streamable-http' %}http{% else %}{{ plan.transport }}{% endif %}",
+    "host": "127.0.0.1",
+    "port": 8000,
+    "path": "/mcp/",
+    "log_level": "INFO"{% if plan.env_vars %},
+    "env": {
+{% for var in plan.env_vars %}
+      "{{ var }}": "${{ '{' }}{{ var }}{{ '}' }}"{% if not loop.last %},{% endif %}
+{% endfor %}
+    }{% endif %}
+  }
+}
