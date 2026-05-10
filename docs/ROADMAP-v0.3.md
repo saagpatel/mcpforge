@@ -34,6 +34,8 @@ mcpforge is moving from "generate a runnable MCP server" to "generate a reliable
 
 ## Remaining v0.3 Work
 
+- Add `OPENAI_API_KEY` to the execution environment or Keychain under `OPENAI_API_KEY`.
+- Replenish Anthropic API credits; the latest hosted Anthropic matrix retry was blocked by low credit balance before generation.
 - Run the OpenAI hosted structured-output, planning, and generation smokes once `OPENAI_API_KEY` is available.
 - Keep OpenAI provider generation gated until those smokes pass repeatedly.
 - Run a release-candidate verification pass that includes hosted Anthropic, authenticated OpenAPI, and all OpenAI smokes before the next tag.

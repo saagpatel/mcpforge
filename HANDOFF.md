@@ -4,7 +4,7 @@ Last updated: 2026-05-10
 
 ## Status
 
-`main` is the published `0.3.0` base. This follow-up hardening pass is happening on `codex/openai-full-smoke-gate` in a dedicated worktree. The repo is no longer in PR/security cleanup mode: open GitHub PRs were cleared, Dependabot alerts were cleared, and `fastmcp-builder==0.3.0` is published on PyPI.
+`main` is the published `0.3.0` base. The repo is no longer in PR/security cleanup mode: open GitHub PRs were cleared, Dependabot alerts were cleared, and `fastmcp-builder==0.3.0` is published on PyPI. The current follow-up is provider-matrix readiness: OpenAI remains gated, and live hosted smokes are blocked on missing OpenAI credentials plus Anthropic account credits.
 
 ## What This Project Is
 
@@ -74,6 +74,8 @@ uv build
 
 Latest local result on 2026-05-10: the baseline above passed, `uv run pytest -q` reported 347 passed and 6 skipped, `uv build` produced the `fastmcp-builder` source distribution and wheel, `scripts/verify_clean_install.sh` reported `mcpforge 0.3.0`, the stable todo example validated with 11 tests run and 0 failed, the authenticated OpenAPI fixture validated with 23 tests run and 0 failed, `mcpforge inspect` reported the authenticated OpenAPI fixture as remote MCP ready, the authenticated fixture started through `fastmcp run fastmcp.json` on a local HTTP test port with env vars set, hosted Python, TypeScript, and authenticated OpenAPI generation passed with `ANTHROPIC_API_KEY` loaded from Keychain, and the new OpenAI hosted structured-output/planning/generation smokes are present but skipped until `OPENAI_API_KEY` is set.
 
+Latest provider-matrix retry on 2026-05-10: `OPENAI_API_KEY` was not available in the shell or common Keychain service names, so the OpenAI smoke trio skipped. `ANTHROPIC_API_KEY` was available from Keychain, but hosted Anthropic Python, TypeScript, and authenticated OpenAPI smokes failed before generation because the Anthropic API reported low credit balance. Keep OpenAI gated until both provider conditions are repaired and the hosted matrix is green.
+
 Opt-in hosted smoke command:
 
 ```bash
@@ -87,9 +89,9 @@ MCPFORGE_RUN_HOSTED_OPENAI_GENERATION_SMOKE=1 MCPFORGE_ENABLE_OPENAI_PROVIDER=1 
 ## Remaining Decisions
 
 1. Keep full OpenAI provider generation gated until OpenAI structured-output, planning, and generation hosted smokes pass.
-2. Run the OpenAI hosted smoke trio once `OPENAI_API_KEY` is available.
-3. Keep install docs on the `fastmcp-builder` distribution name while preserving the `mcpforge` command/import surface.
+2. Add `OPENAI_API_KEY` to this shell or Keychain under `OPENAI_API_KEY`, then run the OpenAI hosted smoke trio.
+3. Replenish Anthropic API credits, then rerun the hosted Anthropic Python, TypeScript, and authenticated OpenAPI smoke matrix.
 
 ## Best Next Step
 
-Set `OPENAI_API_KEY`, run the opt-in OpenAI hosted smoke trio, then move OpenAI provider support out of gated status only after repeated green runs.
+Repair provider access first: add `OPENAI_API_KEY` and replenish Anthropic credits, then rerun the hosted matrix before changing OpenAI's gated status.

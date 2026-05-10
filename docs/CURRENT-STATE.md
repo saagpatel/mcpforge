@@ -167,6 +167,12 @@ Latest follow-up hardening result on 2026-05-10:
 - Hosted Anthropic Python, TypeScript, and authenticated OpenAPI smokes: 3 passed, 3 OpenAI smokes skipped.
 - Hosted OpenAI structured-output, planning, and generation smokes: added but skipped because `OPENAI_API_KEY` is not set in this environment.
 
+Latest provider-matrix retry on 2026-05-10:
+
+- `OPENAI_API_KEY` is not available in the shell or under the checked common Keychain service names (`OPENAI_API_KEY`, `openai_api_key`, `openai`, `OPENAI`), so the OpenAI structured-output, planning, and generation smokes still skip.
+- `ANTHROPIC_API_KEY` is available from Keychain, but hosted Anthropic Python, TypeScript, and authenticated OpenAPI smokes now fail before generation because the Anthropic API returns `Your credit balance is too low to access the Anthropic API`.
+- No OpenAI ungating happened. The provider remains gated by default until the OpenAI smoke trio passes with a real key and the Anthropic release matrix is green again.
+
 Opt-in hosted smoke commands:
 
 ```bash
@@ -201,6 +207,6 @@ uv run --directory examples/weather-server pytest
 
 ## Recommended Next Moves
 
-1. Set `OPENAI_API_KEY` and run the opt-in OpenAI structured-output, planning, and generation hosted smokes.
-2. Move OpenAI out of gated status only after all OpenAI hosted smokes pass repeatedly.
-3. Keep the `fastmcp-builder` PyPI distribution name in install docs while preserving the `mcpforge` command and import surface.
+1. Add `OPENAI_API_KEY` to this execution environment or Keychain under `OPENAI_API_KEY`, then run the opt-in OpenAI structured-output, planning, and generation hosted smokes.
+2. Replenish Anthropic API credits and rerun the hosted Anthropic Python, TypeScript, and authenticated OpenAPI smoke matrix.
+3. Move OpenAI out of gated status only after all OpenAI hosted smokes pass repeatedly and the Anthropic release matrix is green again.
