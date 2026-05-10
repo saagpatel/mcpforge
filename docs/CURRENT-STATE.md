@@ -55,7 +55,7 @@ uv run mcpforge validate examples/todo-server
 uv build
 ```
 
-Latest local result on 2026-05-09:
+Latest local result on 2026-05-10:
 
 - `uv run ruff check .`: passed
 - `uv run ruff format --check .`: passed
@@ -67,7 +67,7 @@ Latest local result on 2026-05-09:
 - TypeScript example validation: the `examples/ts-todo-server` path validates from a
   temporary copy and reports 2 tests run, 0 failed
 - Discovery smoke: `mcpforge list examples --recursive` now includes the TypeScript todo example
-- Hosted generation smoke: blocked because `ANTHROPIC_API_KEY` was not available in this shell or the usual local Keychain entries
+- Hosted generation smoke: passed with `ANTHROPIC_API_KEY` loaded from Keychain
 
 Opt-in hosted smoke command:
 
@@ -75,7 +75,7 @@ Opt-in hosted smoke command:
 MCPFORGE_RUN_HOSTED_SMOKE=1 ANTHROPIC_API_KEY=... uv run pytest tests/test_hosted_generation_smoke.py
 ```
 
-Hosted generation with a real `ANTHROPIC_API_KEY` was not run in this pass.
+Hosted generation with a real `ANTHROPIC_API_KEY` passed on 2026-05-10.
 
 Optional broader generated-example checks:
 
@@ -89,7 +89,6 @@ uv run --directory examples/weather-server pytest
 
 ## Known Risks
 
-- Full hosted generation still needs an `ANTHROPIC_API_KEY` and should be tested before a public release claim.
 - Provider/model behavior is sensitive: do not change the default model or structured JSON generation path without deterministic evidence.
 - Generated templates and prompt contracts are high-impact surfaces; use a dedicated worktree before changing them.
 - The TypeScript validation path has representative local coverage, but hosted
@@ -97,10 +96,9 @@ uv run --directory examples/weather-server pytest
 
 ## Recommended Next Moves
 
-1. Decide whether this green `0.2.0` state is a publish/tag moment or a continue-building moment.
-2. Before any public release claim, run the opt-in hosted smoke with a real `ANTHROPIC_API_KEY`.
+1. Decide whether this verified `0.2.0` state is a publish/tag moment or a continue-building moment.
+2. If releasing, tag/publish `0.2.0` from the current green `main`.
 3. If continuing, prioritize one focused lane:
-   - hosted `generate` smoke with a real API key,
    - hosted TypeScript `generate --language typescript` smoke with a real API key,
    - generated-template polish,
    - or richer coordination/workflow features.

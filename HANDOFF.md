@@ -49,7 +49,7 @@ uv run mcpforge validate examples/todo-server
 uv build
 ```
 
-Latest local result on 2026-05-09: the baseline above passed, `uv build` produced the `0.2.0` source distribution and wheel, `uv run pytest` reported 300 passed and 1 skipped, CLI help/version/list smokes passed, all five Python example server test files passed when run from their own example projects, and the TypeScript todo example validated from a temporary copy with 2 tests run and 0 failed. Hosted generation was blocked because `ANTHROPIC_API_KEY` was not available in this shell or the usual local Keychain entries.
+Latest local result on 2026-05-10: the baseline above passed, `uv build` produced the `0.2.0` source distribution and wheel, `uv run pytest` reported 300 passed and 1 skipped, CLI help/version/list smokes passed, all five Python example server test files passed when run from their own example projects, the TypeScript todo example validated from a temporary copy with 2 tests run and 0 failed, and hosted generation passed with `ANTHROPIC_API_KEY` loaded from Keychain.
 
 Opt-in hosted smoke command:
 
@@ -59,10 +59,10 @@ MCPFORGE_RUN_HOSTED_SMOKE=1 ANTHROPIC_API_KEY=... uv run pytest tests/test_hoste
 
 ## Remaining Decisions
 
-1. Decide whether to publish/tag the current `0.2.0` state or continue building before release.
-2. Run the opt-in hosted `mcpforge generate` smoke with `ANTHROPIC_API_KEY` before making a public release claim.
+1. Decide whether to publish/tag the current verified `0.2.0` state or continue building before release.
+2. If releasing, tag/publish `0.2.0` from the current green `main`.
 3. Pick the next feature lane: hosted TypeScript generation smoke, generated-template polish, provider/model controls, or coordination/workflow expansion.
 
 ## Best Next Step
 
-Run the release-readiness baseline, then either prepare a release tag or open a focused branch for the next feature lane.
+Either prepare a release tag or open a focused branch for the next feature lane.
