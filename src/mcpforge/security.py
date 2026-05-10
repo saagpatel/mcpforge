@@ -34,6 +34,7 @@ ALLOWED_IMPORTS: frozenset[str] = frozenset(
         "typing",
         "typing_extensions",
         "uuid",
+        "warnings",
         # Common third-party packages used by MCP servers
         "aiohttp",
         "aiosqlite",

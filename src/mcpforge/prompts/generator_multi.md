@@ -26,13 +26,20 @@ Return a JSON object where keys are relative file paths and values are complete 
 - If the plan includes prompts, register `@mcp.prompt` functions with names matching the plan
 - Include `models.py` only if multiple tools share Pydantic input/output models
 - All tools must be `async def`
+- Use Ruff/isort import grouping: stdlib imports, one blank line, then all third-party
+  imports together. `fastmcp` is third-party, so do not separate it from `httpx`,
+  `pydantic`, or other installed packages with an extra blank line.
 - Handle invalid user input with `ValueError` and external-service failures with `RuntimeError`
 - Read all config (URLs, API keys) from environment variables
+- The generated modules must import cleanly when env vars are absent. Do not raise
+  missing-env errors at module import time; put required-env checks in helpers
+  called by tools or under `if __name__ == "__main__":` before `mcp.run(...)`.
 - For OpenAPI-derived tools with `method` and `path`, use `httpx.AsyncClient`, `BASE_URL`,
   path/query/header/cookie/body handling based on each param's `location`, timeouts,
   safe retries for idempotent operations, and env-var credentials from the plan.
   Use `tool.auth_env_var`, `tool.auth_location`, and `tool.auth_parameter_name`
-  for downstream auth placement, never hardcoded secrets.
+  for downstream auth placement, never hardcoded secrets. Missing downstream
+  credentials must raise inside the tool/helper call path, not during import.
 - If `auth_profile` or `middleware_profiles` are present, add the same auth/middleware
   setup in `server.py` that a single-file server would use.
 - Never pass MCP client bearer tokens through to downstream APIs

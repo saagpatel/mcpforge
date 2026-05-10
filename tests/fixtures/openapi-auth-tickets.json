@@ -1,0 +1,128 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Hosted Auth Tickets API",
+    "version": "1.0.0",
+    "description": "A small authenticated ticket API for hosted generation smoke tests."
+  },
+  "servers": [
+    {
+      "url": "https://api.example.test"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "apiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key",
+        "x-env-var": "HOSTED_AUTH_API_KEY"
+      }
+    }
+  },
+  "security": [
+    {
+      "apiKeyAuth": []
+    }
+  ],
+  "paths": {
+    "/tickets/{ticket_id}": {
+      "parameters": [
+        {
+          "name": "ticket_id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "description": "Ticket identifier."
+        }
+      ],
+      "get": {
+        "operationId": "get_ticket",
+        "summary": "Get a ticket",
+        "tags": [
+          "tickets",
+          "read"
+        ],
+        "parameters": [
+          {
+            "name": "include_history",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Whether to include status history."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ticket details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tickets/{ticket_id}/notes": {
+      "parameters": [
+        {
+          "name": "ticket_id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "description": "Ticket identifier."
+        }
+      ],
+      "post": {
+        "operationId": "create_ticket_note",
+        "summary": "Create a ticket note",
+        "tags": [
+          "tickets",
+          "write"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "body": {
+                    "type": "string"
+                  },
+                  "private": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "body"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created note",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

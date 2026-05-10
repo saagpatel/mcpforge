@@ -5,6 +5,8 @@ TEMPLATE_HINTS: dict[str, str] = {
         "This server wraps a REST API. Use async httpx.AsyncClient for all HTTP calls. "
         "Read API keys from environment variables. Partition path, query, header, cookie, "
         "and JSON body values explicitly instead of mirroring all inputs into query params. "
+        "Do not raise missing-env errors at module import time; validate credentials inside "
+        "tool/helper call paths so generated servers remain importable for validation. "
         "Handle HTTP errors (4xx, 5xx) by raising RuntimeError with descriptive messages. "
         "Include the base URL and timeout as module-level constants read from env vars, and "
         "retry only idempotent operations on 429/5xx responses."

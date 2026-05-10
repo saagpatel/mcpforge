@@ -1,0 +1,33 @@
+{
+  "$schema": "https://gofastmcp.com/public/schemas/fastmcp.json/v1.json",
+  "source": {
+    "path": "server.py",
+    "entrypoint": "mcp"
+  },
+  "environment": {
+    "type": "uv",
+    "python": ">=3.12",
+    "dependencies": [
+      "fastmcp>=3.1.0",
+      "httpx"
+    ]
+  },
+  "deployment": {
+    "transport": "http",
+    "host": "127.0.0.1",
+    "port": 8000,
+    "path": "/mcp/",
+    "log_level": "INFO",
+    "env": {
+
+      "BASE_URL": "${BASE_URL}",
+
+      "HOSTED_AUTH_API_KEY": "${HOSTED_AUTH_API_KEY}",
+
+      "REQUEST_TIMEOUT_SECONDS": "${REQUEST_TIMEOUT_SECONDS}",
+
+      "MCPFORGE_SERVER_API_KEY": "${MCPFORGE_SERVER_API_KEY}"
+
+    }
+  }
+}

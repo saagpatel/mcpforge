@@ -5,8 +5,17 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import anthropic
 import httpx
+import pytest
+from pydantic import BaseModel
 
 from mcpforge.api_client import AnthropicClient
+
+
+class StructuredSmoke(BaseModel):
+    """Tiny response model for deterministic structured-output smoke tests."""
+
+    name: str
+    count: int
 
 
 class TestGenerate:
@@ -32,6 +41,37 @@ class TestGenerate:
         assert result == "ok"
         assert mock_messages.create.await_count == 2
         mock_sleep.assert_awaited_once()
+
+
+class TestGenerateJson:
+    async def test_generate_json_uses_temperature_zero_and_validates_schema(self):
+        """generate_json is deterministic and returns a validated Pydantic model."""
+        with patch.object(
+            AnthropicClient,
+            "generate",
+            new=AsyncMock(return_value='```json\n{"name": "tickets", "count": 2}\n```'),
+        ) as mock_generate:
+            client = AnthropicClient(api_key="test-key")
+            result = await client.generate_json("system", "user", StructuredSmoke)
+
+        assert result == StructuredSmoke(name="tickets", count=2)
+        mock_generate.assert_awaited_once_with(
+            system_prompt="system",
+            user_message="user",
+            max_tokens=8192,
+            temperature=0.0,
+        )
+
+    async def test_generate_json_rejects_malformed_structured_output(self):
+        """Malformed structured output fails before provider support can be marked stable."""
+        with patch.object(
+            AnthropicClient,
+            "generate",
+            new=AsyncMock(return_value='{"name": "tickets", "count": "many"}'),
+        ):
+            client = AnthropicClient(api_key="test-key")
+            with pytest.raises(ValueError, match="did not match StructuredSmoke schema"):
+                await client.generate_json("system", "user", StructuredSmoke)
 
 
 class TestGenerateStream:

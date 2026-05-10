@@ -68,9 +68,9 @@ Latest local result on 2026-05-10 after the v0.3 fixture lane:
 
 - `uv run ruff check .`: passed
 - `uv run ruff format --check .`: passed
-- `uv run pytest -q`: 322 passed, 2 skipped
+- `uv run pytest -q`: 337 passed, 3 skipped
 - `uv run mcpforge validate examples/todo-server`: syntax, lint, import, and 11 tests passed
-- `uv build`: built `dist/mcpforge-0.2.0.tar.gz` and `dist/mcpforge-0.2.0-py3-none-any.whl`
+- `uv build`: built `dist/fastmcp_builder-0.3.0.tar.gz` and `dist/fastmcp_builder-0.3.0-py3-none-any.whl`
 - CLI smoke: `mcpforge list examples --recursive --json`, `mcpforge inspect`, and `mcpforge doctor --json` passed
 - Python example tests: todo, file-reader, database-query, slack-notifier, and weather examples passed with `uv run --directory ... pytest`
 - TypeScript example validation: the `examples/ts-todo-server` path validates from a
@@ -106,12 +106,16 @@ Latest v0.3 feature-lane result on 2026-05-10:
 - Added provider abstraction with Anthropic stable and OpenAI planned/gated.
 - Added first-class prompt model support, expanded resources, and resource/prompt conformance checks.
 - Added live generated fixtures for REST API, filesystem, database, and TypeScript todo profiles.
+- Added hosted authenticated OpenAPI generation smoke coverage and a live authenticated OpenAPI fixture with header API-key auth, request timeout/env docs, and local mocked HTTP tests.
+- Added deterministic structured-output smoke tests for `generate_json`: temperature-zero calls,
+  fenced JSON parsing, Pydantic schema validation, and malformed-output failure handling.
 - Focused feature tests: 182 passed.
 - New generated fixture validation:
   - REST API fixture: 33 tests run, 0 failed
   - Filesystem fixture: 48 tests run, 0 failed
   - Database fixture: 49 tests run, 0 failed
   - TypeScript todo fixture: 31 tests run, 0 failed
+  - Authenticated OpenAPI fixture: 23 tests run, 0 failed
 
 Latest v0.3 release-prep result on 2026-05-10:
 
@@ -120,8 +124,9 @@ Latest v0.3 release-prep result on 2026-05-10:
 - `src/mcpforge/__init__.py`: CLI/runtime version `0.3.0`.
 - `uv run ruff check .`: passed.
 - `uv run ruff format --check .`: passed.
-- `uv run pytest -q`: 322 passed, 2 skipped.
+- `uv run pytest -q`: 337 passed, 3 skipped.
 - `uv run mcpforge validate examples/todo-server`: syntax, lint, import, and 11 tests passed.
+- `uv run mcpforge validate examples/v03-authenticated-openapi-server`: syntax, lint, import, and 23 tests passed.
 - `uv build --out-dir /tmp/mcpforge-dist-check --clear`: built
   `fastmcp_builder-0.3.0.tar.gz` and `fastmcp_builder-0.3.0-py3-none-any.whl`.
 - Wheel metadata smoke: `Name: fastmcp-builder`, `Version: 0.3.0`.
@@ -137,13 +142,14 @@ Latest v0.3 release-prep result on 2026-05-10:
 - Clean PyPI install smoke:
   `uvx --from fastmcp-builder==0.3.0 mcpforge version --json` returned `0.3.0`.
 
-Opt-in hosted smoke command:
+Opt-in hosted smoke commands:
 
 ```bash
 MCPFORGE_RUN_HOSTED_SMOKE=1 ANTHROPIC_API_KEY=... uv run pytest tests/test_hosted_generation_smoke.py
+MCPFORGE_RUN_HOSTED_OPENAPI_SMOKE=1 ANTHROPIC_API_KEY=... uv run pytest tests/test_hosted_generation_smoke.py::test_hosted_generate_openapi_auth_server
 ```
 
-Hosted generation with a real `ANTHROPIC_API_KEY` passed on 2026-05-10.
+Hosted generation with a real `ANTHROPIC_API_KEY` passed on 2026-05-10, including the authenticated OpenAPI smoke.
 
 Optional broader generated-example checks:
 
@@ -164,7 +170,6 @@ uv run --directory examples/weather-server pytest
 
 ## Recommended Next Moves
 
-1. Prove the new OpenAPI REST/auth prompt contract through an authenticated hosted generation smoke before the next release tag.
-2. Add an authenticated OpenAPI generated fixture once that smoke is stable.
-3. Add deterministic structured-output smokes before enabling OpenAI provider support.
-4. Keep the `fastmcp-builder` PyPI distribution name in install docs while preserving the `mcpforge` command and import surface.
+1. Keep OpenAI provider support gated until OpenAI-specific hosted smoke evidence exists.
+2. Add a release-candidate verification pass that includes the authenticated OpenAPI smoke before the next tag.
+3. Keep the `fastmcp-builder` PyPI distribution name in install docs while preserving the `mcpforge` command and import surface.

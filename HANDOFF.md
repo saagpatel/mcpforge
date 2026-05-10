@@ -4,7 +4,7 @@ Last updated: 2026-05-10
 
 ## Status
 
-`main` was the verified `0.2.0` base after the cleanup pass. Active `v0.3 Builder` work is happening on `codex/v03-builder-roadmap` in a dedicated worktree. The repo is no longer in PR/security cleanup mode: open GitHub PRs were cleared, Dependabot alerts were cleared, and the latest GitHub `main` checks were green before this feature lane began.
+`main` is the published `0.3.0` base. This follow-up hardening pass is happening on `codex/openapi-auth-smoke-fixture` in a dedicated worktree. The repo is no longer in PR/security cleanup mode: open GitHub PRs were cleared, Dependabot alerts were cleared, and `fastmcp-builder==0.3.0` is published on PyPI.
 
 ## What This Project Is
 
@@ -36,6 +36,10 @@ mcpforge generates complete FastMCP 3.x server projects from natural-language de
 - Added the next v0.3 hardening pass: OpenAPI parameter/auth placement metadata,
   optional Python auth/middleware generation profiles, clean install verification script,
   and fixture regression checks.
+- Proved the authenticated OpenAPI generation path with a hosted smoke and added the
+  `v03-authenticated-openapi-server` fixture.
+- Added deterministic structured-output smoke tests for the Anthropic provider
+  interface while keeping OpenAI provider support gated.
 
 ## Current Command Surface
 
@@ -61,20 +65,21 @@ uv run mcpforge validate examples/todo-server
 uv build
 ```
 
-Latest local result on 2026-05-10: the baseline above passed, `uv build` produced the `0.2.0` source distribution and wheel, `uv run pytest -q` reported 322 passed and 2 skipped, discovery/inspection/doctor JSON smokes passed, the stable todo example validated with 11 tests run and 0 failed, the TypeScript todo example validated with 2 tests run and 0 failed, the new v0.3 REST/filesystem/database/TypeScript fixtures validated with 33/48/49/31 tests run and 0 failed, and hosted Python plus TypeScript generation passed with `ANTHROPIC_API_KEY` loaded from Keychain.
+Latest local result on 2026-05-10: the baseline above passed for the `0.3.0` release lane, `uv build` produced the `fastmcp-builder` source distribution and wheel, discovery/inspection/doctor JSON smokes passed, the stable todo example validated with 11 tests run and 0 failed, the TypeScript todo example validated with 2 tests run and 0 failed, the new v0.3 REST/filesystem/database/TypeScript/authenticated-OpenAPI fixtures validated with 33/48/49/31/23 tests run and 0 failed, and hosted Python, TypeScript, and authenticated OpenAPI generation passed with `ANTHROPIC_API_KEY` loaded from Keychain.
 
 Opt-in hosted smoke command:
 
 ```bash
 MCPFORGE_RUN_HOSTED_SMOKE=1 ANTHROPIC_API_KEY=... uv run pytest tests/test_hosted_generation_smoke.py
+MCPFORGE_RUN_HOSTED_OPENAPI_SMOKE=1 ANTHROPIC_API_KEY=... uv run pytest tests/test_hosted_generation_smoke.py::test_hosted_generate_openapi_auth_server
 ```
 
 ## Remaining Decisions
 
-1. PyPI trusted-publisher setup still requires an authenticated PyPI account session.
-2. Keep OpenAI provider support gated until deterministic structured-output and hosted smoke evidence exists.
-3. Prove the new OpenAPI REST/auth prompt contract through another hosted generation smoke before tagging.
+1. Keep OpenAI provider support gated until OpenAI-specific hosted smoke evidence exists.
+2. Run one release-candidate verification pass before the next tag.
+3. Keep install docs on the `fastmcp-builder` distribution name while preserving the `mcpforge` command/import surface.
 
 ## Best Next Step
 
-Log in to PyPI to add the pending publisher, then run one authenticated OpenAPI hosted generation smoke against the new profile metadata.
+Run the release-candidate verification pass, including the authenticated OpenAPI hosted smoke, before the next tag.

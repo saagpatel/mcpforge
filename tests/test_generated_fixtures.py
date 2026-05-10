@@ -10,6 +10,7 @@ def test_v03_fixtures_include_runtime_docs_and_configs() -> None:
     """High-value v0.3 fixtures keep generated setup files checked in."""
     for name in [
         "v03-rest-api-server",
+        "v03-authenticated-openapi-server",
         "v03-filesystem-server",
         "v03-database-server",
         "v03-typescript-todo-server",
@@ -19,7 +20,12 @@ def test_v03_fixtures_include_runtime_docs_and_configs() -> None:
         assert (root / "README.md").exists(), name
         assert (root / "config.json").exists(), name
 
-    for name in ["v03-rest-api-server", "v03-filesystem-server", "v03-database-server"]:
+    for name in [
+        "v03-rest-api-server",
+        "v03-authenticated-openapi-server",
+        "v03-filesystem-server",
+        "v03-database-server",
+    ]:
         assert (EXAMPLES / name / "fastmcp.json").exists(), name
 
 
@@ -49,3 +55,18 @@ def test_typescript_fixture_uses_supported_stdio_transport() -> None:
     )
     assert "StdioServerTransport" in server_ts
     assert "StreamableHTTPServerTransport" not in server_ts
+
+
+def test_authenticated_openapi_fixture_preserves_auth_and_request_shape() -> None:
+    """The authenticated OpenAPI fixture demonstrates header auth and param partitioning."""
+    root = EXAMPLES / "v03-authenticated-openapi-server"
+    server_py = (root / "server.py").read_text(encoding="utf-8")
+    env_example = (root / ".env.example").read_text(encoding="utf-8")
+    readme = (root / "README.md").read_text(encoding="utf-8")
+
+    assert "HOSTED_AUTH_API_KEY" in env_example
+    assert "MCPFORGE_SERVER_API_KEY" in env_example
+    assert '"X-API-Key": api_key' in server_py
+    assert "params=query_params or None" in server_py
+    assert "json=body" in server_py
+    assert "Auth credential env var: `HOSTED_AUTH_API_KEY`" in readme

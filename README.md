@@ -65,7 +65,7 @@ Useful generation flags:
 - `--language python|typescript` chooses the target server language.
 - `--auth-profile none|api-key|jwt` adds optional Python auth profile metadata and env docs.
 - `--middleware-profile logging|timing|rate-limit` adds optional Python middleware profiles; repeat it to combine profiles.
-- `--provider anthropic|openai` selects the generation provider. OpenAI is listed as planned and remains gated until deterministic structured-output smokes are implemented.
+- `--provider anthropic|openai` selects the generation provider. OpenAI is listed as planned and remains gated until OpenAI-specific hosted smoke evidence exists.
 
 Useful status flags:
 - `mcpforge list --json`

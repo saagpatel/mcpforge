@@ -55,7 +55,9 @@ if __name__ == "__main__":
 ## Code Requirements
 
 1. **Module docstring**: Start with a one-line docstring describing the server.
-2. **Import order**: stdlib → third-party → fastmcp. Use isort order within each group.
+2. **Import order**: stdlib imports, one blank line, then all third-party imports together.
+   `fastmcp` is third-party, so do not place a blank line between `httpx`/other packages
+   and `from fastmcp import FastMCP`. Use isort order within each group.
 3. **Server init**: `mcp = FastMCP("Name")` — use the exact `name` from the plan.
 4. **Tool decorator**: `@mcp.tool` — no parentheses.
 5. **Async tools**: All tools must be `async def`.
@@ -67,7 +69,10 @@ if __name__ == "__main__":
    - Raise `RuntimeError` for operational failures (external service errors, etc.)
    - Wrap all external I/O (HTTP calls, file I/O, DB calls) in try/except.
 9. **Environment variables**: Use `os.environ.get("VAR_NAME")` for all credentials and config.
-   Check at startup: raise `RuntimeError` with a clear message if a required var is missing.
+   The generated module MUST import cleanly when env vars are absent because validators and
+   test harnesses import `server.py` before runtime configuration is available. Do not raise
+   missing-env `RuntimeError` at module import time. Put required-env checks in helper functions
+   that are called by tools or under `if __name__ == "__main__":` before `mcp.run(...)`.
 10. **In-memory data stores**: For servers without external dependencies, use module-level
     `dict` or `list` with a UUID key. Initialize at module level before the tools.
 11. **Return shapes**: Return `dict` with meaningful keys. For list operations, return
@@ -97,7 +102,9 @@ if __name__ == "__main__":
     `env_vars`. Use Bearer headers for `bearer` or `oauth2` auth. For `api_key`
     auth, place the credential according to `tool.auth_location` and
     `tool.auth_parameter_name`: header, query parameter, or cookie. Never hardcode
-    credentials and never log or return raw credential values.
+    credentials and never log or return raw credential values. Missing downstream
+    credentials must raise a clear `RuntimeError` inside the tool/helper call path,
+    not while importing the module.
 18. **Runtime auth profile**: If `auth_profile` is `api-key`, generate a clear
     placeholder helper that reads `MCPFORGE_SERVER_API_KEY` and documents where
     to enforce it for HTTP deployments; do not pass MCP client tokens downstream.

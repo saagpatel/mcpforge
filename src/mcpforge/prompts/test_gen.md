@@ -41,6 +41,16 @@ Key points:
 6. **Assertions**: assert on return values with specific field checks — not just "is not None".
 7. **Test names**: use `test_<tool_name>_<scenario>` format, e.g. `test_create_todo_success`,
    `test_get_todo_not_found`.
+8. **No undeclared test dependencies**: Do not import packages that are not in the generated
+   project's dependencies or dev dependencies. In particular, do not use `respx`, `responses`,
+   `aioresponses`, `requests_mock`, or other HTTP-mocking packages unless they are explicitly
+   present in `plan.external_packages`.
+9. **External HTTP tests**: For generated OpenAPI/httpx tools, keep tests local and deterministic
+   by patching server helpers with `unittest.mock` or by monkeypatching the server module's
+   `httpx.AsyncClient` usage. Do not make real network calls. Verify that expected auth headers,
+   query params, path values, JSON bodies, and retry/error paths are passed to the patched helper.
+10. **Ruff-clean tests**: Do not include unused imports, unused variables, or unsorted import
+   blocks. If a mocked object is only used as a context manager, omit `as name`.
 
 ## Structure Template
 

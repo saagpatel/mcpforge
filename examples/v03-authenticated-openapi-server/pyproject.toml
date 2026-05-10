@@ -1,0 +1,18 @@
+[project]
+name = "hosted-auth-tickets-api"
+version = "0.1.0"
+description = "A small authenticated ticket API for hosted generation smoke tests."
+requires-python = ">=3.12"
+dependencies = [
+    "fastmcp>=3.1.0",
+
+    "httpx",
+
+]
+
+[dependency-groups]
+dev = ["pytest>=8.0.0", "pytest-asyncio>=0.23.0"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["."]

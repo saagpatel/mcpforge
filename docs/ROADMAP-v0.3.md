@@ -23,12 +23,13 @@ mcpforge is moving from "generate a runnable MCP server" to "generate a reliable
 - Added fixture regression checks for committed v0.3 generated examples.
 - Added first-class `PromptDef`, expanded resources, prompt/resource conformance checks, and prompt guidance for generating resources and prompts.
 - Hardened nested template injection checks across all plan content, not just top-level fields.
+- Added authenticated OpenAPI hosted smoke coverage and a checked-in authenticated OpenAPI fixture.
+- Added deterministic structured-output smoke tests for the current provider interface.
 
 ## Remaining v0.3 Work
 
-- Prove the new OpenAPI REST/auth prompt contract through another hosted generation smoke before tagging.
-- Add generated fixture coverage for an authenticated OpenAPI spec once the hosted smoke is stable.
-- Keep OpenAI provider support gated until strict structured-output and hosted smoke evidence exists.
+- Keep OpenAI provider support gated until OpenAI-specific hosted smoke evidence exists.
+- Run a release-candidate verification pass that includes the authenticated OpenAPI smoke before the next tag.
 
 ## Release Gate
 
@@ -47,6 +48,7 @@ Hosted smokes remain opt-in:
 
 ```bash
 MCPFORGE_RUN_HOSTED_SMOKE=1 ANTHROPIC_API_KEY=... uv run pytest tests/test_hosted_generation_smoke.py
+MCPFORGE_RUN_HOSTED_OPENAPI_SMOKE=1 ANTHROPIC_API_KEY=... uv run pytest tests/test_hosted_generation_smoke.py::test_hosted_generate_openapi_auth_server
 ```
 
 ## Research Anchors

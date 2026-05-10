@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "hosted-auth-tickets-api": {
+
+      "url": "http://localhost:8000/mcp",
+      "transport": "streamable-http"
+
+    }
+  }
+}
