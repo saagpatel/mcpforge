@@ -19,7 +19,7 @@ For generator or MCP behavior changes, collect evidence from the smallest releva
 - `uv run pytest`
 - `uv run ruff check .`
 - generated-server fixture checks
-- focused CLI smoke output for `generate`, `inspect`, `extend`, or `validate` when touched
+- focused CLI smoke output for `generate`, `update`, `validate`, `list`, `init`, or `version` when touched
 
 For provider/model changes, include evidence that structured JSON generation and validation still behave deterministically.
 

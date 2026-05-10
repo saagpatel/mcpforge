@@ -2,13 +2,17 @@
 
 ## Prerequisites
 
-- PyPI account with token
+- PyPI project or trusted publishing setup for `mcpforge`
+- GitHub Actions `pypi` environment configured for trusted publishing
 - `uv` installed
 
 ## Manual release steps
 
-1. Bump version in `src/mcpforge/__init__.py` and `pyproject.toml`
-2. Commit: `git commit -m "chore: bump version to X.Y.Z"`
+For `v0.2.0`, `src/mcpforge/__init__.py` and `pyproject.toml` already report
+`0.2.0`. Do not bump again unless intentionally cutting a later release.
+
+1. Confirm version in `src/mcpforge/__init__.py` and `pyproject.toml`
+2. Commit the release-prep changes.
 3. Tag: `git tag vX.Y.Z`
 4. Push tag: `git push origin vX.Y.Z`
 5. GitHub Actions will automatically run tests and publish to PyPI
