@@ -5,7 +5,7 @@ A Python CLI that takes a plain-English description of a service and generates a
 
 ## Tech Stack
 - Python: 3.12+
-- FastMCP: 3.1.x (standalone, PrefectHQ/fastmcp)
+- FastMCP: 3.2.x (standalone, PrefectHQ/fastmcp)
 - Anthropic SDK: latest (claude-sonnet-4-6 default model — pinned; see MODEL PIN in api_client.py)
 - Click: latest — CLI framework
 - Pydantic: v2 — structured data models and LLM output parsing
@@ -25,15 +25,15 @@ A Python CLI that takes a plain-English description of a service and generates a
 - Conventional commits: feat:, fix:, chore:, docs:
 
 ## Current Phase
-**Post-foundation stabilization / release readiness**
+**Active — v0.3.0 published to PyPI (fastmcp-builder)**
 
-The foundation work is implemented. The current focus is keeping the generated-server validation path truthful, maintaining secure dependency and template behavior, and deciding whether the current `0.2.0` state should be published/tagged or followed by one more feature-hardening lane.
+v0.3.0 is live on PyPI. The current focus is provider matrix expansion: Anthropic is the default, OpenAI remains gated behind hosted structured-output/planning/generation smokes. See `docs/CURRENT-STATE.md` for the verified baseline.
 
 ## Key Decisions
 | Decision | Choice | Why |
 |----------|--------|-----|
 | Generation model | claude-sonnet-4-6 (override via --model) | Pinned pre-Opus-4.7: relies on temperature=0 for deterministic JSON output — see MODEL PIN in api_client.py |
-| Output server framework | FastMCP 3.1.x standalone | 70% market share, best DX, actively maintained |
+| Output server framework | FastMCP 3.2.x standalone | 70% market share, best DX, actively maintained |
 | Transport default | streamable-http | 2026 MCP production standard |
 | Generation approach | 3-stage (plan → generate → test) | Structured plan prevents hallucinated tools |
 | Validation | AST parse + ruff + import check + pytest | Multi-layer catches different failure modes |
@@ -56,13 +56,13 @@ A Python CLI that takes a plain-English description of a service and generates a
 
 ## Current State
 
-**Post-foundation stabilization / release readiness**
+**Active — v0.3.0 published to PyPI as `fastmcp-builder`**
 See `docs/CURRENT-STATE.md` for the current resume checkpoint.
 
 ## Stack
 
 - Python: 3.12+
-- FastMCP: 3.1.x (standalone, PrefectHQ/fastmcp)
+- FastMCP: 3.2.x (standalone, PrefectHQ/fastmcp)
 - Anthropic SDK: latest (claude-sonnet-4-6 default model — pinned; see MODEL PIN in api_client.py)
 - Click: latest — CLI framework
 - Pydantic: v2 — structured data models and LLM output parsing
@@ -93,6 +93,6 @@ See `docs/CURRENT-STATE.md` for the current resume checkpoint.
 
 ## Next Recommended Move
 
-Use this context plus the README and `docs/CURRENT-STATE.md` to resume the next active task. The next decision is whether to publish/tag the current `0.2.0` state or continue with a focused feature-hardening lane.
+Use this context plus the README and `docs/CURRENT-STATE.md` to resume the next active task. The current frontier is provider matrix expansion: add `OPENAI_API_KEY` and replenish Anthropic credits, then run the hosted smoke matrix before ungating OpenAI generation.
 
 <!-- portfolio-context:end -->

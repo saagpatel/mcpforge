@@ -68,7 +68,7 @@ Specifically verified on `origin/main`:
 
 mcpforge is a Python CLI (PyPI: `fastmcp-builder`) that generates MCP
 servers from plain-English descriptions or existing OpenAPI specs.
-Tools: `mcpforge generate`, `mcpforge describe`, `mcpforge doctor`,
+Tools: `mcpforge generate`, `mcpforge inspect`, `mcpforge doctor`,
 plus a `mcpforge-server` workspace entrypoint. Targets both
 TypeScript and Python output. Currently mid-arc on **provider
 expansion (v0.3.x → v0.4)**: OpenAI readiness lane gated behind a
@@ -258,7 +258,7 @@ now operationally trusted.
 | `origin/main` tip | `369c80e` docs: record provider matrix blockers |
 | Last release | `72d2c01` chore(release): prepare fastmcp-builder v0.3.0 + `a1d98ce` publish success |
 | Default branch | `main` |
-| Build system | Python 3.11+ (uv-managed) + Click + pyproject.toml + uv.lock |
+| Build system | Python 3.12+ (uv-managed) + Click + pyproject.toml + uv.lock |
 | Distribution | **PyPI** — `uv tool install fastmcp-builder` |
 | Current version | **0.3.0** (active mid-arc toward v0.4) |
 | Test count | 290 per memory |

@@ -42,7 +42,7 @@ mcpforge is moving from "generate a runnable MCP server" to "generate a reliable
 
 ## Release Gate
 
-Before tagging `v0.3.0`, run:
+Release gate for `v0.3.0` (completed 2026-05-10). Commands run before tagging:
 
 ```bash
 uv run ruff check .
