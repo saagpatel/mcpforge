@@ -30,3 +30,8 @@ For provider/model changes, include evidence that structured JSON generation and
 - Do not trust LLM output without validation.
 - Do not migrate default models or provider behavior without explicit evidence.
 - Preserve existing local work unless the user explicitly asks to change it.
+
+<!-- secondbrain-breadcrumb -->
+## SecondBrain knowledge vault
+
+Prior lessons, decisions, and context for this project live in SecondBrain at `wiki/maps/projects/mcpforge.md`. The whole vault is searchable via the `engraph` MCP — query it for this project + its stack before non-trivial work.

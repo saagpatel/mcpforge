@@ -96,3 +96,8 @@ See `docs/CURRENT-STATE.md` for the current resume checkpoint.
 Use this context plus the README and `docs/CURRENT-STATE.md` to resume the next active task. The current frontier is provider matrix expansion: add `OPENAI_API_KEY` and replenish Anthropic credits, then run the hosted smoke matrix before ungating OpenAI generation.
 
 <!-- portfolio-context:end -->
+
+<!-- secondbrain-breadcrumb -->
+## SecondBrain knowledge vault
+
+Prior lessons, decisions, and context for this project live in SecondBrain at `wiki/maps/projects/mcpforge.md`. The whole vault is searchable via the `engraph` MCP — query it for this project + its stack before non-trivial work.
