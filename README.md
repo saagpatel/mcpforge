@@ -17,7 +17,7 @@ You need Python 3.12+, [`uv`](https://docs.astral.sh/uv/), and an Anthropic API 
 uv tool install fastmcp-builder
 export ANTHROPIC_API_KEY="your_anthropic_api_key"
 
-mcpforge generate "A weather server that returns today's forecast for a city"
+mcpforge generate "A weather server that returns today's forecast for a city" -o weather-server
 ```
 
 That's the whole loop. mcpforge plans the tools, generates the code, then runs syntax, security, lint, import, and pytest checks against the result — so what lands in `./weather-server/` is already validated:
@@ -72,7 +72,7 @@ mcpforge has a sibling: **[mcp-audit](https://github.com/saagpatel/MCPAudit)** (
 
 ```bash
 # build
-mcpforge generate "A weather server that returns today's forecast for a city"
+mcpforge generate "A weather server that returns today's forecast for a city" -o weather-server
 
 # audit everything your agents can reach (read-only, no install needed)
 uvx --from mcp-permission-audit mcp-audit scan --ssrf-check
