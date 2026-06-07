@@ -11,6 +11,9 @@
 
 ## ⚡ 60-second start
 
+<!-- Record the hero GIF (`vhs docs/assets/hero.tape`), then uncomment the line below: -->
+<!-- ![mcpforge: one sentence to a tested, running MCP server](docs/assets/hero.gif) -->
+
 You need Python 3.12+, [`uv`](https://docs.astral.sh/uv/), and an Anthropic API key.
 
 ```bash
@@ -59,6 +62,9 @@ uv run pytest -v            # run the generated tests
 mcpforge validate .         # re-run the full validation suite anytime
 ```
 
+<!-- Record the run+test GIF (`vhs docs/assets/run-and-test.tape` — deterministic, no API key), then uncomment the line below: -->
+<!-- ![Generated server: tests pass, then it runs](docs/assets/run-and-test.gif) -->
+
 > The snippet above is an illustrative toy ("weather") for the docs. Real generations match your description — see [`examples/`](examples/) for live generated servers (todo, file reader, database query, Slack notifier, TypeScript).
 
 ## Build, then audit — the MCP toolkit
@@ -77,6 +83,9 @@ mcpforge generate "A weather server that returns today's forecast for a city" -o
 # audit everything your agents can reach (read-only, no install needed)
 uvx --from mcp-permission-audit mcp-audit scan --ssrf-check
 ```
+
+<!-- Record the build+audit GIF (`vhs docs/assets/build-then-audit.tape`), then uncomment the line below: -->
+<!-- ![Forge a server, then audit your MCP surface](docs/assets/build-then-audit.gif) -->
 
 `mcp-audit` is read-only by default — it never edits a config and reports env-var key names only, never values. Build with confidence, then verify your blast radius.
 
