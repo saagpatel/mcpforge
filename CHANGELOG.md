@@ -7,7 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-No unreleased changes.
+### Security
+
+- Upgraded `idna` (3.11 → 3.18) and `starlette` (1.0.0 → 1.2.1) in the locked
+  dependency set, resolving GHSA-65pc-fj4g-8rjx (CVE-2026-45409) and
+  GHSA-86qp-5c8j-p5mr (CVE-2026-48710).
+- Upgraded `vitest` to `^4.1.0` in the TypeScript example fixtures, resolving
+  GHSA-5xrq-8626-4rwp (CVE-2026-47429). Development-only dependency in the
+  examples; not part of the published `fastmcp-builder` distribution.
+
+### Documentation
+
+- Rewrote the README into a 60-second quick start with PyPI, Python, and CI
+  badges, a synthetic sample generated server, and copy-paste commands.
+- Added a "Build, then audit" section pairing mcpforge with the companion
+  `mcp-audit` (`mcp-permission-audit`) tool.
+- Added reproducible [`vhs`](https://github.com/charmbracelet/vhs) demo tapes
+  under `docs/assets/` (hero, run-and-test, build-then-audit) with pre-staged
+  README embed slots, plus a `demo-assets.md` shot-list and `launch-posts.md`
+  launch drafts.
 
 ## [0.3.0] - 2026-05-10
 
