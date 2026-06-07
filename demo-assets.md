@@ -21,7 +21,7 @@ toy from the README, or any `examples/` server) so nothing real leaks.
 ### 1. Hero — one sentence → running server  ⭐ (top of README)
 The headline GIF. Show the full loop in one take:
 ```
-mcpforge generate "A weather server that returns today's forecast for a city"
+mcpforge generate "A weather server that returns today's forecast for a city" -o weather-server
 ```
 Capture the plan spinner, the generation, and the green validation summary
 (syntax / security / lint / import / pytest passing). End on the created file
@@ -49,7 +49,7 @@ wrapper" point).
 ### 4. Build → audit, the toolkit pair  ⭐
 Two-command story for the sibling-tool narrative:
 ```
-mcpforge generate "A weather server that returns today's forecast for a city"
+mcpforge generate "A weather server that returns today's forecast for a city" -o weather-server
 uvx --from mcp-permission-audit mcp-audit scan --ssrf-check
 ```
 Show forging a server, then mcp-audit's risk-scored table of the local MCP
@@ -82,8 +82,18 @@ Good for the "More commands" section and for onboarding clarity.
 ## Where files should live
 
 Save recorded assets under `docs/assets/` (e.g. `docs/assets/hero.gif`) and
-reference them with relative paths in `README.md`. Add a `.vhs` tape file per GIF
-alongside them so the demos can be re-rendered when the CLI output changes.
+reference them with relative paths in `README.md`.
+
+Reproducible [`vhs`](https://github.com/charmbracelet/vhs) tapes already exist for
+shots 1, 2, and 4 — see [`docs/assets/`](docs/assets/) and its
+[`README.md`](docs/assets/README.md) for render instructions:
+
+- `docs/assets/hero.tape` → `hero.gif` (shot 1, live `generate`)
+- `docs/assets/run-and-test.tape` → `run-and-test.gif` (shot 2, deterministic — no API key)
+- `docs/assets/build-then-audit.tape` → `build-then-audit.gif` (shot 4, live `generate` + `mcp-audit`)
+
+Add a tape for any new GIF so the demos can be re-rendered when the CLI output
+changes.
 
 ## Pre-publish sanitization checklist (per asset)
 
