@@ -52,8 +52,10 @@ validation summary, increase the `Sleep` after the `generate` line in that tape.
 
 ## Embedding
 
-Reference GIFs with repo-relative paths so they render on GitHub and PyPI:
+Reference GIFs with **absolute** raw URLs so they render on both GitHub and PyPI.
+PyPI does not rewrite relative paths — a `docs/assets/...` path renders on GitHub
+but breaks on the PyPI project page:
 
 ```markdown
-![mcpforge: one sentence to a running MCP server](docs/assets/hero.gif)
+![mcpforge: one sentence to a running MCP server](https://raw.githubusercontent.com/saagpatel/mcpforge/main/docs/assets/hero.gif)
 ```

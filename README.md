@@ -3,7 +3,7 @@
 [![PyPI](https://img.shields.io/pypi/v/fastmcp-builder?style=flat-square&logo=pypi&logoColor=white&label=PyPI)](https://pypi.org/project/fastmcp-builder/)
 [![Python](https://img.shields.io/pypi/pyversions/fastmcp-builder?style=flat-square&logo=python&logoColor=white)](https://pypi.org/project/fastmcp-builder/)
 [![CI](https://img.shields.io/github/actions/workflow/status/saagpatel/mcpforge/ci.yml?style=flat-square&logo=githubactions&logoColor=white&label=CI)](https://github.com/saagpatel/mcpforge/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](https://github.com/saagpatel/mcpforge/blob/main/LICENSE)
 
 > ### Describe an MCP server in one sentence. Get a tested, runnable one back.
 
@@ -12,7 +12,7 @@
 ## ⚡ 60-second start
 
 <!-- Record the hero GIF (`vhs docs/assets/hero.tape`), then uncomment the line below: -->
-<!-- ![mcpforge: one sentence to a tested, running MCP server](docs/assets/hero.gif) -->
+<!-- ![mcpforge: one sentence to a tested, running MCP server](https://raw.githubusercontent.com/saagpatel/mcpforge/main/docs/assets/hero.gif) -->
 
 You need Python 3.12+, [`uv`](https://docs.astral.sh/uv/), and an Anthropic API key.
 
@@ -63,9 +63,9 @@ mcpforge validate .         # re-run the full validation suite anytime
 ```
 
 <!-- Record the run+test GIF (`vhs docs/assets/run-and-test.tape` — deterministic, no API key), then uncomment the line below: -->
-<!-- ![Generated server: tests pass, then it runs](docs/assets/run-and-test.gif) -->
+<!-- ![Generated server: tests pass, then it runs](https://raw.githubusercontent.com/saagpatel/mcpforge/main/docs/assets/run-and-test.gif) -->
 
-> The snippet above is an illustrative toy ("weather") for the docs. Real generations match your description — see [`examples/`](examples/) for live generated servers (todo, file reader, database query, Slack notifier, TypeScript).
+> The snippet above is an illustrative toy ("weather") for the docs. Real generations match your description — see [`examples/`](https://github.com/saagpatel/mcpforge/tree/main/examples) for live generated servers (todo, file reader, database query, Slack notifier, TypeScript).
 
 ## Build, then audit — the MCP toolkit
 
@@ -85,7 +85,7 @@ uvx --from mcp-permission-audit mcp-audit scan --ssrf-check
 ```
 
 <!-- Record the build+audit GIF (`vhs docs/assets/build-then-audit.tape`), then uncomment the line below: -->
-<!-- ![Forge a server, then audit your MCP surface](docs/assets/build-then-audit.gif) -->
+<!-- ![Forge a server, then audit your MCP surface](https://raw.githubusercontent.com/saagpatel/mcpforge/main/docs/assets/build-then-audit.gif) -->
 
 `mcp-audit` is read-only by default — it never edits a config and reports env-var key names only, never values. Build with confidence, then verify your blast radius.
 

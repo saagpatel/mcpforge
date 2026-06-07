@@ -82,7 +82,8 @@ Good for the "More commands" section and for onboarding clarity.
 ## Where files should live
 
 Save recorded assets under `docs/assets/` (e.g. `docs/assets/hero.gif`) and
-reference them with relative paths in `README.md`.
+reference them in `README.md` with absolute `raw.githubusercontent.com` URLs —
+relative paths render on GitHub but break on the PyPI project page.
 
 Reproducible [`vhs`](https://github.com/charmbracelet/vhs) tapes already exist for
 shots 1, 2, and 4 — see [`docs/assets/`](docs/assets/) and its
