@@ -1,10 +1,84 @@
 # mcpforge
 
-[![Python](https://img.shields.io/badge/Python-3776ab?style=flat-square&logo=python)](#) [![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](#)
+[![PyPI](https://img.shields.io/pypi/v/fastmcp-builder?style=flat-square&logo=pypi&logoColor=white&label=PyPI)](https://pypi.org/project/fastmcp-builder/)
+[![Python](https://img.shields.io/pypi/pyversions/fastmcp-builder?style=flat-square&logo=python&logoColor=white)](https://pypi.org/project/fastmcp-builder/)
+[![CI](https://img.shields.io/github/actions/workflow/status/saagpatel/mcpforge/ci.yml?style=flat-square&logo=githubactions&logoColor=white&label=CI)](https://github.com/saagpatel/mcpforge/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 
-> One sentence. One command. A complete MCP server, ready to run.
+> ### Describe an MCP server in one sentence. Get a tested, runnable one back.
 
-mcpforge generates production-ready FastMCP 3.x MCP servers from plain-English descriptions. You describe what you want; it produces tools, input validation, error handling, a pytest test suite, run configuration, and client setup docs — all wired together and ready to inspect, validate, and install.
+**mcpforge** turns a plain-English description into a complete FastMCP 3.x MCP server — tools, Pydantic input validation, error handling, a pytest suite, run config, and client setup docs — all wired together and ready to inspect, validate, and install. You write the sentence; Claude writes the implementation; mcpforge validates it before you ever run it.
+
+## ⚡ 60-second start
+
+You need Python 3.12+, [`uv`](https://docs.astral.sh/uv/), and an Anthropic API key.
+
+```bash
+uv tool install fastmcp-builder
+export ANTHROPIC_API_KEY="your_anthropic_api_key"
+
+mcpforge generate "A weather server that returns today's forecast for a city"
+```
+
+That's the whole loop. mcpforge plans the tools, generates the code, then runs syntax, security, lint, import, and pytest checks against the result — so what lands in `./weather-server/` is already validated:
+
+```python
+# weather-server/server.py  (excerpt)
+"""Weather forecast MCP server."""
+
+from fastmcp import FastMCP
+
+mcp = FastMCP("Weather")
+
+# Illustrative lookup — describe a real source and mcpforge wires the call for you.
+_FORECASTS: dict[str, dict] = {
+    "san francisco": {"high_c": 18, "low_c": 12, "summary": "Foggy"},
+    "denver": {"high_c": 24, "low_c": 9, "summary": "Clear"},
+}
+
+
+@mcp.tool
+async def get_forecast(city: str) -> dict:
+    """Return today's forecast for a city."""
+    key = city.strip().lower()
+    if key not in _FORECASTS:
+        raise ValueError(f"No forecast available for {city!r}")
+    return {"city": city, **_FORECASTS[key]}
+
+
+if __name__ == "__main__":
+    mcp.run(transport="streamable-http")
+```
+
+Every generation also produces `test_server.py` (a real pytest suite), `pyproject.toml`, a `README.md`, and an MCP client `config.json` — a complete project, not a snippet. Run it with:
+
+```bash
+cd weather-server
+uv run server.py            # start the server (streamable-http)
+uv run pytest -v            # run the generated tests
+mcpforge validate .         # re-run the full validation suite anytime
+```
+
+> The snippet above is an illustrative toy ("weather") for the docs. Real generations match your description — see [`examples/`](examples/) for live generated servers (todo, file reader, database query, Slack notifier, TypeScript).
+
+## Build, then audit — the MCP toolkit
+
+mcpforge has a sibling: **[mcp-audit](https://github.com/saagpatel/MCPAudit)** (`mcp-permission-audit` on PyPI). They're two halves of one workflow — forge a server, then audit what your agents can actually touch before you trust it.
+
+| Stage | Tool | What it does |
+|-------|------|--------------|
+| **Build** | `mcpforge` | Generate a complete, tested MCP server from one sentence. |
+| **Audit** | `mcp-audit` | Scan every MCP server wired into your machine and risk-score what each one can reach. |
+
+```bash
+# build
+mcpforge generate "A weather server that returns today's forecast for a city"
+
+# audit everything your agents can reach (read-only, no install needed)
+uvx --from mcp-permission-audit mcp-audit scan --ssrf-check
+```
+
+`mcp-audit` is read-only by default — it never edits a config and reports env-var key names only, never values. Build with confidence, then verify your blast radius.
 
 ## Features
 
@@ -20,22 +94,10 @@ mcpforge generates production-ready FastMCP 3.x MCP servers from plain-English d
 - **Scaffold without an LLM** — `mcpforge init` creates a minimal FastMCP server skeleton for local iteration
 - **MCP server mode** — `mcpforge-server` exposes generation, planning, validation, inspection, doctor, and discovery tools so AI assistants can build safely
 
-## Quick Start
+## More commands
 
-### Prerequisites
-- Python 3.12+
-- `uv` (recommended)
-- Anthropic API key
+The PyPI distribution is `fastmcp-builder`; the installed commands are `mcpforge` and `mcpforge-server`. Beyond `generate`:
 
-### Installation
-```bash
-uv tool install fastmcp-builder
-```
-
-The PyPI distribution is `fastmcp-builder`; the installed commands remain
-`mcpforge` and `mcpforge-server`.
-
-### Usage
 ```bash
 # Generate a new MCP server
 mcpforge generate "A todo list manager with create, read, update, and delete operations"
