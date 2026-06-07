@@ -133,3 +133,40 @@ Both are open source (MIT) and on PyPI. mcpforge: pip/uv install
 worst-case test descriptions.
 
 #MCP #ModelContextProtocol #AI #DeveloperTools #OpenSource #Python
+
+---
+
+## Posting playbook (timing + sequence)
+
+Goal: maximize the Show HN window, then amplify. **Record the hero GIF and
+uncomment its README embed before posting** — most HN clicks land on the repo,
+and a silent README converts worse.
+
+### Pre-flight (the day before)
+- [ ] `hero.gif` recorded and its README embed uncommented (`vhs docs/assets/hero.tape`).
+- [ ] `run-and-test.gif` recorded (deterministic, no key) — strong secondary proof.
+- [ ] Badges render green on the repo front page (PyPI / CI).
+- [ ] You're free to sit with the thread for ~2-3 hours after posting.
+
+### Show HN — the anchor
+- **When:** a weekday morning, ~8:30–10:00 a.m. US Eastern (peak HN ramp).
+  Tue/Wed/Thu are typically strongest; avoid Fri afternoon and weekends.
+- **How:** title `Show HN: mcpforge – ...`; URL = the repo. Immediately post the
+  prepared first comment (the maker context in this file).
+- **First 1–2 hours decide everything.** Reply to every comment fast and
+  substantively. Do NOT ask for upvotes (HN penalizes it).
+- Engagement, not perfection: lead with the honest "where does the generated
+  output fall short" question — it invites the exact comments HN rewards.
+
+### Amplify (same day, after Show HN has legs)
+- **r/mcp** (and r/LocalLLaMA / r/ClaudeAI): post 1–2 hours after HN, during US
+  daytime. Use the r/mcp draft; link the repo, not the HN thread (avoid
+  vote-brigading optics).
+- **LinkedIn:** Tue–Thu, ~8–10 a.m. your local time. Use the LinkedIn draft.
+  First line is the hook — it's all most people see before "…more".
+
+### After
+- [ ] Capture any sharp feedback into issues while it's fresh.
+- [ ] If HN traction is real, a short follow-up ("what I learned shipping mcpforge
+      to HN") performs well a week later.
+
