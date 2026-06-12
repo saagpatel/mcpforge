@@ -2,7 +2,9 @@
 
 import re
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+KNOWN_TRANSPORTS: frozenset[str] = frozenset({"streamable-http", "stdio", "sse"})
 
 KNOWN_PACKAGES: frozenset[str] = frozenset(
     {
@@ -86,6 +88,21 @@ class ToolDef(BaseModel):
     auth_parameter_name: str | None = None
     retry_safe: bool = False
 
+    @field_validator("name", mode="before")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        if not re.match(r"^[a-z][a-z0-9_]*$", v):
+            raise ValueError(
+                f"Tool name {v!r} must be lowercase snake_case (e.g. 'get_user', 'list_items')"
+            )
+        return v
+
+    @model_validator(mode="after")
+    def validate_method_path_pair(self) -> "ToolDef":
+        if (self.method is None) != (self.path is None):
+            raise ValueError("'method' and 'path' must both be set or both be None")
+        return self
+
 
 class ResourceDef(BaseModel):
     """Definition of an MCP resource to generate."""
@@ -135,6 +152,13 @@ class ServerPlan(BaseModel):
     auth_profile: str | None = None
     middleware_profiles: list[str] = Field(default_factory=list)
     openapi_metadata: dict[str, str | list[str]] = Field(default_factory=dict)
+
+    @field_validator("transport", mode="before")
+    @classmethod
+    def validate_transport(cls, v: str) -> str:
+        if v not in KNOWN_TRANSPORTS:
+            raise ValueError(f"Unknown transport {v!r}; expected one of {sorted(KNOWN_TRANSPORTS)}")
+        return v
 
     @field_validator("external_packages", mode="before")
     @classmethod
