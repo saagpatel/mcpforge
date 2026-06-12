@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from mcpforge.models import PromptDef, ResourceDef, ServerPlan, ToolDef
 from mcpforge.validator import (
     check_lint,
+    check_packages,
     check_plan_conformance,
     check_syntax,
     uv_sync,
@@ -290,3 +291,40 @@ async def create_todo():
     def test_syntax_error_returns_empty(self):
         plan = self._plan_with_tools("create_todo")
         assert check_plan_conformance("def broken(", plan) == []
+
+
+class TestCheckPackages:
+    def _plan(self, packages: list[str]) -> ServerPlan:
+        return ServerPlan(name="Test", description="Test", tools=[], external_packages=packages)
+
+    def test_empty_packages_returns_none(self):
+        assert check_packages(self._plan([])) is None
+
+    def test_known_package_returns_none(self):
+        # httpx is in KNOWN_PACKAGES — should pass allowlist
+        assert check_packages(self._plan(["httpx"])) is None
+
+    def test_allowed_import_as_package_returns_none(self):
+        # asyncio is in ALLOWED_IMPORTS, which feeds _ALLOWED_PACKAGES
+        assert check_packages(self._plan(["asyncio"])) is None
+
+    def test_disallowed_package_returns_error(self):
+        result = check_packages(self._plan(["pwntools"]))
+        assert result is not None
+        assert "pwntools" in result
+
+    def test_error_message_names_all_rejected(self):
+        result = check_packages(self._plan(["pwntools", "scapy"]))
+        assert result is not None
+        assert "pwntools" in result
+        assert "scapy" in result
+
+    def test_case_insensitive_match(self):
+        # Package names from LLMs may arrive in any case
+        assert check_packages(self._plan(["HTTPX"])) is None
+
+    def test_mixed_packages_rejects_only_unknown(self):
+        result = check_packages(self._plan(["httpx", "pwntools"]))
+        assert result is not None
+        assert "pwntools" in result
+        assert "httpx" not in result
