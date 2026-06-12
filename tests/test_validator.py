@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from mcpforge.models import PromptDef, ResourceDef, ServerPlan, ToolDef
 from mcpforge.validator import (
     check_lint,
+    check_packages,
     check_plan_conformance,
     check_syntax,
     uv_sync,
@@ -201,6 +202,30 @@ class TestValidateServer:
         assert result.import_ok is False  # halted before import
         assert len(result.lint_errors) > 0
         mock_import.assert_not_called()
+
+
+class TestCheckPackages:
+    def _plan(self, packages: list[str]) -> ServerPlan:
+        return ServerPlan(name="Test", description="Test", tools=[], external_packages=packages)
+
+    def test_allowed_package_returns_none(self):
+        assert check_packages(self._plan(["httpx"])) is None
+
+    def test_disallowed_package_returns_error_string(self):
+        result = check_packages(self._plan(["evil-package"]))
+        assert result is not None
+        assert isinstance(result, str)
+
+    def test_error_message_names_rejected_package(self):
+        result = check_packages(self._plan(["evil-package"]))
+        assert result is not None
+        assert "evil-package" in result
+
+    def test_empty_packages_returns_none(self):
+        assert check_packages(self._plan([])) is None
+
+    def test_case_insensitive_match_for_allowed_package(self):
+        assert check_packages(self._plan(["HTTPX"])) is None
 
 
 class TestCheckPlanConformance:
