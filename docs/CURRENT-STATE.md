@@ -1,6 +1,6 @@
 # mcpforge Current State
 
-Last updated: 2026-06-18
+Last updated: 2026-06-19
 
 ## Big Picture
 
@@ -16,6 +16,7 @@ mcpforge is a Python 3.12+ CLI and MCP server that generates runnable FastMCP 3.
 - GitHub release: `v0.3.1` exists
 - PyPI publish: `fastmcp-builder==0.3.1` published successfully
 - Current follow-up lane: OpenAI structured-output, planning, and generation smoke gates
+- Provider matrix runbook: `docs/PROVIDER-MATRIX.md`
 - GitHub PR queue: cleared during the latest cleanup pass
 - Dependabot alerts: cleared during the latest cleanup pass
 - CI posture: green on the latest pushed `main`
@@ -37,6 +38,9 @@ mcpforge is a Python 3.12+ CLI and MCP server that generates runnable FastMCP 3.
   TypeScript servers alongside Python servers.
 - Tightened hosted TypeScript test generation so generated Vitest suites handle
   strict MCP result typing, then verified the hosted `--language typescript` path.
+- Added `docs/PROVIDER-MATRIX.md` to keep local release readiness, hosted
+  provider readiness, safe local verification, and approval-required hosted
+  smoke commands separated.
 
 ## Current Command Surface
 
@@ -185,6 +189,9 @@ Latest v0.3.1 patch release result on 2026-06-19:
 
 Opt-in hosted smoke commands:
 
+See `docs/PROVIDER-MATRIX.md` for the current provider gate matrix, safe local
+verification commands, and hosted-smoke approval rules.
+
 ```bash
 MCPFORGE_RUN_HOSTED_SMOKE=1 ANTHROPIC_API_KEY=... uv run pytest tests/test_hosted_generation_smoke.py
 MCPFORGE_RUN_HOSTED_TS_SMOKE=1 ANTHROPIC_API_KEY=... uv run pytest tests/test_hosted_generation_smoke.py::test_hosted_generate_typescript_echo_server
@@ -221,3 +228,5 @@ uv run --directory examples/weather-server pytest
 1. Add `OPENAI_API_KEY` to this execution environment or Keychain under `OPENAI_API_KEY`, then run the opt-in OpenAI structured-output, planning, and generation hosted smokes.
 2. Replenish Anthropic API credits and rerun the hosted Anthropic Python, TypeScript, and authenticated OpenAPI smoke matrix.
 3. Move OpenAI out of gated status only after all OpenAI hosted smokes pass repeatedly and the Anthropic release matrix is green again.
+4. Use `docs/PROVIDER-MATRIX.md` as the release-gate checklist for any next
+   provider-matrix audit or publish decision.
