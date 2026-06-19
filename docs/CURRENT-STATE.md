@@ -1,6 +1,6 @@
 # mcpforge Current State
 
-Last updated: 2026-05-10
+Last updated: 2026-06-18
 
 ## Big Picture
 
@@ -10,11 +10,11 @@ mcpforge is a Python 3.12+ CLI and MCP server that generates runnable FastMCP 3.
 
 - Branch: `main`
 - Remote state: `main` pushed to `origin/main`
-- Package version: `0.3.0`
+- Package version: `0.3.1` release prep
 - PyPI distribution name: `fastmcp-builder`
 - Import package and commands: `mcpforge`, `mcpforge-server`
-- GitHub release: `v0.3.0` exists
-- PyPI publish: `fastmcp-builder==0.3.0` published successfully
+- GitHub release: `v0.3.0` exists; `v0.3.1` is pending tag/publish
+- PyPI publish: `fastmcp-builder==0.3.0` published successfully; `0.3.1` is pending tag/publish
 - Current follow-up lane: OpenAI structured-output, planning, and generation smoke gates
 - GitHub PR queue: cleared during the latest cleanup pass
 - Dependabot alerts: cleared during the latest cleanup pass
@@ -177,6 +177,7 @@ Opt-in hosted smoke commands:
 
 ```bash
 MCPFORGE_RUN_HOSTED_SMOKE=1 ANTHROPIC_API_KEY=... uv run pytest tests/test_hosted_generation_smoke.py
+MCPFORGE_RUN_HOSTED_TS_SMOKE=1 ANTHROPIC_API_KEY=... uv run pytest tests/test_hosted_generation_smoke.py::test_hosted_generate_typescript_echo_server
 MCPFORGE_RUN_HOSTED_OPENAPI_SMOKE=1 ANTHROPIC_API_KEY=... uv run pytest tests/test_hosted_generation_smoke.py::test_hosted_generate_openapi_auth_server
 MCPFORGE_RUN_HOSTED_OPENAI_SMOKE=1 OPENAI_API_KEY=... uv run pytest tests/test_hosted_generation_smoke.py::test_hosted_openai_structured_output_smoke
 MCPFORGE_RUN_HOSTED_OPENAI_PLANNING_SMOKE=1 OPENAI_API_KEY=... uv run pytest tests/test_hosted_generation_smoke.py::test_hosted_openai_planning_smoke
