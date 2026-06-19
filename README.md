@@ -163,7 +163,7 @@ The `generate` command sends the user's description to Claude with a structured 
 
 ## Current Status
 
-mcpforge is published to PyPI as the `fastmcp-builder` distribution. The v0.3 builder lane expands mcpforge from runnable-server generation into a production integration builder with inspection, doctor checks, richer generated scaffolds, OpenAPI curation, MCP server parity, provider abstraction, remote MCP readiness docs, and live generated fixture examples for REST API, filesystem, database, authenticated OpenAPI, and TypeScript profiles. See `docs/CURRENT-STATE.md` and `docs/ROADMAP-v0.3.md`.
+mcpforge is published to PyPI as the `fastmcp-builder` distribution. The v0.3 builder lane expands mcpforge from runnable-server generation into a production integration builder with inspection, doctor checks, richer generated scaffolds, OpenAPI curation, MCP server parity, provider abstraction, remote MCP readiness docs, and live generated fixture examples for REST API, filesystem, database, authenticated OpenAPI, and TypeScript profiles. See `docs/CURRENT-STATE.md`, `docs/ROADMAP-v0.3.md`, and `docs/PROVIDER-MATRIX.md`.
 
 ## License
 

@@ -39,6 +39,9 @@ mcpforge is moving from "generate a runnable MCP server" to "generate a reliable
 - Run the OpenAI hosted structured-output, planning, and generation smokes once `OPENAI_API_KEY` is available.
 - Keep OpenAI provider generation gated until those smokes pass repeatedly.
 - Run a release-candidate verification pass that includes hosted Anthropic, authenticated OpenAPI, and all OpenAI smokes before the next tag.
+- Use `docs/PROVIDER-MATRIX.md` as the current release-gate checklist for safe
+  local verification, blocked/gated provider status, and approval-required
+  hosted smoke commands.
 
 ## Release Gate
 
@@ -54,6 +57,9 @@ scripts/verify_clean_install.sh
 ```
 
 Hosted smokes remain opt-in:
+
+See `docs/PROVIDER-MATRIX.md` before running hosted smokes; provider calls are
+paid, key-gated, and approval-required.
 
 ```bash
 MCPFORGE_RUN_HOSTED_SMOKE=1 ANTHROPIC_API_KEY=... uv run pytest tests/test_hosted_generation_smoke.py
