@@ -10,11 +10,11 @@ mcpforge is a Python 3.12+ CLI and MCP server that generates runnable FastMCP 3.
 
 - Branch: `main`
 - Remote state: `main` pushed to `origin/main`
-- Package version: `0.3.1` release prep
+- Package version: `0.3.1`
 - PyPI distribution name: `fastmcp-builder`
 - Import package and commands: `mcpforge`, `mcpforge-server`
-- GitHub release: `v0.3.0` exists; `v0.3.1` is pending tag/publish
-- PyPI publish: `fastmcp-builder==0.3.0` published successfully; `0.3.1` is pending tag/publish
+- GitHub release: `v0.3.1` exists
+- PyPI publish: `fastmcp-builder==0.3.1` published successfully
 - Current follow-up lane: OpenAI structured-output, planning, and generation smoke gates
 - GitHub PR queue: cleared during the latest cleanup pass
 - Dependabot alerts: cleared during the latest cleanup pass
@@ -172,6 +172,16 @@ Latest provider-matrix retry on 2026-05-10:
 - `OPENAI_API_KEY` is not available in the shell or under the checked common Keychain service names (`OPENAI_API_KEY`, `openai_api_key`, `openai`, `OPENAI`), so the OpenAI structured-output, planning, and generation smokes still skip.
 - `ANTHROPIC_API_KEY` is available from Keychain, but hosted Anthropic Python, TypeScript, and authenticated OpenAPI smokes now fail before generation because the Anthropic API returns `Your credit balance is too low to access the Anthropic API`.
 - No OpenAI ungating happened. The provider remains gated by default until the OpenAI smoke trio passes with a real key and the Anthropic release matrix is green again.
+
+Latest v0.3.1 patch release result on 2026-06-19:
+
+- PR `#32` merged the `0.3.1` release prep to `main`.
+- Git tag `v0.3.1` points at the merge commit on `main`.
+- GitHub Actions `Publish to PyPI` completed successfully for tag `v0.3.1`.
+- PyPI verification: `fastmcp-builder==0.3.1` reports wheel and source distribution files.
+- Clean PyPI install smoke:
+  `uvx --from fastmcp-builder==0.3.1 mcpforge version --json` returned `0.3.1`.
+- Hosted provider smokes were intentionally not run for this patch release; they remain opt-in and approval-gated.
 
 Opt-in hosted smoke commands:
 
