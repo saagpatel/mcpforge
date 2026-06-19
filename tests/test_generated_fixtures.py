@@ -33,14 +33,22 @@ def test_v03_fixtures_include_runtime_docs_and_configs() -> None:
 
 def test_v03_fixtures_do_not_commit_dependency_artifacts() -> None:
     """Generated fixtures should not check in local installs or lock churn."""
+    import subprocess
+
     forbidden = {"node_modules", ".venv", "uv.lock", "package-lock.json"}
-    found = [
-        path
-        for path in EXAMPLES.glob("v03-*")
-        for child in path.rglob("*")
-        if child.name in forbidden
-    ]
-    assert found == []
+    violations: list[str] = []
+    for v03_dir in EXAMPLES.glob("v03-*"):
+        result = subprocess.run(
+            ["git", "ls-files", str(v03_dir)],
+            capture_output=True,
+            text=True,
+            cwd=ROOT,
+        )
+        tracked_names = {Path(p).name for p in result.stdout.splitlines()}
+        committed = tracked_names & forbidden
+        if committed:
+            violations.append(f"{v03_dir.name}: {committed}")
+    assert violations == [], f"Committed dependency artifacts: {violations}"
 
 
 def test_filesystem_resource_returns_serialized_content() -> None:
