@@ -36,8 +36,8 @@ The package import and console commands intentionally remain `mcpforge` and
 
 ## Manual release steps
 
-For `v0.3.0`, `src/mcpforge/__init__.py` and `pyproject.toml` should report
-`0.3.0`, and `pyproject.toml` should use distribution name
+For each release, `src/mcpforge/__init__.py` and `pyproject.toml` should report
+the same version, and `pyproject.toml` should use distribution name
 `fastmcp-builder`.
 
 1. Confirm version in `src/mcpforge/__init__.py` and `pyproject.toml`
