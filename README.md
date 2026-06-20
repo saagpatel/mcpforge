@@ -137,7 +137,7 @@ Useful generation flags:
 - `--language python|typescript` chooses the target server language.
 - `--auth-profile none|api-key|jwt` adds optional Python auth profile metadata and env docs.
 - `--middleware-profile logging|timing|rate-limit` adds optional Python middleware profiles; repeat it to combine profiles.
-- `--provider anthropic|openai` selects the generation provider. OpenAI remains gated by default; set `MCPFORGE_ENABLE_OPENAI_PROVIDER=1` only for opt-in smoke testing after `OPENAI_API_KEY` is available.
+- `--provider anthropic|openai|openrouter` selects the generation provider. `openrouter` is the "bring any model" path: set `OPENROUTER_API_KEY` and pick any OpenRouter model with `--model` (e.g. `--model anthropic/claude-opus-4.8`), including free and low-cost ones. Generation quality and structured-output support vary by model — the recommended models are Claude Opus 4.8 (xHigh) and/or GPT 5.5 (High/Extra High). OpenAI remains gated by default; set `MCPFORGE_ENABLE_OPENAI_PROVIDER=1` only for opt-in smoke testing after `OPENAI_API_KEY` is available.
 
 Useful status flags:
 - `mcpforge list --json`

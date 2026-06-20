@@ -23,6 +23,7 @@ from mcpforge.generator_ts import generate_server_ts, generate_tests_ts
 from mcpforge.inspection import inspect_server
 from mcpforge.models import ServerPlan, ToolDef, ValidationResult
 from mcpforge.openapi import load_spec, parse_openapi
+from mcpforge.openrouter_client import OPENROUTER_DISCLAIMER
 from mcpforge.planner import extract_plan, refine_plan
 from mcpforge.profiles import apply_generation_profiles
 from mcpforge.prompts import load_prompt
@@ -43,6 +44,11 @@ def _create_cli_client(provider: str, model: str):
     """Create a generation client while preserving existing Anthropic test seams."""
     if provider.lower() == "anthropic":
         return AnthropicClient(model=model)
+    if provider.lower() == "openrouter":
+        # Build first so a missing key fails before the disclaimer prints.
+        client = create_provider_client(provider, model=model)
+        click.echo(OPENROUTER_DISCLAIMER, err=True)
+        return client
     return create_provider_client(provider, model=model)
 
 
@@ -526,8 +532,11 @@ def cli() -> None:
     "--provider",
     default=DEFAULT_PROVIDER,
     show_default=True,
-    type=click.Choice(["anthropic", "openai"], case_sensitive=False),
-    help="Generation provider. OpenAI is gated until structured-output smokes land.",
+    type=click.Choice(["anthropic", "openai", "openrouter"], case_sensitive=False),
+    help=(
+        "Generation provider. 'openrouter' runs any model via an OpenRouter key "
+        "(--model sets the slug); OpenAI is gated until structured-output smokes land."
+    ),
 )
 @click.option(
     "--transport",
@@ -727,8 +736,11 @@ def generate(
     "--provider",
     default=DEFAULT_PROVIDER,
     show_default=True,
-    type=click.Choice(["anthropic", "openai"], case_sensitive=False),
-    help="Generation provider. OpenAI is gated until structured-output smokes land.",
+    type=click.Choice(["anthropic", "openai", "openrouter"], case_sensitive=False),
+    help=(
+        "Generation provider. 'openrouter' runs any model via an OpenRouter key "
+        "(--model sets the slug); OpenAI is gated until structured-output smokes land."
+    ),
 )
 @click.option(
     "--yes",
