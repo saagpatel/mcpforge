@@ -8,7 +8,7 @@ import httpx
 import pytest
 from pydantic import BaseModel
 
-from mcpforge.api_client import AnthropicClient
+from mcpforge.api_client import AnthropicClient, _model_rejects_sampling
 
 
 class StructuredSmoke(BaseModel):
@@ -42,35 +42,132 @@ class TestGenerate:
         assert mock_messages.create.await_count == 2
         mock_sleep.assert_awaited_once()
 
+    async def test_includes_temperature_for_sampling_models(self):
+        """The default model accepts sampling params, so temperature is forwarded."""
+        response = SimpleNamespace(content=[SimpleNamespace(text="ok")])
+        mock_messages = MagicMock()
+        mock_messages.create = AsyncMock(return_value=response)
+        mock_anthropic = MagicMock()
+        mock_anthropic.messages = mock_messages
+
+        with patch("mcpforge.api_client.anthropic.AsyncAnthropic", return_value=mock_anthropic):
+            client = AnthropicClient(api_key="test-key")  # default sonnet-4-6
+            result = await client.generate("system", "user", temperature=0.0)
+
+        assert result == "ok"
+        _, kwargs = mock_messages.create.call_args
+        assert kwargs["temperature"] == 0.0
+
+    async def test_omits_temperature_for_sampling_rejecting_model(self):
+        """Opus 4.8 rejects temperature with a 400, so the param must be omitted."""
+        response = SimpleNamespace(content=[SimpleNamespace(text="ok")])
+        mock_messages = MagicMock()
+        mock_messages.create = AsyncMock(return_value=response)
+        mock_anthropic = MagicMock()
+        mock_anthropic.messages = mock_messages
+
+        with patch("mcpforge.api_client.anthropic.AsyncAnthropic", return_value=mock_anthropic):
+            client = AnthropicClient(api_key="test-key", model="claude-opus-4-8")
+            result = await client.generate("system", "user", temperature=0.0)
+
+        assert result == "ok"
+        _, kwargs = mock_messages.create.call_args
+        assert "temperature" not in kwargs
+        assert kwargs["model"] == "claude-opus-4-8"
+
+    async def test_skips_thinking_blocks_when_reading_text(self):
+        """Adaptive-thinking responses lead with thinking blocks; pick the text block."""
+        response = SimpleNamespace(
+            content=[
+                SimpleNamespace(thinking="internal reasoning"),
+                SimpleNamespace(text="actual answer"),
+            ]
+        )
+        mock_messages = MagicMock()
+        mock_messages.create = AsyncMock(return_value=response)
+        mock_anthropic = MagicMock()
+        mock_anthropic.messages = mock_messages
+
+        with patch("mcpforge.api_client.anthropic.AsyncAnthropic", return_value=mock_anthropic):
+            client = AnthropicClient(api_key="test-key")
+            result = await client.generate("system", "user")
+
+        assert result == "actual answer"
+
+
+class TestModelRejectsSampling:
+    @pytest.mark.parametrize(
+        ("model", "expected"),
+        [
+            ("claude-opus-4-8", True),
+            ("claude-opus-4-7", True),
+            ("claude-opus-4-7-20250514", True),  # dated alias
+            ("claude-opus-4-9", True),  # future minor — version floor, not enum
+            ("claude-opus-4-10", True),  # double-digit minor sorts correctly
+            ("claude-opus-5-0", True),  # future major
+            ("claude-fable-5", True),
+            ("claude-mythos-5", True),
+            ("claude-sonnet-4-6", False),
+            ("claude-opus-4-6", False),
+            ("claude-opus-4-6-20250101", False),
+            ("claude-haiku-4-5", False),
+        ],
+    )
+    def test_predicate(self, model, expected):
+        assert _model_rejects_sampling(model) is expected
+
 
 class TestGenerateJson:
-    async def test_generate_json_uses_temperature_zero_and_validates_schema(self):
-        """generate_json is deterministic and returns a validated Pydantic model."""
-        with patch.object(
-            AnthropicClient,
-            "generate",
-            new=AsyncMock(return_value='```json\n{"name": "tickets", "count": 2}\n```'),
-        ) as mock_generate:
+    async def test_uses_structured_output_and_returns_parsed_model(self):
+        """generate_json drives messages.parse and returns the parsed Pydantic model."""
+        parsed_response = SimpleNamespace(parsed_output=StructuredSmoke(name="tickets", count=2))
+        mock_messages = MagicMock()
+        mock_messages.parse = AsyncMock(return_value=parsed_response)
+        mock_anthropic = MagicMock()
+        mock_anthropic.messages = mock_messages
+
+        with patch("mcpforge.api_client.anthropic.AsyncAnthropic", return_value=mock_anthropic):
             client = AnthropicClient(api_key="test-key")
             result = await client.generate_json("system", "user", StructuredSmoke)
 
         assert result == StructuredSmoke(name="tickets", count=2)
-        mock_generate.assert_awaited_once_with(
-            system_prompt="system",
-            user_message="user",
+        mock_messages.parse.assert_awaited_once_with(
+            model="claude-sonnet-4-6",
             max_tokens=8192,
-            temperature=0.0,
+            system="system",
+            messages=[{"role": "user", "content": "user"}],
+            output_format=StructuredSmoke,
         )
+        # Structured output never carries a sampling param, even on the default model.
+        assert "temperature" not in mock_messages.parse.call_args.kwargs
 
-    async def test_generate_json_rejects_malformed_structured_output(self):
-        """Malformed structured output fails before provider support can be marked stable."""
-        with patch.object(
-            AnthropicClient,
-            "generate",
-            new=AsyncMock(return_value='{"name": "tickets", "count": "many"}'),
-        ):
+    async def test_works_for_sampling_rejecting_model(self):
+        """Structured output carries no temperature, so Opus 4.8 generates cleanly."""
+        parsed_response = SimpleNamespace(parsed_output=StructuredSmoke(name="ok", count=1))
+        mock_messages = MagicMock()
+        mock_messages.parse = AsyncMock(return_value=parsed_response)
+        mock_anthropic = MagicMock()
+        mock_anthropic.messages = mock_messages
+
+        with patch("mcpforge.api_client.anthropic.AsyncAnthropic", return_value=mock_anthropic):
+            client = AnthropicClient(api_key="test-key", model="claude-opus-4-8")
+            result = await client.generate_json("system", "user", StructuredSmoke)
+
+        assert result == StructuredSmoke(name="ok", count=1)
+        _, kwargs = mock_messages.parse.call_args
+        assert "temperature" not in kwargs
+
+    async def test_rejects_empty_structured_output(self):
+        """A response that parses to nothing surfaces a clear error."""
+        parsed_response = SimpleNamespace(parsed_output=None)
+        mock_messages = MagicMock()
+        mock_messages.parse = AsyncMock(return_value=parsed_response)
+        mock_anthropic = MagicMock()
+        mock_anthropic.messages = mock_messages
+
+        with patch("mcpforge.api_client.anthropic.AsyncAnthropic", return_value=mock_anthropic):
             client = AnthropicClient(api_key="test-key")
-            with pytest.raises(ValueError, match="did not match StructuredSmoke schema"):
+            with pytest.raises(ValueError, match="StructuredSmoke"):
                 await client.generate_json("system", "user", StructuredSmoke)
 
 
@@ -163,6 +260,32 @@ class TestGenerateStream:
             system="sys prompt",
             messages=[{"role": "user", "content": "user msg"}],
         )
+
+    async def test_omits_temperature_for_sampling_rejecting_model(self):
+        """A model that rejects sampling must not receive temperature on the stream call."""
+        mock_stream = AsyncMock()
+        mock_stream.__aenter__ = AsyncMock(return_value=mock_stream)
+        mock_stream.__aexit__ = AsyncMock(return_value=None)
+
+        async def _fake_text_stream():
+            yield "chunk"
+
+        mock_stream.text_stream = _fake_text_stream()
+
+        mock_messages = MagicMock()
+        mock_messages.stream = MagicMock(return_value=mock_stream)
+
+        mock_anthropic = MagicMock()
+        mock_anthropic.messages = mock_messages
+
+        with patch("mcpforge.api_client.anthropic.AsyncAnthropic", return_value=mock_anthropic):
+            client = AnthropicClient(api_key="test-key", model="claude-opus-4-8")
+            async for _ in client.generate_stream("sys", "user", temperature=0.5):
+                pass
+
+        _, kwargs = mock_messages.stream.call_args
+        assert "temperature" not in kwargs
+        assert kwargs["model"] == "claude-opus-4-8"
 
     async def test_empty_stream_yields_nothing(self):
         """generate_stream with empty text_stream yields no chunks."""

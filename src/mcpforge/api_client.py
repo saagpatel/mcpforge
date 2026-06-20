@@ -1,25 +1,66 @@
 """Anthropic API client wrapper with retry logic.
 
-MODEL PIN: This module uses Sonnet 4.6 intentionally. Opus 4.7 rejects
-non-default `temperature` values (400 error), and mcpforge relies on
-`temperature=0` for deterministic JSON output in `generate_json()`.
-Do NOT upgrade the default model to Opus 4.7 (or any future model that
-rejects temperature) without first migrating `generate_json()` to tool
-use with a strict schema, which is the 4.7-era replacement for the
-`temperature=0` determinism lever.
+MODEL POLICY: `generate_json()` uses Anthropic structured outputs
+(`messages.parse` with `output_format`), so JSON determinism no longer
+depends on `temperature=0`. The newest reasoning models (Opus 4.7+,
+Fable 5, Mythos 5) reject `temperature`/`top_p`/`top_k` with a 400, so
+`generate()` forwards `temperature` only for models that accept it
+(see `_model_rejects_sampling`). The default model is safe to upgrade to
+any of those models without further client changes.
 """
 
 import asyncio
-import json
 import os
 import random
 import re
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
+from typing import TypeVar
 
 import anthropic
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
 
 DEFAULT_MODEL = "claude-sonnet-4-6"
+
+_T = TypeVar("_T")
+
+# Model families that reject temperature/top_p/top_k with a 400 across every
+# version (Fable and Mythos thinking is always on, with no sampling lever).
+_SAMPLING_REJECTING_FAMILIES = ("fable", "mythos")
+# Opus rejects sampling from this minor onward; 4.6 and earlier still accept it.
+_OPUS_SAMPLING_FLOOR = (4, 7)
+_OPUS_VERSION_RE = re.compile(r"opus-(\d+)-(\d+)")
+
+
+def _model_rejects_sampling(model: str) -> bool:
+    """Return True if the model rejects temperature/top_p/top_k (400 error).
+
+    Expressed as a version floor rather than an enumeration so the default
+    model stays safe to upgrade to future reasoning models: Opus >= 4.7 and
+    the Fable/Mythos families reject sampling; Opus 4.6, Sonnet, and Haiku
+    still accept it.
+    """
+    normalized = model.lower()
+    if any(family in normalized for family in _SAMPLING_REJECTING_FAMILIES):
+        return True
+    match = _OPUS_VERSION_RE.search(normalized)
+    if match:
+        version = (int(match.group(1)), int(match.group(2)))
+        return version >= _OPUS_SAMPLING_FLOOR
+    return False
+
+
+def _first_text_block(response: object) -> str:
+    """Return the first text block's text, skipping thinking blocks.
+
+    Adaptive-thinking responses lead with thinking blocks, so the text is
+    not necessarily ``content[0]``. Thinking blocks expose ``thinking`` but
+    not ``text``, so the first block with a ``text`` attribute is the answer.
+    """
+    for block in response.content:  # type: ignore[attr-defined]
+        text = getattr(block, "text", None)
+        if text is not None:
+            return text
+    raise RuntimeError("Anthropic response contained no text block")
 
 
 class AnthropicClient:
@@ -42,6 +83,31 @@ class AnthropicClient:
     def __repr__(self) -> str:
         return f"AnthropicClient(model={self._model!r})"
 
+    def _sampling_params(self, temperature: float) -> dict[str, float]:
+        """``{"temperature": t}`` for models that accept it, else ``{}`` (avoids a 400)."""
+        if _model_rejects_sampling(self._model):
+            return {}
+        return {"temperature": temperature}
+
+    async def _with_retry(self, operation: Callable[[], Awaitable[_T]]) -> _T:
+        """Run an async provider call with exponential-backoff retry (3 attempts)."""
+        last_exc: Exception | None = None
+        for attempt in range(3):
+            try:
+                return await operation()
+            except (anthropic.RateLimitError, anthropic.APIConnectionError) as exc:
+                last_exc = exc
+                if attempt == 2:
+                    raise
+                await asyncio.sleep((2**attempt) + random.uniform(0.0, 1.0))
+            except anthropic.APIStatusError as exc:
+                last_exc = exc
+                if exc.status_code >= 500 and attempt < 2:
+                    await asyncio.sleep((2**attempt) + random.uniform(0.0, 1.0))
+                    continue
+                raise
+        raise RuntimeError("retry loop exited unexpectedly") from last_exc
+
     async def generate(
         self,
         system_prompt: str,
@@ -51,39 +117,20 @@ class AnthropicClient:
     ) -> str:
         """Send a message and return the text response.
 
-        Retries up to 3 times with exponential backoff on transient provider errors.
+        ``temperature`` is forwarded only for models that accept sampling
+        params; models that reject it (Opus 4.7+, Fable 5, Mythos 5) omit it
+        to avoid a 400. Retries up to 3 times on transient provider errors.
         """
-        last_exc: Exception | None = None
-        for attempt in range(3):
-            try:
-                response = await self._client.messages.create(
-                    model=self._model,
-                    max_tokens=max_tokens,
-                    temperature=temperature,
-                    system=system_prompt,
-                    messages=[{"role": "user", "content": user_message}],
-                )
-                return response.content[0].text  # type: ignore[union-attr]
-            except anthropic.RateLimitError as exc:
-                last_exc = exc
-                if attempt == 2:
-                    raise
-                wait = (2**attempt) + random.uniform(0.0, 1.0)
-                await asyncio.sleep(wait)
-            except anthropic.APIConnectionError as exc:
-                last_exc = exc
-                if attempt == 2:
-                    raise
-                wait = (2**attempt) + random.uniform(0.0, 1.0)
-                await asyncio.sleep(wait)
-            except anthropic.APIStatusError as exc:
-                last_exc = exc
-                if exc.status_code >= 500 and attempt < 2:
-                    wait = (2**attempt) + random.uniform(0.0, 1.0)
-                    await asyncio.sleep(wait)
-                    continue
-                raise
-        raise RuntimeError("generate() exited retry loop unexpectedly") from last_exc
+        response = await self._with_retry(
+            lambda: self._client.messages.create(
+                model=self._model,
+                max_tokens=max_tokens,
+                system=system_prompt,
+                messages=[{"role": "user", "content": user_message}],
+                **self._sampling_params(temperature),
+            )
+        )
+        return _first_text_block(response)
 
     async def generate_json(
         self,
@@ -92,29 +139,28 @@ class AnthropicClient:
         response_model: type[BaseModel],
         max_tokens: int = 8192,
     ) -> BaseModel:
-        """Generate and parse a structured JSON response into a Pydantic model instance.
+        """Generate a structured response validated against a Pydantic model.
 
-        Uses temperature=0 for deterministic JSON output. Strips markdown fences
-        before parsing so the LLM can optionally wrap its response in ```json blocks.
+        Uses Anthropic structured outputs (``messages.parse`` with
+        ``output_format``) so the schema is enforced provider-side and
+        determinism does not depend on ``temperature`` — newer reasoning
+        models reject the temperature lever.
         """
-        text = await self.generate(
-            system_prompt=system_prompt,
-            user_message=user_message,
-            max_tokens=max_tokens,
-            temperature=0.0,
+        response = await self._with_retry(
+            lambda: self._client.messages.parse(
+                model=self._model,
+                max_tokens=max_tokens,
+                system=system_prompt,
+                messages=[{"role": "user", "content": user_message}],
+                output_format=response_model,
+            )
         )
-        try:
-            data = _extract_json(text)
-            return response_model.model_validate(data)
-        except json.JSONDecodeError as exc:
+        parsed = response.parsed_output
+        if parsed is None:
             raise ValueError(
-                f"Response was not valid JSON for {response_model.__name__}.\n"
-                f"Raw response (first 500 chars): {text[:500]}"
-            ) from exc
-        except ValidationError as exc:
-            raise ValueError(
-                f"Response JSON did not match {response_model.__name__} schema: {exc}"
-            ) from exc
+                f"Anthropic returned no parseable structured output for {response_model.__name__}."
+            )
+        return parsed
 
     async def generate_stream(
         self,
@@ -128,13 +174,14 @@ class AnthropicClient:
 
         Yields str chunks. No retry — streaming connections are not retryable.
         Raises TimeoutError if no chunk arrives within chunk_timeout seconds.
+        ``temperature`` is forwarded only for models that accept sampling params.
         """
         async with self._client.messages.stream(
             model=self._model,
             max_tokens=max_tokens,
-            temperature=temperature,
             system=system_prompt,
             messages=[{"role": "user", "content": user_message}],
+            **self._sampling_params(temperature),
         ) as stream:
             aiter = stream.text_stream.__aiter__()
             while True:
@@ -147,12 +194,3 @@ class AnthropicClient:
                     raise TimeoutError(
                         f"Streaming generation stalled — no data received for {chunk_timeout}s"
                     ) from None
-
-
-def _extract_json(text: str) -> dict:
-    """Extract a JSON object from text, stripping optional markdown code fences."""
-    text = text.strip()
-    if text.startswith("```"):
-        text = re.sub(r"^```(?:json)?\s*\n?", "", text)
-        text = re.sub(r"\n?```\s*$", "", text)
-    return json.loads(text.strip())
