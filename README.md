@@ -151,7 +151,7 @@ Useful generation flags:
 - `--language python|typescript` chooses the target server language.
 - `--auth-profile none|api-key|jwt` adds optional Python auth profile metadata and env docs.
 - `--middleware-profile logging|timing|rate-limit` adds optional Python middleware profiles; repeat it to combine profiles.
-- `--provider anthropic|openai|openrouter` selects the generation provider. `openrouter` is the "bring any model" path: set `OPENROUTER_API_KEY` and pick any OpenRouter model with `--model` (e.g. `--model anthropic/claude-opus-4.8`), including free and low-cost ones. Generation quality and structured-output support vary by model — the recommended models are Claude Opus 4.8 (xHigh) and/or GPT 5.5 (High/Extra High). OpenAI remains gated by default; set `MCPFORGE_ENABLE_OPENAI_PROVIDER=1` only for opt-in smoke testing after `OPENAI_API_KEY` is available.
+- `--provider anthropic|openai|openrouter` selects the generation provider. `openrouter` is the "bring any model" path: set `OPENROUTER_API_KEY` and pick any OpenRouter model with `--model` (e.g. `--model anthropic/claude-opus-4.8`), including free and low-cost ones. Generation quality and structured-output support vary by model — the recommended models are Claude Opus 4.8 (xHigh) and/or GPT 5.5 (High/Extra High). The `openai` package is a default dependency (included in all installs) because it backs both `--provider openai` and `--provider openrouter`; set `MCPFORGE_ENABLE_OPENAI_PROVIDER=1` to enable the direct OpenAI provider for use with `OPENAI_API_KEY`.
 
 Useful status flags:
 - `mcpforge list --json`
@@ -165,7 +165,7 @@ Useful status flags:
 | Layer | Technology |
 |-------|------------|
 | Language | Python 3.12+ |
-| Generation | Anthropic Claude via `anthropic` SDK; OpenAI provider support is gated behind hosted smokes |
+| Generation | Anthropic Claude via `anthropic` SDK; OpenAI and OpenRouter via `openai` SDK (included by default) |
 | MCP framework | FastMCP 3.x |
 | CLI | Click 8 |
 | Templates | Jinja2 |
@@ -176,9 +176,16 @@ Useful status flags:
 
 The `generate` command sends the user's description to Claude with a structured prompt that includes FastMCP 3.x idioms and a tool-schema contract. Claude returns a JSON plan (tool names, signatures, and descriptions) that mcpforge validates against a Pydantic model before rendering through Jinja2 templates into a complete project directory. The generated project is then validated with syntax checks, security scanning, ruff linting, import checks, and pytest execution. The `update` command reads an existing generated server, asks Claude for a targeted modification, writes backups for changed files, and validates the result.
 
-## Current Status
+## Current Status — v0.3.3
 
-mcpforge is published to PyPI as the `fastmcp-builder` distribution. The v0.3 builder lane expands mcpforge from runnable-server generation into a production integration builder with inspection, doctor checks, richer generated scaffolds, OpenAPI curation, MCP server parity, provider abstraction, remote MCP readiness docs, and live generated fixture examples for REST API, filesystem, database, authenticated OpenAPI, and TypeScript profiles. See `docs/CURRENT-STATE.md`, `docs/ROADMAP-v0.3.md`, and `docs/PROVIDER-MATRIX.md`.
+mcpforge is published to PyPI as `fastmcp-builder` v0.3.3. This release adds the
+`mcpforge demo` command (try the full generate pipeline with no API key, no cost),
+an OpenRouter provider (`--provider openrouter`) for running generation against any
+OpenRouter-hosted model, and official MCP Registry metadata. The `generate`,
+`update`, `validate`, `inspect`, `doctor`, and `demo` commands work against
+FastMCP 3.4.2+.
+
+See [CHANGELOG.md](CHANGELOG.md) for the full version history.
 
 ## License
 

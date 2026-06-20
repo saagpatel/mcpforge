@@ -23,6 +23,8 @@ dependencies = [
     "click>=8.1.0",
     "fastmcp>=3.4.2",
     "jinja2>=3.1.6",
+    # openai is a default dep: it backs --provider openai and --provider openrouter,
+    # both eagerly imported at startup via src/mcpforge/providers.py.
     "openai>=2.36.0",
     "pydantic>=2.0.0",
     "rich>=15.0.0",

@@ -6,7 +6,7 @@
 
 ## Current State
 
-The current state notes live in `docs/CURRENT-STATE.md`. Use that file for dated release and verification context, then re-check live repo state before acting.
+Use `docs/PROVIDER-MATRIX.md` for hosted-provider readiness, `CHANGELOG.md` for release history, and live git/package state for current release context before acting.
 
 ## Stack
 
@@ -39,4 +39,4 @@ Use hosted generation smoke tests only when the task explicitly authorizes the r
 
 ## Next Recommended Move
 
-For this repo, first decide publish/park or active follow-up status, then verify current state against `docs/CURRENT-STATE.md` and live git before doing feature work.
+For this repo, first decide publish/park or active follow-up status, then verify the provider matrix, changelog, package metadata, and live git before doing feature work.
