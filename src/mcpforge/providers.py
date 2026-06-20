@@ -8,6 +8,7 @@ from pydantic import BaseModel
 
 from mcpforge.api_client import DEFAULT_MODEL, AnthropicClient
 from mcpforge.openai_client import DEFAULT_OPENAI_MODEL, OpenAIClient
+from mcpforge.openrouter_client import DEFAULT_OPENROUTER_MODEL, OpenRouterClient
 
 DEFAULT_PROVIDER = "anthropic"
 
@@ -76,6 +77,15 @@ _CAPABILITIES: dict[str, ProviderCapabilities] = {
         hosted_smoke=True,
         status="gated",
     ),
+    "openrouter": ProviderCapabilities(
+        name="openrouter",
+        default_model=DEFAULT_OPENROUTER_MODEL,
+        structured_json=True,
+        streaming=True,
+        temperature_zero=False,
+        hosted_smoke=False,
+        status="bring-your-own",
+    ),
 }
 
 
@@ -105,6 +115,11 @@ def create_provider_client(
     normalized = provider.lower()
     if normalized == "anthropic":
         return AnthropicClient(model=model)
+    if normalized == "openrouter":
+        # When the caller didn't override the model, the anthropic default leaks
+        # through; swap it for an OpenRouter-shaped slug.
+        selected = DEFAULT_OPENROUTER_MODEL if model == DEFAULT_MODEL else model
+        return OpenRouterClient(model=selected)
     if normalized == "openai":
         import os
 

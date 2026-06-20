@@ -1,19 +1,28 @@
-# hero.tape — mcpforge: one sentence -> a tested, runnable MCP server
+# hero.tape — one command, a tested MCP server (README hero shot)
 #
 # Renders: docs/assets/hero.gif   (README "60-second start" hero, shot 1)
 #
+# Fully deterministic: `mcpforge demo` runs the real plan -> generate -> validate
+# pipeline against a built-in recording. No Anthropic API key, no LLM call, no
+# spend — renders identically every time (unlike a live `generate`, which costs
+# money and varies in latency and output).
+#
+# Sanitization (see ../../demo-assets.md):
+#   - PS1='$ ' so no user@host prompt.
+#   - Runs from a clean /tmp dir so the result panel's output path never shows
+#     the home dir (/Users/...).
+#   - FASTMCP_CHECK_FOR_UPDATES=off silences FastMCP's update-nag banner.
+#   - Hidden pre-warm runs the demo once (populating the uv cache) and discards
+#     it, so the visible run is snappy instead of waiting on first-time installs.
+#
 # Render requirements:
-#   - vhs                 https://github.com/charmbracelet/vhs
-#   - mcpforge            uv tool install fastmcp-builder
-#   - uv                  https://docs.astral.sh/uv/
-#   - ANTHROPIC_API_KEY   exported in THIS shell  (a REAL key — never commit it)
-#   - network access      `generate` makes a real Anthropic API call (costs money)
+#   - vhs        https://github.com/charmbracelet/vhs
+#   - uv         https://docs.astral.sh/uv/
+#   - mcpforge   on PATH — from the repo root: `uv tool install .`
 #
-# Render:  vhs docs/assets/hero.tape
-#
-# NOTE: generation latency varies (it calls an LLM). If the GIF cuts off before
-# the green validation summary appears, increase the `Sleep 30s` below.
+# Render from the repo root:  vhs docs/assets/hero.tape
 
+Require uv
 Require mcpforge
 
 Output docs/assets/hero.gif
@@ -26,25 +35,17 @@ Set Theme "Dracula"
 Set Padding 24
 Set TypingSpeed 45ms
 
-# --- leak-free setup, hidden from the recording ---
+# --- setup, hidden: clean temp dir, silence the update banner, pre-warm the uv
+#     cache by running the demo once and discarding it ---
 Hide
 Type "export PS1='$ '" Enter
-Type "cd $(mktemp -d)" Enter
-Type "rm -rf weather-server" Enter
+Type "export FASTMCP_CHECK_FOR_UPDATES=off" Enter
+Type "cd /tmp && rm -rf mcpforge-hero && mkdir mcpforge-hero && cd mcpforge-hero" Enter
+Type "mcpforge demo -o .warmup --force >/dev/null 2>&1" Enter
+Sleep 20s
 Type "clear" Enter
 Show
 
-# --- the whole loop: one sentence in ---
-Type `mcpforge generate "A weather server that returns today's forecast for a city" -o weather-server`
-Sleep 800ms
-Enter
-
-# plan -> generate -> validate (syntax / security / lint / import / pytest)
-Sleep 30s
-
-# --- prove it's a complete, real project that runs ---
-Type "ls weather-server" Enter
-Sleep 2s
-Type "uv run --directory weather-server pytest -q" Enter
+# --- one command: no key, no sentence — plan -> generate -> validate, all green ---
+Type "mcpforge demo" Enter
 Sleep 12s
-Sleep 2s

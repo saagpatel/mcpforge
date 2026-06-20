@@ -11,8 +11,8 @@
 
 ## ⚡ 60-second start
 
-<!-- Record the hero GIF (`vhs docs/assets/hero.tape`), then uncomment the line below: -->
-<!-- ![mcpforge: one sentence to a tested, running MCP server](https://raw.githubusercontent.com/saagpatel/mcpforge/main/docs/assets/hero.gif) -->
+<!-- Record the hero GIF (`vhs docs/assets/hero.tape` — deterministic, no API key), then uncomment the line below: -->
+<!-- ![mcpforge demo: one command to a tested, validated MCP server](https://raw.githubusercontent.com/saagpatel/mcpforge/main/docs/assets/hero.gif) -->
 
 You need Python 3.12+, [`uv`](https://docs.astral.sh/uv/), and an Anthropic API key.
 
@@ -22,6 +22,12 @@ export ANTHROPIC_API_KEY="your_anthropic_api_key"
 
 mcpforge generate "A weather server that returns today's forecast for a city" -o weather-server
 ```
+
+> **No key yet? Try the demo.** `mcpforge demo` runs the real plan → generate → validate pipeline against a built-in recording and writes a complete, validated weather server — no API key, no spend. It's the fastest way to see exactly what mcpforge produces:
+>
+> ```bash
+> uvx --from fastmcp-builder mcpforge demo
+> ```
 
 > **Bring your own key (BYOK).** Generation runs on *your* Anthropic API key — mcpforge calls the Claude API directly and nothing is proxied through a hosted service. A single `generate` makes a few model calls (plan → server → tests), so a typical run costs roughly **$0.05–$0.30** in API usage on the default model (`claude-sonnet-4-6`). That figure is an **estimate** — it scales with server complexity and your chosen model, and is not a live measurement. Everything that doesn't call the model — `validate`, `inspect`, `list`, `doctor`, and `init` — is free.
 
@@ -109,6 +115,9 @@ uvx --from mcp-permission-audit mcp-audit scan --ssrf-check
 The PyPI distribution is `fastmcp-builder`; the installed commands are `mcpforge` and `mcpforge-server`. Beyond `generate`:
 
 ```bash
+# See it work with no API key — generate a weather server from a built-in recording
+mcpforge demo
+
 # Generate a new MCP server
 mcpforge generate "A todo list manager with create, read, update, and delete operations"
 
@@ -137,7 +146,7 @@ Useful generation flags:
 - `--language python|typescript` chooses the target server language.
 - `--auth-profile none|api-key|jwt` adds optional Python auth profile metadata and env docs.
 - `--middleware-profile logging|timing|rate-limit` adds optional Python middleware profiles; repeat it to combine profiles.
-- `--provider anthropic|openai` selects the generation provider. OpenAI remains gated by default; set `MCPFORGE_ENABLE_OPENAI_PROVIDER=1` only for opt-in smoke testing after `OPENAI_API_KEY` is available.
+- `--provider anthropic|openai|openrouter` selects the generation provider. `openrouter` is the "bring any model" path: set `OPENROUTER_API_KEY` and pick any OpenRouter model with `--model` (e.g. `--model anthropic/claude-opus-4.8`), including free and low-cost ones. Generation quality and structured-output support vary by model — the recommended models are Claude Opus 4.8 (xHigh) and/or GPT 5.5 (High/Extra High). OpenAI remains gated by default; set `MCPFORGE_ENABLE_OPENAI_PROVIDER=1` only for opt-in smoke testing after `OPENAI_API_KEY` is available.
 
 Useful status flags:
 - `mcpforge list --json`

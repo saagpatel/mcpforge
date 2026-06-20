@@ -116,6 +116,30 @@ def test_openai_provider_can_be_opted_in_for_smokes(monkeypatch) -> None:
     openai_client.assert_called_once()
 
 
+def test_openrouter_provider_is_bring_your_own_not_gated() -> None:
+    cap = provider_capabilities("openrouter")
+    assert cap.status == "bring-your-own"
+    assert cap.structured_json is True
+    assert cap.streaming is True
+
+
+def test_openrouter_defaults_model_when_caller_did_not_override() -> None:
+    from mcpforge.api_client import DEFAULT_MODEL
+    from mcpforge.openrouter_client import DEFAULT_OPENROUTER_MODEL
+
+    with patch("mcpforge.providers.OpenRouterClient", return_value=MagicMock()) as ctor:
+        create_provider_client("openrouter", model=DEFAULT_MODEL)
+
+    ctor.assert_called_once_with(model=DEFAULT_OPENROUTER_MODEL)
+
+
+def test_openrouter_passes_explicit_model_through() -> None:
+    with patch("mcpforge.providers.OpenRouterClient", return_value=MagicMock()) as ctor:
+        create_provider_client("openrouter", model="meta-llama/llama-3.3-70b-instruct:free")
+
+    ctor.assert_called_once_with(model="meta-llama/llama-3.3-70b-instruct:free")
+
+
 def test_apply_generation_profiles_adds_env_and_metadata() -> None:
     plan = ServerPlan(name="Demo", description="Demo", tools=[])
 
