@@ -5,6 +5,16 @@ make paid API calls. Enable it for release readiness with:
 
     MCPFORGE_RUN_HOSTED_SMOKE=1 ANTHROPIC_API_KEY=... \
         uv run pytest tests/test_hosted_generation_smoke.py
+
+For the OpenRouter "bring any model" smokes (set a cheap or free model with
+MCPFORGE_OPENROUTER_SMOKE_MODEL; defaults to openai/gpt-5-mini):
+
+    MCPFORGE_RUN_HOSTED_OPENROUTER_SMOKE=1 OPENROUTER_API_KEY=... \
+        uv run pytest tests/test_hosted_generation_smoke.py -k openrouter_structured
+    MCPFORGE_RUN_HOSTED_OPENROUTER_PLANNING_SMOKE=1 OPENROUTER_API_KEY=... \
+        uv run pytest tests/test_hosted_generation_smoke.py -k openrouter_planning
+    MCPFORGE_RUN_HOSTED_OPENROUTER_GENERATION_SMOKE=1 OPENROUTER_API_KEY=... \
+        uv run pytest tests/test_hosted_generation_smoke.py -k openrouter_generate
 """
 
 from __future__ import annotations
@@ -18,6 +28,7 @@ from pydantic import BaseModel
 
 from mcpforge.cli import cli
 from mcpforge.openai_client import OpenAIClient
+from mcpforge.openrouter_client import OpenRouterClient
 from mcpforge.planner import extract_plan
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -36,6 +47,16 @@ def _assert_valid_generation(result_output: str) -> None:
     """Assert hosted generation validated successfully without matching INVALID."""
     assert "Status: VALID" in result_output
     assert "Status: INVALID" not in result_output
+
+
+def _openrouter_smoke_model() -> str:
+    """Model id for OpenRouter smokes.
+
+    Defaults to a cheap, schema-capable model; override with
+    MCPFORGE_OPENROUTER_SMOKE_MODEL to point at any OpenRouter model (including
+    free ones, e.g. a free Llama) when running the smoke.
+    """
+    return os.environ.get("MCPFORGE_OPENROUTER_SMOKE_MODEL", "openai/gpt-5-mini")
 
 
 @pytest.mark.skipif(
@@ -155,6 +176,87 @@ def test_hosted_generate_openapi_auth_server(tmp_path: Path) -> None:
     assert "headers=" in server_code
     assert "json=body" in server_code
     assert "Auth credential env var: `HOSTED_AUTH_API_KEY`" in readme
+    _assert_valid_generation(result.output)
+
+
+@pytest.mark.skipif(
+    os.environ.get("MCPFORGE_RUN_HOSTED_OPENROUTER_SMOKE") != "1",
+    reason="set MCPFORGE_RUN_HOSTED_OPENROUTER_SMOKE=1 to run the hosted OpenRouter smoke",
+)
+@pytest.mark.skipif(
+    not os.environ.get("OPENROUTER_API_KEY"),
+    reason="OPENROUTER_API_KEY is required for hosted OpenRouter structured-output smoke",
+)
+async def test_hosted_openrouter_structured_output_smoke() -> None:
+    """Prove OpenRouter structured outputs work end-to-end against a real model."""
+    client = OpenRouterClient(model=_openrouter_smoke_model())
+
+    result = await client.generate_json(
+        "Return only the requested structured readiness object.",
+        "Return name='openrouter', count=3, ready=true.",
+        OpenAIStructuredSmoke,
+        max_tokens=256,
+    )
+
+    assert result == OpenAIStructuredSmoke(name="openrouter", count=3, ready=True)
+
+
+@pytest.mark.skipif(
+    os.environ.get("MCPFORGE_RUN_HOSTED_OPENROUTER_PLANNING_SMOKE") != "1",
+    reason="set MCPFORGE_RUN_HOSTED_OPENROUTER_PLANNING_SMOKE=1 to run OpenRouter planning smoke",
+)
+@pytest.mark.skipif(
+    not os.environ.get("OPENROUTER_API_KEY"),
+    reason="OPENROUTER_API_KEY is required for hosted OpenRouter planning smoke",
+)
+async def test_hosted_openrouter_planning_smoke() -> None:
+    """Prove OpenRouter can produce a strict mcpforge ServerPlan."""
+    client = OpenRouterClient(model=_openrouter_smoke_model())
+
+    plan = await extract_plan(
+        "A tiny echo MCP server with one tool named echo_message that returns "
+        "the provided message.",
+        client,
+        "streamable-http",
+    )
+
+    assert plan.name
+    assert any(tool.name == "echo_message" for tool in plan.tools)
+
+
+@pytest.mark.skipif(
+    os.environ.get("MCPFORGE_RUN_HOSTED_OPENROUTER_GENERATION_SMOKE") != "1",
+    reason="set MCPFORGE_RUN_HOSTED_OPENROUTER_GENERATION_SMOKE=1 to run the smoke",
+)
+@pytest.mark.skipif(
+    not os.environ.get("OPENROUTER_API_KEY"),
+    reason="OPENROUTER_API_KEY is required for hosted OpenRouter generation smoke",
+)
+def test_hosted_openrouter_generate_echo_server(tmp_path: Path) -> None:
+    """Generate and validate a tiny server through the OpenRouter provider path."""
+    output_dir = tmp_path / "hosted-openrouter-echo-server"
+    runner = CliRunner()
+
+    result = runner.invoke(
+        cli,
+        [
+            "generate",
+            "A tiny echo MCP server with one tool named echo_message that returns "
+            "the provided message.",
+            "--provider",
+            "openrouter",
+            "--model",
+            _openrouter_smoke_model(),
+            "--output",
+            str(output_dir),
+            "--yes",
+        ],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 0, result.output
+    assert (output_dir / "server.py").exists()
+    assert (output_dir / "test_server.py").exists()
     _assert_valid_generation(result.output)
 
 
