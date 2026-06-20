@@ -9,6 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 No unreleased changes.
 
+## [0.3.3] - 2026-06-20
+
+### Added
+
+- `mcpforge demo`: generate a complete, validated weather MCP server with no API
+  key and no spend. It runs the real plan → generate → validate pipeline against
+  a built-in recording (a replay client serving a packaged cassette), so new
+  users can see exactly what mcpforge produces before configuring a provider.
+- OpenRouter provider (`--provider openrouter`): run generation against any
+  OpenRouter model with a single `OPENROUTER_API_KEY`, including free and
+  low-cost ones. Structured output forces schema-honoring routing
+  (`provider.require_parameters`), and the CLI surfaces a recommended-models
+  note (Claude Opus 4.8 / GPT 5.5).
+- Official MCP Registry metadata: `server.json`, a README `mcp-name` marker, and
+  `docs/registry-publish.md` describing the publish flow.
+
+### Changed
+
+- `generate_json()` now uses Anthropic structured outputs (`messages.parse` with
+  `output_format`) instead of `temperature=0` plus JSON extraction. `generate()`
+  and `generate_stream()` forward `temperature` only for models that accept it
+  (a version floor of Opus ≥ 4.7 plus the Fable/Mythos families), so the newest
+  reasoning models (Opus 4.7+, Fable 5) work without a 400.
+
+### Documentation
+
+- README now leads with a hero GIF driven by `mcpforge demo` (deterministic, no
+  API key) and documents the `demo` command and the OpenRouter provider.
+
 ## [0.3.2] - 2026-06-20
 
 ### Changed

@@ -1,5 +1,7 @@
 # mcpforge
 
+<!-- mcp-name: io.github.saagpatel/mcpforge -->
+
 [![PyPI](https://img.shields.io/pypi/v/fastmcp-builder?style=flat-square&logo=pypi&logoColor=white&label=PyPI)](https://pypi.org/project/fastmcp-builder/)
 [![Python](https://img.shields.io/pypi/pyversions/fastmcp-builder?style=flat-square&logo=python&logoColor=white)](https://pypi.org/project/fastmcp-builder/)
 [![CI](https://img.shields.io/github/actions/workflow/status/saagpatel/mcpforge/ci.yml?style=flat-square&logo=githubactions&logoColor=white&label=CI)](https://github.com/saagpatel/mcpforge/actions/workflows/ci.yml)
