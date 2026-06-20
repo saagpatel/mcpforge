@@ -18,12 +18,15 @@ approved the paid provider calls.
 | OpenAI structured output | Gated | The hosted structured-output smoke exists and requires `MCPFORGE_RUN_HOSTED_OPENAI_SMOKE=1` plus `OPENAI_API_KEY`. `OpenAIClient.generate_json` is implemented. | Provide `OPENAI_API_KEY` and approve the hosted smoke. |
 | OpenAI planning | Gated | The hosted planning smoke exists and requires `MCPFORGE_RUN_HOSTED_OPENAI_PLANNING_SMOKE=1` plus `OPENAI_API_KEY`. | Provide `OPENAI_API_KEY` and approve the hosted smoke. |
 | OpenAI generation | Gated | `src/mcpforge/providers.py` keeps OpenAI generation behind `MCPFORGE_ENABLE_OPENAI_PROVIDER=1`. The hosted generation smoke requires that flag plus `MCPFORGE_RUN_HOSTED_OPENAI_GENERATION_SMOKE=1` and `OPENAI_API_KEY`. | Provide `OPENAI_API_KEY`, approve the hosted smoke, and keep generation explicitly gated during testing. |
+| OpenRouter (bring-your-own) | Bring-your-own | `OpenRouterClient` is enabled whenever `OPENROUTER_API_KEY` is set (not flag-gated). Three opt-in smokes prove the real path: `MCPFORGE_RUN_HOSTED_OPENROUTER_SMOKE` (structured output), `..._PLANNING_SMOKE` (ServerPlan), and `..._GENERATION_SMOKE` (full generate). Model defaults to `openai/gpt-5-mini`; override with `MCPFORGE_OPENROUTER_SMOKE_MODEL`. | Provide `OPENROUTER_API_KEY` and run the smokes against any model (free included) to confirm. |
 
 ## Provider Defaults
 
 - Default provider: `anthropic`.
 - Anthropic status: `stable`.
 - OpenAI status: `gated`.
+- OpenRouter status: `bring-your-own` (enabled with `OPENROUTER_API_KEY`; any
+  model id via `--model`, default `anthropic/claude-opus-4.8`).
 - `mcpforge doctor` reports local prerequisites, provider capabilities, and
   whether key environment variables are present. It does not prove provider
   credit, hosted API reachability, or generation quality.
@@ -130,6 +133,20 @@ MCPFORGE_RUN_HOSTED_OPENAI_GENERATION_SMOKE=1 \
   MCPFORGE_ENABLE_OPENAI_PROVIDER=1 \
   OPENAI_API_KEY=... \
   uv run pytest tests/test_hosted_generation_smoke.py::test_hosted_openai_generate_echo_server
+
+# OpenRouter (bring-your-own). Set MCPFORGE_OPENROUTER_SMOKE_MODEL to any model
+# id — including free ones — to control cost; defaults to openai/gpt-5-mini.
+MCPFORGE_RUN_HOSTED_OPENROUTER_SMOKE=1 \
+  OPENROUTER_API_KEY=... \
+  uv run pytest tests/test_hosted_generation_smoke.py::test_hosted_openrouter_structured_output_smoke
+
+MCPFORGE_RUN_HOSTED_OPENROUTER_PLANNING_SMOKE=1 \
+  OPENROUTER_API_KEY=... \
+  uv run pytest tests/test_hosted_generation_smoke.py::test_hosted_openrouter_planning_smoke
+
+MCPFORGE_RUN_HOSTED_OPENROUTER_GENERATION_SMOKE=1 \
+  OPENROUTER_API_KEY=... \
+  uv run pytest tests/test_hosted_generation_smoke.py::test_hosted_openrouter_generate_echo_server
 ```
 
 ## Release Decision Rule
