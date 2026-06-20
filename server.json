@@ -1,0 +1,21 @@
+{
+	"$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+	"name": "io.github.saagpatel/mcpforge",
+	"title": "mcpforge",
+	"description": "Generate complete, tested FastMCP 3.x MCP servers from one plain-English sentence.",
+	"repository": {
+		"url": "https://github.com/saagpatel/mcpforge",
+		"source": "github"
+	},
+	"version": "0.3.3",
+	"packages": [
+		{
+			"registryType": "pypi",
+			"identifier": "fastmcp-builder",
+			"version": "0.3.3",
+			"transport": {
+				"type": "stdio"
+			}
+		}
+	]
+}

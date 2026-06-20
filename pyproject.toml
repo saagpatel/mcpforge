@@ -1,6 +1,6 @@
 [project]
 name = "fastmcp-builder"
-version = "0.3.2"
+version = "0.3.3"
 description = "Generate complete, runnable FastMCP 3.x MCP servers from plain-English descriptions"
 authors = [
     { name = "saagpatel" },
