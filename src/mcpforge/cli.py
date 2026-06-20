@@ -16,6 +16,7 @@ from rich.text import Text
 
 from mcpforge import __version__
 from mcpforge.api_client import DEFAULT_MODEL, AnthropicClient
+from mcpforge.demo import WEATHER_DEMO_DESCRIPTION, load_demo_client
 from mcpforge.discovery import find_servers
 from mcpforge.doctor import run_doctor
 from mcpforge.generator import generate_server, generate_server_multi
@@ -28,6 +29,7 @@ from mcpforge.planner import extract_plan, refine_plan
 from mcpforge.profiles import apply_generation_profiles
 from mcpforge.prompts import load_prompt
 from mcpforge.providers import DEFAULT_PROVIDER, create_provider_client
+from mcpforge.replay_client import ReplayClient
 from mcpforge.self_heal import attempt_fix
 from mcpforge.template_hints import TEMPLATE_HINTS
 from mcpforge.test_generator import generate_tests
@@ -44,6 +46,8 @@ def _create_cli_client(provider: str, model: str):
     """Create a generation client while preserving existing Anthropic test seams."""
     if provider.lower() == "anthropic":
         return AnthropicClient(model=model)
+    if provider.lower() == "demo":
+        return load_demo_client()
     if provider.lower() == "openrouter":
         # Build first so a missing key fails before the disclaimer prints.
         client = create_provider_client(provider, model=model)
@@ -344,9 +348,10 @@ async def _run_generate(
             result = await validate_server(output_path, skip_execution=no_execute, strict=strict)
             progress.remove_task(task)
 
-        # Stage 5: Self-heal (1 retry if invalid)
+        # Stage 5: Self-heal (1 retry if invalid). Skip for the replay client —
+        # a recorded cassette has no further responses to regenerate from.
         heal_attempted = False
-        if not result.is_valid and not no_execute:
+        if not result.is_valid and not no_execute and not isinstance(client, ReplayClient):
             heal_attempted = True
             with Progress(
                 SpinnerColumn(), TextColumn("{task.description}"), console=console
@@ -710,6 +715,55 @@ def generate(
                 openapi_limit=openapi_limit,
                 auth_profile=auth_profile,
                 middleware_profiles=middleware_profiles,
+            )
+        )
+    except click.exceptions.Abort:
+        console.print("[yellow]Aborted.[/yellow]")
+    except ValueError as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        raise SystemExit(1)
+    except FileExistsError as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        raise SystemExit(1)
+
+
+@cli.command()
+@click.option(
+    "--output",
+    "-o",
+    default="weather-server",
+    show_default=True,
+    metavar="PATH",
+    help="Output directory for the demo server.",
+)
+@click.option(
+    "--force",
+    is_flag=True,
+    default=False,
+    help="Overwrite the output directory if it already exists.",
+)
+def demo(output: str, force: bool) -> None:
+    """Generate a runnable weather MCP server from a built-in recording — no API key needed.
+
+    Runs the real plan -> generate -> validate pipeline against a recorded
+    cassette, so you can see exactly what mcpforge produces before setting up a
+    provider key.
+    """
+    console.print(
+        "[bold]mcpforge demo[/bold] — generating a weather server from a built-in "
+        "recording (no API key, no spend)."
+    )
+    try:
+        asyncio.run(
+            _run_generate(
+                WEATHER_DEMO_DESCRIPTION,
+                output,
+                DEFAULT_MODEL,
+                "demo",
+                "streamable-http",
+                False,  # dry_run
+                True,  # yes (skip confirmation)
+                force,
             )
         )
     except click.exceptions.Abort:
