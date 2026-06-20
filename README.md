@@ -182,7 +182,8 @@ mcpforge is published to PyPI as `fastmcp-builder` v0.3.3. This release adds the
 `mcpforge demo` command (try the full generate pipeline with no API key, no cost),
 an OpenRouter provider (`--provider openrouter`) for running generation against any
 OpenRouter-hosted model, and official MCP Registry metadata. The `generate`,
-`update`, `build`, `audit`, and `run` commands work against FastMCP 3.4.2+.
+`update`, `validate`, `inspect`, `doctor`, and `demo` commands work against
+FastMCP 3.4.2+.
 
 See [CHANGELOG.md](CHANGELOG.md) for the full version history.
 
