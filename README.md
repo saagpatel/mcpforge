@@ -77,7 +77,7 @@ mcpforge validate .         # re-run the full validation suite anytime
 
 ## Build, then audit — the MCP toolkit
 
-mcpforge has a sibling: **[mcp-audit](https://github.com/saagpatel/MCPAudit)** (`mcp-permission-audit` on PyPI). They're two halves of one workflow — forge a server, then audit what your agents can actually touch before you trust it.
+mcpforge has a sibling: **[mcp-audit](https://github.com/saagpatel/MCPAudit)** (`mcp-audits` on PyPI). They're two halves of one workflow — forge a server, then audit what your agents can actually touch before you trust it.
 
 | Stage | Tool | What it does |
 |-------|------|--------------|
@@ -89,13 +89,17 @@ mcpforge has a sibling: **[mcp-audit](https://github.com/saagpatel/MCPAudit)** (
 mcpforge generate "A weather server that returns today's forecast for a city" -o weather-server
 
 # audit everything your agents can reach (read-only, no install needed)
-uvx --from mcp-permission-audit mcp-audit scan --ssrf-check
+uvx --from mcp-audits mcp-audit scan --ssrf-check
 ```
 
 <!-- Record the build+audit GIF (`vhs docs/assets/build-then-audit.tape`), then uncomment the line below: -->
 <!-- ![Forge a server, then audit your MCP surface](https://raw.githubusercontent.com/saagpatel/mcpforge/main/docs/assets/build-then-audit.gif) -->
 
 `mcp-audit` is read-only by default — it never edits a config and reports env-var key names only, never values. Build with confidence, then verify your blast radius.
+
+Registry-ready metadata lives in [`server.json`](server.json) with the MCP Registry name
+`io.github.saagpatel/mcpforge` and PyPI package `fastmcp-builder`. Treat that metadata as
+discovery/provenance context, not as proof that generated servers are safe to run without review.
 
 ## Features
 

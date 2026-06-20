@@ -40,6 +40,6 @@ Enter
 Sleep 30s
 
 # --- audit: scan everything your agents can reach (read-only, no install) ---
-Type "uvx --from mcp-permission-audit mcp-audit scan --ssrf-check" Enter
+Type "uvx --from mcp-audits mcp-audit scan --ssrf-check" Enter
 Sleep 12s
 Sleep 2s
