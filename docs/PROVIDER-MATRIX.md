@@ -11,7 +11,7 @@ approved the paid provider calls.
 
 | Lane | Status | Evidence | Decision Needed |
 | --- | --- | --- | --- |
-| Local package and validation | Green | `fastmcp-builder==0.3.2` is published, `mcpforge version` reports `0.3.2`, and the local validation baseline is green in `docs/CURRENT-STATE.md`. | None for local-only work. |
+| Local package and validation | Green | `fastmcp-builder==0.3.2` is published, `mcpforge version` reports `0.3.2`, and the safe local verification commands below are the live validation baseline. | None for local-only work. |
 | Anthropic hosted Python generation | Blocked | The hosted smoke exists and requires `MCPFORGE_RUN_HOSTED_SMOKE=1` plus `ANTHROPIC_API_KEY`. The latest provider retry was blocked by Anthropic low credit before generation. | Replenish Anthropic credit and approve the hosted smoke. |
 | Anthropic hosted TypeScript generation | Blocked | The hosted TypeScript smoke exists and requires `MCPFORGE_RUN_HOSTED_TS_SMOKE=1` plus `ANTHROPIC_API_KEY`. The latest provider retry was blocked by Anthropic low credit before generation. | Replenish Anthropic credit and approve the hosted smoke. |
 | Anthropic hosted authenticated OpenAPI generation | Blocked | The hosted OpenAPI smoke exists and requires `MCPFORGE_RUN_HOSTED_OPENAPI_SMOKE=1` plus `ANTHROPIC_API_KEY`. The latest provider retry was blocked by Anthropic low credit before generation. | Replenish Anthropic credit and approve the hosted smoke. |
