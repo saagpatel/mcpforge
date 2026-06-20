@@ -11,8 +11,7 @@
 
 ## ⚡ 60-second start
 
-<!-- Record the hero GIF (`vhs docs/assets/hero.tape` — deterministic, no API key), then uncomment the line below: -->
-<!-- ![mcpforge demo: one command to a tested, validated MCP server](https://raw.githubusercontent.com/saagpatel/mcpforge/main/docs/assets/hero.gif) -->
+![mcpforge demo: one command to a tested, validated MCP server](https://raw.githubusercontent.com/saagpatel/mcpforge/main/docs/assets/hero.gif)
 
 You need Python 3.12+, [`uv`](https://docs.astral.sh/uv/), and an Anthropic API key.
 
