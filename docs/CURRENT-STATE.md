@@ -1,6 +1,6 @@
 # mcpforge Current State
 
-Last updated: 2026-06-19
+Last updated: 2026-06-20
 
 ## Big Picture
 
@@ -10,11 +10,11 @@ mcpforge is a Python 3.12+ CLI and MCP server that generates runnable FastMCP 3.
 
 - Branch: `main`
 - Remote state: `main` pushed to `origin/main`
-- Package version: `0.3.1`
+- Package version: `0.3.2`
 - PyPI distribution name: `fastmcp-builder`
 - Import package and commands: `mcpforge`, `mcpforge-server`
-- GitHub release: `v0.3.1` exists
-- PyPI publish: `fastmcp-builder==0.3.1` published successfully
+- GitHub release: `v0.3.2` exists (`v0.3.1` prior)
+- PyPI publish: `fastmcp-builder==0.3.2` published successfully
 - Current follow-up lane: OpenAI structured-output, planning, and generation smoke gates
 - Provider matrix runbook: `docs/PROVIDER-MATRIX.md`
 - GitHub PR queue: cleared during the latest cleanup pass
@@ -176,6 +176,22 @@ Latest provider-matrix retry on 2026-05-10:
 - `OPENAI_API_KEY` is not available in the shell or under the checked common Keychain service names (`OPENAI_API_KEY`, `openai_api_key`, `openai`, `OPENAI`), so the OpenAI structured-output, planning, and generation smokes still skip.
 - `ANTHROPIC_API_KEY` is available from Keychain, but hosted Anthropic Python, TypeScript, and authenticated OpenAPI smokes now fail before generation because the Anthropic API returns `Your credit balance is too low to access the Anthropic API`.
 - No OpenAI ungating happened. The provider remains gated by default until the OpenAI smoke trio passes with a real key and the Anthropic release matrix is green again.
+
+Latest v0.3.2 release result on 2026-06-20:
+
+- PR `#38` merged the `0.3.2` release prep to `main`.
+- Git tag `v0.3.2` points at the merge commit on `main`.
+- GitHub Actions `Publish to PyPI` completed successfully for tag `v0.3.2`.
+- PyPI verification: `fastmcp-builder==0.3.2` is installable from PyPI.
+- Clean PyPI install smoke:
+  `uvx --from fastmcp-builder==0.3.2 mcpforge version` returned `mcpforge 0.3.2`.
+- Forcing reason: removed a personal email address from published package
+  metadata (`[project.authors]`); PyPI metadata is immutable, so a new release
+  was required to correct the public project page.
+- Currency: bumped the `fastmcp` floor to `>=3.4.2` and revalidated generated
+  server shape (347 repo tests + all 9 example suites) with no live generation.
+- Hosted provider smokes were intentionally not run for this release; they
+  remain opt-in and approval-gated.
 
 Latest v0.3.1 patch release result on 2026-06-19:
 
