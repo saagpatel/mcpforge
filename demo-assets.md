@@ -1,4 +1,4 @@
-# Demo assets — shot list & sanitization checklist
+# Demo assets — shot list & sanitization guide
 
 The README embeds a small set of recorded terminal GIFs. Each GIF is a build
 artifact; its [`vhs`](https://github.com/charmbracelet/vhs) tape under
@@ -11,35 +11,37 @@ See [`docs/assets/README.md`](docs/assets/README.md) for install/render commands
 
 | # | Tape | GIF | README slot | Live API call? |
 |---|------|-----|-------------|----------------|
-| 1 | `docs/assets/hero.tape` | `hero.gif` | `## ⚡ 60-second start` (lead) | **Yes** — real `generate` (needs `ANTHROPIC_API_KEY`, costs money) |
+| 1 | `docs/assets/hero.tape` | `hero.gif` | `## ⚡ 60-second start` (lead) | **No** — runs `mcpforge demo` (deterministic, no key, no cost) |
 | 2 | `docs/assets/run-and-test.tape` | `run-and-test.gif` | 60-second start, run/test | **No** — deterministic, drives the committed `examples/todo-server` fixture |
 | 4 | `docs/assets/build-then-audit.tape` | `build-then-audit.gif` | `## Build, then audit` | **Yes** — real `generate` + `mcp-audit` |
 
-Only shot 2 (`run-and-test.gif`) is rendered and embedded by default — it needs
-no key and reproduces identically every time. Shots 1 and 4 call the live model,
-so their embeds stay commented in the README until rendered with a real key.
+Shots 1 and 2 are fully deterministic and need no API key. Only shot 4
+(`build-then-audit.gif`) calls the live model and requires `ANTHROPIC_API_KEY`.
 
-## Per-asset sanitization checklist
+## Per-asset sanitization guide
 
-Run through this before committing any rendered GIF:
+Before committing any rendered GIF, verify the following:
 
-- [ ] **No home path.** No `/Users/...`, username, or hostname on screen. The
-      tapes set `PS1='$ '` and `run-and-test.tape` copies the fixture to
-      `/tmp/todo-server` with a freshly built `.venv`, so `pytest`'s absolute
-      `python:`/`rootdir:` lines resolve under `/tmp`, never the home dir.
-- [ ] **No secrets.** No `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` values, and no
-      `sk-…` / `ghp_…` tokens visible. The live tapes export the key in a hidden
-      (`Hide`) block.
-- [ ] **No update-nag.** `run-and-test.tape` exports
-      `FASTMCP_CHECK_FOR_UPDATES=off` so FastMCP's "update available" banner stays
-      out of the frame.
-- [ ] **Clean ending.** No Ctrl+C traceback. `run-and-test.tape` ends on the
-      server's startup banner — SIGTERM teardown at end-of-tape is clean, SIGINT
-      is not.
-- [ ] **Toy subject only.** The generated-from description stays a synthetic toy
-      (weather / todo), never a real internal service.
-- [ ] **`build-then-audit.gif` only:** confirm `mcp-audit` output shows env-var
-      *key names*, never values.
+**No home path.** No `/Users/...`, username, or hostname should appear on screen.
+The tapes set `PS1='$ '` and `run-and-test.tape` copies the fixture to
+`/tmp/todo-server` with a freshly built `.venv`, so `pytest`'s absolute
+`python:`/`rootdir:` lines resolve under `/tmp`, never the home directory.
+
+**No secrets.** No `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` values, and no
+`sk-…` or `ghp_…` tokens should be visible. The live tapes export keys in a
+hidden (`Hide`) block.
+
+**No update-nag.** `run-and-test.tape` exports `FASTMCP_CHECK_FOR_UPDATES=off`
+so FastMCP's "update available" banner stays out of the frame.
+
+**Clean ending.** No Ctrl+C traceback. `run-and-test.tape` ends on the server's
+startup banner — SIGTERM teardown at end-of-tape is clean, SIGINT is not.
+
+**Toy subject only.** The generated-from description stays a synthetic toy
+(weather / todo), never a real internal service.
+
+**`build-then-audit.gif` only:** confirm `mcp-audit` output shows env-var
+key names only, never values.
 
 ## Embedding
 

@@ -11,14 +11,15 @@ per-asset sanitization checklist.
 
 | Tape | Produces | README slot | Live API call? |
 |------|----------|-------------|----------------|
-| `hero.tape` | `hero.gif` | `## ⚡ 60-second start` (shot 1) | **Yes** — real `generate` |
+| `hero.tape` | `hero.gif` | `## ⚡ 60-second start` (shot 1) | **No** — runs `mcpforge demo` (deterministic, no key) |
 | `run-and-test.tape` | `run-and-test.gif` | 60-second start, run/test (shot 2) | No — deterministic |
 | `build-then-audit.tape` | `build-then-audit.gif` | `## Build, then audit` (shot 4) | **Yes** — real `generate` |
 
-`run-and-test.tape` drives the committed `examples/todo-server` fixture, so it
-needs no API key and renders identically every time. The other two call the real
-`mcpforge generate`, which makes a live Anthropic API call (needs
-`ANTHROPIC_API_KEY` and network, and costs money per render).
+`hero.tape` drives `mcpforge demo`, which uses a built-in cassette replay and
+needs no API key and costs nothing. `run-and-test.tape` drives the committed
+`examples/todo-server` fixture and is similarly deterministic. Only
+`build-then-audit.tape` calls the real `mcpforge generate`, which makes a live
+Anthropic API call (needs `ANTHROPIC_API_KEY` and network, and costs money per render).
 
 ## Install vhs
 
@@ -31,14 +32,15 @@ brew install vhs          # macOS
 
 ```bash
 # from the repo root
+vhs docs/assets/hero.tape                  # deterministic, no key needed (mcpforge demo)
 vhs docs/assets/run-and-test.tape          # deterministic, no key needed
-export ANTHROPIC_API_KEY="your_real_key"   # only for the live tapes
-vhs docs/assets/hero.tape
+export ANTHROPIC_API_KEY="your_real_key"   # only for the live tape below
 vhs docs/assets/build-then-audit.tape
 ```
 
-The live tapes call an LLM, so latency varies. If a GIF cuts off before the green
-validation summary, increase the `Sleep` after the `generate` line in that tape.
+`build-then-audit.tape` calls a live LLM, so latency varies. If the GIF cuts off
+before the green validation summary, increase the `Sleep` after the `generate`
+line in that tape.
 
 ## Before committing a rendered GIF
 

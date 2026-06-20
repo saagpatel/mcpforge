@@ -9,3 +9,7 @@ build/
 .ruff_cache/
 .env
 examples/*/uv.lock
+docs/LAUNCH.md
+docs/CURRENT-STATE.md
+docs/PORTFOLIO-DISPOSITION.md
+.serena/
