@@ -9,6 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 No unreleased changes.
 
+## [0.3.2] - 2026-06-20
+
+### Changed
+
+- Bumped the `fastmcp` dependency floor from `>=3.2.3` to `>=3.4.2`, tracking the
+  latest FastMCP 3.x release. Generated-server shape and the full example suite
+  were re-validated against FastMCP 3.4.2.
+
+### Fixed
+
+- Removed a personal email address from the published package metadata
+  (`[project.authors]` in `pyproject.toml`). PyPI metadata is immutable, so a new
+  release was required to correct the public project page.
+
+### Documentation
+
+- Repositioned the README to lead with "one English sentence in, a tested,
+  spec-free FastMCP 3.x server out", added a bring-your-own-key note with a
+  clearly-estimated per-generation cost range, and fixed the dangling
+  `demo-assets.md` link.
+- Rendered and embedded the deterministic `run-and-test.gif` demo (drives the
+  committed `examples/todo-server` fixture, no API key required) and added
+  `demo-assets.md` with the demo shot list and per-asset sanitization checklist.
+
 ## [0.3.1] - 2026-06-18
 
 ### Security
@@ -78,7 +102,8 @@ No unreleased changes.
 - Initial project scaffold
 - Basic FastMCP server generation prototype
 
-[Unreleased]: https://github.com/saagpatel/mcpforge/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/saagpatel/mcpforge/compare/v0.3.2...HEAD
+[0.3.2]: https://github.com/saagpatel/mcpforge/releases/tag/v0.3.2
 [0.3.1]: https://github.com/saagpatel/mcpforge/releases/tag/v0.3.1
 [0.3.0]: https://github.com/saagpatel/mcpforge/releases/tag/v0.3.0
 [0.2.0]: https://github.com/saagpatel/mcpforge/releases/tag/v0.2.0
