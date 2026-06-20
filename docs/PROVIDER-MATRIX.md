@@ -1,6 +1,6 @@
 # mcpforge Provider Matrix
 
-Last updated: 2026-06-19
+Last updated: 2026-06-20
 
 This runbook separates local release readiness from hosted provider readiness. It
 is intentionally safe to use in a local audit: do not read provider keys, do not
@@ -11,7 +11,7 @@ approved the paid provider calls.
 
 | Lane | Status | Evidence | Decision Needed |
 | --- | --- | --- | --- |
-| Local package and validation | Green | `fastmcp-builder==0.3.1` is published, `mcpforge version --json` reports `0.3.1`, and the local validation baseline is green in `docs/CURRENT-STATE.md`. | None for local-only work. |
+| Local package and validation | Green | `fastmcp-builder==0.3.2` is published, `mcpforge version` reports `0.3.2`, and the local validation baseline is green in `docs/CURRENT-STATE.md`. | None for local-only work. |
 | Anthropic hosted Python generation | Blocked | The hosted smoke exists and requires `MCPFORGE_RUN_HOSTED_SMOKE=1` plus `ANTHROPIC_API_KEY`. The latest provider retry was blocked by Anthropic low credit before generation. | Replenish Anthropic credit and approve the hosted smoke. |
 | Anthropic hosted TypeScript generation | Blocked | The hosted TypeScript smoke exists and requires `MCPFORGE_RUN_HOSTED_TS_SMOKE=1` plus `ANTHROPIC_API_KEY`. The latest provider retry was blocked by Anthropic low credit before generation. | Replenish Anthropic credit and approve the hosted smoke. |
 | Anthropic hosted authenticated OpenAPI generation | Blocked | The hosted OpenAPI smoke exists and requires `MCPFORGE_RUN_HOSTED_OPENAPI_SMOKE=1` plus `ANTHROPIC_API_KEY`. The latest provider retry was blocked by Anthropic low credit before generation. | Replenish Anthropic credit and approve the hosted smoke. |
@@ -97,7 +97,7 @@ Optional package verification:
 ```bash
 uv build --out-dir /tmp/mcpforge-dist-check --clear
 scripts/verify_clean_install.sh
-uvx --from fastmcp-builder==0.3.1 mcpforge version --json
+uvx --from fastmcp-builder==0.3.2 mcpforge version --json
 ```
 
 ## Approval-Required Hosted Smokes
