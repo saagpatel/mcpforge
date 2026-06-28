@@ -26,8 +26,10 @@ def test_registry_metadata_matches_package_version() -> None:
     assert metadata["packages"] == [
         {
             "registryType": "pypi",
+            "registryBaseUrl": "https://pypi.org",
             "identifier": project["name"],
             "version": project["version"],
+            "runtimeHint": "uvx",
             "transport": {"type": "stdio"},
         }
     ]
