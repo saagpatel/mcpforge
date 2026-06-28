@@ -101,6 +101,40 @@ Registry-ready metadata lives in [`server.json`](server.json) with the MCP Regis
 `io.github.saagpatel/mcpforge` and PyPI package `fastmcp-builder`. Treat that metadata as
 discovery/provenance context, not as proof that generated servers are safe to run without review.
 
+## Use as an MCP server
+
+mcpforge is itself an MCP server: point an MCP client (Claude Code, Claude Desktop, Cursor) at it and your agent can forge, validate, and inspect MCP servers inside a conversation. It runs locally over stdio (it writes files into your workspace and calls your model provider on your own key), so it is not offered as a hosted remote.
+
+```bash
+uvx fastmcp-builder
+```
+
+Add it to a client config (Claude Code shown). `generate`, `update`, and `plan` call the model provider, so set the key in the server env:
+
+```json
+{
+  "mcpServers": {
+    "mcpforge": {
+      "command": "uvx",
+      "args": ["fastmcp-builder"],
+      "env": { "ANTHROPIC_API_KEY": "<your-key>", "MCPFORGE_WORKSPACE": "/path/to/workspace" }
+    }
+  }
+}
+```
+
+Workspace paths are resolved against `MCPFORGE_WORKSPACE` and confined to it. Note that `generate` and `update` write files and incur model-provider cost (roughly $0.05 to $0.30 per call on your key).
+
+| Tool | What it does | Writes | Cost | Key args |
+|---|---|---|---|---|
+| `generate` | Generate a complete, tested FastMCP 3.x server from a description | yes (workspace) | API call | `description`, `language`, `transport`, `output_path`, `dry_run` |
+| `update` | Apply a natural-language change to an existing generated server | yes (workspace) | API call | `server_path`, `request` |
+| `plan` | Extract the structured server plan without generating code | no | API call | `description`, `transport` |
+| `validate` | Run syntax, lint, import, and pytest checks on a generated server | no (executes tests) | none | `server_path` |
+| `inspect` | Summarize a generated server without executing it | no | none | `server_path` |
+| `doctor` | Check local prerequisites and provider readiness | no | none | `workspace_path` |
+| `list_generated_servers` | List mcpforge-generated servers in a workspace | no | none | `workspace_path`, `recursive` |
+
 ## Features
 
 - **Plain-English generation** — describe your server in natural language; Claude writes the implementation
@@ -176,14 +210,15 @@ Useful status flags:
 
 The `generate` command sends the user's description to Claude with a structured prompt that includes FastMCP 3.x idioms and a tool-schema contract. Claude returns a JSON plan (tool names, signatures, and descriptions) that mcpforge validates against a Pydantic model before rendering through Jinja2 templates into a complete project directory. The generated project is then validated with syntax checks, security scanning, ruff linting, import checks, and pytest execution. The `update` command reads an existing generated server, asks Claude for a targeted modification, writes backups for changed files, and validates the result.
 
-## Current Status — v0.3.3
+## Current Status — v0.3.4
 
-mcpforge is published to PyPI as `fastmcp-builder` v0.3.3. This release adds the
-`mcpforge demo` command (try the full generate pipeline with no API key, no cost),
-an OpenRouter provider (`--provider openrouter`) for running generation against any
-OpenRouter-hosted model, and official MCP Registry metadata. The `generate`,
-`update`, `validate`, `inspect`, `doctor`, and `demo` commands work against
-FastMCP 3.4.2+.
+mcpforge is published to PyPI as `fastmcp-builder`. v0.3.4 adds a `fastmcp-builder`
+console-script alias so the MCP server launches via `uvx fastmcp-builder` (matching the
+MCP Registry's `uvx <package>` launch model) and corrects the registry metadata. v0.3.3
+added the `mcpforge demo` command (try the full generate pipeline with no API key, no
+cost), an OpenRouter provider (`--provider openrouter`), and official MCP Registry
+metadata. The `generate`, `update`, `validate`, `inspect`, `doctor`, and `demo` commands
+work against FastMCP 3.4.2+.
 
 See [CHANGELOG.md](CHANGELOG.md) for the full version history.
 

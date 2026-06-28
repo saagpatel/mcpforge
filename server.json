@@ -7,12 +7,14 @@
 		"url": "https://github.com/saagpatel/mcpforge",
 		"source": "github"
 	},
-	"version": "0.3.3",
+	"version": "0.3.4",
 	"packages": [
 		{
 			"registryType": "pypi",
+			"registryBaseUrl": "https://pypi.org",
 			"identifier": "fastmcp-builder",
-			"version": "0.3.3",
+			"version": "0.3.4",
+			"runtimeHint": "uvx",
 			"transport": {
 				"type": "stdio"
 			}

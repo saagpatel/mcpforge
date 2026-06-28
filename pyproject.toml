@@ -1,6 +1,6 @@
 [project]
 name = "fastmcp-builder"
-version = "0.3.3"
+version = "0.3.4"
 description = "Generate complete, runnable FastMCP 3.x MCP servers from plain-English descriptions"
 authors = [
     { name = "saagpatel" },
@@ -34,6 +34,10 @@ dependencies = [
 [project.scripts]
 mcpforge = "mcpforge.cli:cli"
 mcpforge-server = "mcpforge.mcp_server:mcp.run"
+# Registry alias: a console script named == the PyPI package, so the MCP server
+# launches via `uvx fastmcp-builder` (the MCP Registry runs a pypi/stdio server as
+# `uvx <package>`, and uvx resolves <package> to a same-named executable).
+fastmcp-builder = "mcpforge.mcp_server:mcp.run"
 
 [project.urls]
 Homepage = "https://github.com/saagpatel/mcpforge"
