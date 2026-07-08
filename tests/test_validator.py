@@ -381,10 +381,7 @@ class TestValidateServer:
 
     async def test_dangerous_security_finding_blocks_execution(self, tmp_path):
         (tmp_path / "server.py").write_text(
-            "from fastmcp import FastMCP\n"
-            "mcp = FastMCP('Test')\n"
-            "def unsafe():\n"
-            "    eval('1 + 1')\n"
+            "from fastmcp import FastMCP\nmcp = FastMCP('Test')\ndef unsafe():\n    eval('1 + 1')\n"
         )
         mock_import = AsyncMock(return_value=(True, ""))
         with (

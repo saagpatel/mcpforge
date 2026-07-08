@@ -25,7 +25,9 @@ def _valid_result() -> ValidationResult:
 
 
 def _invalid_result() -> ValidationResult:
-    return ValidationResult(syntax_ok=True, import_ok=True, tests_passed=False, tests_run=1, tests_failed=1)
+    return ValidationResult(
+        syntax_ok=True, import_ok=True, tests_passed=False, tests_run=1, tests_failed=1
+    )
 
 
 class TestMcpServerTools:
@@ -127,7 +129,9 @@ class TestMcpServerTools:
         assert result["plan"]["auth_profile"] == "api-key"
         assert plan.middleware_profiles == ["timing"]
 
-    async def test_generate_tool_dry_run_returns_plan_without_writes(self, tmp_path: Path, monkeypatch):
+    async def test_generate_tool_dry_run_returns_plan_without_writes(
+        self, tmp_path: Path, monkeypatch
+    ):
         """generate() dry_run returns the plan payload without generating files."""
         from mcpforge.mcp_server import generate
 
@@ -205,7 +209,9 @@ class TestMcpServerTools:
         with (
             patch("mcpforge.mcp_server.AnthropicClient"),
             patch("mcpforge.mcp_server.extract_plan", new=AsyncMock(return_value=_mock_plan())),
-            patch("mcpforge.mcp_server.generate_server_ts", new=AsyncMock(return_value="ts code")) as gen_ts,
+            patch(
+                "mcpforge.mcp_server.generate_server_ts", new=AsyncMock(return_value="ts code")
+            ) as gen_ts,
             patch("mcpforge.mcp_server.generate_tests_ts", new=AsyncMock(return_value="ts tests")),
             patch("mcpforge.mcp_server.write_server_ts") as write_ts,
             patch(
@@ -240,9 +246,13 @@ class TestMcpServerTools:
             patch("mcpforge.mcp_server.extract_plan", new=AsyncMock(return_value=_mock_plan())),
             patch(
                 "mcpforge.mcp_server.generate_server_multi",
-                new=AsyncMock(return_value={"server.py": "server code", "helpers.py": "helper code"}),
+                new=AsyncMock(
+                    return_value={"server.py": "server code", "helpers.py": "helper code"}
+                ),
             ) as gen_multi,
-            patch("mcpforge.mcp_server.generate_tests", new=AsyncMock(return_value="tests")) as gen_tests,
+            patch(
+                "mcpforge.mcp_server.generate_tests", new=AsyncMock(return_value="tests")
+            ) as gen_tests,
             patch("mcpforge.mcp_server.write_server_multi") as write_multi,
             patch("mcpforge.mcp_server.uv_sync", new=AsyncMock()) as uv_sync,
             patch("mcpforge.mcp_server.validate_server", new=mock_validate),
@@ -370,7 +380,9 @@ class TestMcpServerTools:
 
         provider_client = object()
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-        with patch("mcpforge.mcp_server.create_provider_client", return_value=provider_client) as factory:
+        with patch(
+            "mcpforge.mcp_server.create_provider_client", return_value=provider_client
+        ) as factory:
             result = _get_client(model="other-model", provider="openai")
 
         factory.assert_called_once_with("openai", model="other-model")
@@ -383,7 +395,9 @@ class TestMcpServerTools:
         from mcpforge.mcp_server import _get_client
 
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-        with patch("mcpforge.mcp_server.create_provider_client", side_effect=ValueError("bad provider")):
+        with patch(
+            "mcpforge.mcp_server.create_provider_client", side_effect=ValueError("bad provider")
+        ):
             with pytest.raises(ToolError, match="bad provider"):
                 _get_client(provider="openai")
 
