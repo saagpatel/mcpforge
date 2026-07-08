@@ -1,12 +1,14 @@
 """Tests for v0.3 inspection, doctor, and provider planning surfaces."""
 
 import json
+import subprocess
+from importlib.metadata import PackageNotFoundError
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from mcpforge.doctor import run_doctor
+from mcpforge.doctor import _command_version, _package_version, _workspace_writable, run_doctor
 from mcpforge.inspection import inspect_server
 from mcpforge.models import ServerPlan
 from mcpforge.profiles import apply_generation_profiles
@@ -98,6 +100,93 @@ def test_doctor_reports_provider_capabilities(tmp_path: Path) -> None:
         for cap in result["provider"]["capabilities"]
     )
     assert "openai_api_key" in result
+
+
+def test_command_version_reports_missing_command_without_lookup() -> None:
+    with patch("mcpforge.doctor.shutil.which", return_value=None) as which:
+        result = _command_version("missing-tool", "--version")
+
+    which.assert_called_once_with("missing-tool")
+    assert result == {
+        "name": "missing-tool",
+        "ok": False,
+        "path": "",
+        "version": "",
+        "detail": "not found",
+    }
+
+
+def test_command_version_reports_os_error_detail() -> None:
+    with (
+        patch("mcpforge.doctor.shutil.which", return_value="/bin/demo"),
+        patch("mcpforge.doctor.subprocess.run", side_effect=OSError("cannot execute")),
+    ):
+        result = _command_version("demo", "--version")
+
+    assert result["ok"] is False
+    assert result["path"] == "/bin/demo"
+    assert result["version"] == ""
+    assert result["detail"] == "cannot execute"
+
+
+def test_command_version_reports_timeout_detail() -> None:
+    timeout = subprocess.TimeoutExpired(["demo", "--version"], timeout=10)
+    with (
+        patch("mcpforge.doctor.shutil.which", return_value="/bin/demo"),
+        patch("mcpforge.doctor.subprocess.run", side_effect=timeout),
+    ):
+        result = _command_version("demo", "--version")
+
+    assert result["ok"] is False
+    assert result["path"] == "/bin/demo"
+    assert "timed out" in result["detail"]
+
+
+def test_command_version_reports_nonzero_exit_with_detail() -> None:
+    completed = subprocess.CompletedProcess(
+        ["demo", "--version"],
+        returncode=2,
+        stdout="stdout detail\nsecond line\n",
+        stderr="stderr detail\n",
+    )
+    with (
+        patch("mcpforge.doctor.shutil.which", return_value="/bin/demo"),
+        patch("mcpforge.doctor.subprocess.run", return_value=completed) as run,
+    ):
+        result = _command_version("demo", "--version")
+
+    run.assert_called_once_with(
+        ["demo", "--version"],
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+    assert result["ok"] is False
+    assert result["version"] == "stdout detail"
+    assert result["detail"] == "stderr detail"
+
+
+def test_package_version_returns_empty_string_when_missing() -> None:
+    with patch("mcpforge.doctor.version", side_effect=PackageNotFoundError):
+        assert _package_version("not-installed") == ""
+
+
+def test_workspace_writable_reports_os_error(tmp_path: Path) -> None:
+    with patch(
+        "mcpforge.doctor.tempfile.NamedTemporaryFile",
+        side_effect=OSError("permission denied"),
+    ) as named_temporary_file:
+        result = _workspace_writable(tmp_path)
+
+    named_temporary_file.assert_called_once_with(
+        prefix=".mcpforge-doctor-",
+        dir=tmp_path.resolve(),
+        delete=True,
+    )
+    assert result["ok"] is False
+    assert result["path"] == str(tmp_path.resolve())
+    assert result["detail"] == "permission denied"
 
 
 def test_provider_capabilities_and_openai_gate() -> None:
