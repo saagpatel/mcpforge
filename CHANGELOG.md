@@ -7,7 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-No unreleased changes.
+### Tests
+
+- Raised local test coverage from 84.32% to 91.55%, clearing the
+  `--cov-fail-under=90` gate without production-code changes.
+
+## [0.3.4] - 2026-06-28
+
+### Fixed
+
+- Added the `fastmcp-builder` console-script alias so the MCP Registry can launch
+  the server with `uvx fastmcp-builder`.
+- Corrected MCP Registry metadata for the PyPI `fastmcp-builder` package.
 
 ## [0.3.3] - 2026-06-20
 
@@ -131,7 +142,9 @@ No unreleased changes.
 - Initial project scaffold
 - Basic FastMCP server generation prototype
 
-[Unreleased]: https://github.com/saagpatel/mcpforge/compare/v0.3.2...HEAD
+[Unreleased]: https://github.com/saagpatel/mcpforge/compare/v0.3.4...HEAD
+[0.3.4]: https://github.com/saagpatel/mcpforge/releases/tag/v0.3.4
+[0.3.3]: https://github.com/saagpatel/mcpforge/releases/tag/v0.3.3
 [0.3.2]: https://github.com/saagpatel/mcpforge/releases/tag/v0.3.2
 [0.3.1]: https://github.com/saagpatel/mcpforge/releases/tag/v0.3.1
 [0.3.0]: https://github.com/saagpatel/mcpforge/releases/tag/v0.3.0

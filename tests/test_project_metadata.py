@@ -6,6 +6,8 @@ import json
 import tomllib
 from pathlib import Path
 
+import mcpforge
+
 
 def test_readme_uses_current_mcpaudit_package_and_registry_boundary() -> None:
     readme = Path("README.md").read_text(encoding="utf-8")
@@ -33,3 +35,9 @@ def test_registry_metadata_matches_package_version() -> None:
             "transport": {"type": "stdio"},
         }
     ]
+
+
+def test_runtime_version_matches_package_version() -> None:
+    project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))["project"]
+
+    assert mcpforge.__version__ == project["version"]
