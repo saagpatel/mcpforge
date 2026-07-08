@@ -1,5 +1,6 @@
 """Tests for AnthropicClient.generate_stream()."""
 
+import asyncio
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -11,6 +12,12 @@ from pydantic import BaseModel
 from mcpforge.api_client import AnthropicClient, _model_rejects_sampling
 
 
+def _api_status_error(status_code: int) -> anthropic.APIStatusError:
+    request = httpx.Request("POST", "https://api.anthropic.com/v1/messages")
+    response = httpx.Response(status_code, request=request)
+    return anthropic.APIStatusError("provider error", response=response, body=None)
+
+
 class StructuredSmoke(BaseModel):
     """Tiny response model for deterministic structured-output smoke tests."""
 
@@ -19,6 +26,31 @@ class StructuredSmoke(BaseModel):
 
 
 class TestGenerate:
+    def test_init_requires_api_key(self, monkeypatch):
+        """Constructing without an explicit or environment key fails clearly."""
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
+        with (
+            patch("mcpforge.api_client.anthropic.AsyncAnthropic") as mock_anthropic,
+            pytest.raises(ValueError) as exc_info,
+        ):
+            AnthropicClient()
+
+        assert str(exc_info.value) == (
+            "Anthropic API key is required. "
+            "Set the ANTHROPIC_API_KEY environment variable or pass api_key= explicitly."
+        )
+        mock_anthropic.assert_not_called()
+
+    def test_repr_includes_model(self):
+        """repr exposes the configured model without leaking credentials."""
+        mock_anthropic = MagicMock()
+
+        with patch("mcpforge.api_client.anthropic.AsyncAnthropic", return_value=mock_anthropic):
+            client = AnthropicClient(api_key="test-key", model="claude-test-model")
+
+        assert repr(client) == "AnthropicClient(model='claude-test-model')"
+
     async def test_retries_connection_errors(self):
         """generate retries transient provider connection drops."""
         request = httpx.Request("POST", "https://api.anthropic.com/v1/messages")
@@ -93,6 +125,91 @@ class TestGenerate:
             result = await client.generate("system", "user")
 
         assert result == "actual answer"
+
+    async def test_rejects_response_without_text_block(self):
+        """A response with only non-text blocks surfaces the no-text error."""
+        response = SimpleNamespace(content=[SimpleNamespace(thinking="still thinking")])
+        mock_messages = MagicMock()
+        mock_messages.create = AsyncMock(return_value=response)
+        mock_anthropic = MagicMock()
+        mock_anthropic.messages = mock_messages
+
+        with patch("mcpforge.api_client.anthropic.AsyncAnthropic", return_value=mock_anthropic):
+            client = AnthropicClient(api_key="test-key")
+            with pytest.raises(RuntimeError) as exc_info:
+                await client.generate("system", "user")
+
+        assert str(exc_info.value) == "Anthropic response contained no text block"
+
+
+class TestRetry:
+    async def test_reraises_final_transient_failure_after_retries(self):
+        """Transient provider failures are retried twice, then re-raised."""
+        request = httpx.Request("POST", "https://api.anthropic.com/v1/messages")
+        connection_error = anthropic.APIConnectionError(request=request)
+        operation = AsyncMock(side_effect=connection_error)
+
+        with (
+            patch("mcpforge.api_client.anthropic.AsyncAnthropic"),
+            patch("mcpforge.api_client.random.uniform", return_value=0.0),
+            patch("mcpforge.api_client.asyncio.sleep", new=AsyncMock()) as mock_sleep,
+        ):
+            client = AnthropicClient(api_key="test-key")
+            with pytest.raises(anthropic.APIConnectionError) as exc_info:
+                await client._with_retry(operation)
+
+        assert exc_info.value is connection_error
+        assert operation.await_count == 3
+        assert [call.args[0] for call in mock_sleep.await_args_list] == [1.0, 2.0]
+
+    async def test_retries_5xx_status_error_then_returns_value(self):
+        """HTTP 5xx API status errors are retried before returning a later value."""
+        status_error = _api_status_error(503)
+        operation = AsyncMock(side_effect=[status_error, "ok"])
+
+        with (
+            patch("mcpforge.api_client.anthropic.AsyncAnthropic"),
+            patch("mcpforge.api_client.random.uniform", return_value=0.0),
+            patch("mcpforge.api_client.asyncio.sleep", new=AsyncMock()) as mock_sleep,
+        ):
+            client = AnthropicClient(api_key="test-key")
+            result = await client._with_retry(operation)
+
+        assert result == "ok"
+        assert operation.await_count == 2
+        mock_sleep.assert_awaited_once_with(1.0)
+
+    async def test_does_not_retry_4xx_status_error(self):
+        """HTTP 4xx API status errors are treated as caller errors."""
+        status_error = _api_status_error(400)
+        operation = AsyncMock(side_effect=status_error)
+
+        with (
+            patch("mcpforge.api_client.anthropic.AsyncAnthropic"),
+            patch("mcpforge.api_client.asyncio.sleep", new=AsyncMock()) as mock_sleep,
+        ):
+            client = AnthropicClient(api_key="test-key")
+            with pytest.raises(anthropic.APIStatusError) as exc_info:
+                await client._with_retry(operation)
+
+        assert exc_info.value is status_error
+        operation.assert_awaited_once()
+        mock_sleep.assert_not_awaited()
+
+    async def test_retry_loop_fallthrough_raises_runtime_error(self):
+        """If the retry loop cannot iterate, it raises the defensive fallthrough."""
+        operation = AsyncMock(return_value="unused")
+
+        with (
+            patch("mcpforge.api_client.anthropic.AsyncAnthropic"),
+            patch("mcpforge.api_client.range", return_value=(), create=True),
+        ):
+            client = AnthropicClient(api_key="test-key")
+            with pytest.raises(RuntimeError) as exc_info:
+                await client._with_retry(operation)
+
+        assert str(exc_info.value) == "retry loop exited unexpectedly"
+        operation.assert_not_awaited()
 
 
 class TestModelRejectsSampling:
@@ -312,3 +429,29 @@ class TestGenerateStream:
                 result.append(chunk)
 
         assert result == []
+
+    async def test_raises_timeout_when_chunk_stalls(self):
+        """generate_stream raises TimeoutError when the next chunk exceeds chunk_timeout."""
+        mock_stream = AsyncMock()
+        mock_stream.__aenter__ = AsyncMock(return_value=mock_stream)
+        mock_stream.__aexit__ = AsyncMock(return_value=None)
+
+        async def _stalled_text_stream():
+            await asyncio.Event().wait()
+            yield "never"
+
+        mock_stream.text_stream = _stalled_text_stream()
+
+        mock_messages = MagicMock()
+        mock_messages.stream = MagicMock(return_value=mock_stream)
+
+        mock_anthropic = MagicMock()
+        mock_anthropic.messages = mock_messages
+
+        with patch("mcpforge.api_client.anthropic.AsyncAnthropic", return_value=mock_anthropic):
+            client = AnthropicClient(api_key="test-key")
+            with pytest.raises(TimeoutError) as exc_info:
+                async for _ in client.generate_stream("system", "user", chunk_timeout=0.001):
+                    pass
+
+        assert str(exc_info.value) == "Streaming generation stalled — no data received for 0.001s"
