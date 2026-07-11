@@ -167,6 +167,52 @@
       "title": "ForgeGenerationEvidence",
       "type": "object"
     },
+    "ForgeLaunchConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "args": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Args",
+          "type": "array"
+        },
+        "command": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Command"
+        },
+        "env_keys": {
+          "items": {
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+            "type": "string"
+          },
+          "title": "Env Keys",
+          "type": "array"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        }
+      },
+      "title": "ForgeLaunchConfig",
+      "type": "object"
+    },
     "ForgeProducerIdentity": {
       "additionalProperties": false,
       "properties": {
@@ -407,6 +453,17 @@
     },
     "generation": {
       "$ref": "#/$defs/ForgeGenerationEvidence"
+    },
+    "launch": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ForgeLaunchConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     },
     "limitations": {
       "items": {

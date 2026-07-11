@@ -29,6 +29,7 @@ _FIXTURE_ARTIFACT_PATHS = (
     "pyproject.toml",
     "server.py",
     "test_server.py",
+    "uv.lock",
 )
 
 
@@ -65,6 +66,13 @@ class ForgeGenerationEvidence(_StrictModel):
     no_execute: Literal[True] = True
     plan_digest: Digest
     required_env_keys: list[EnvKey] = Field(default_factory=list)
+
+
+class ForgeLaunchConfig(_StrictModel):
+    command: str | None = None
+    args: list[str] = Field(default_factory=list)
+    url: str | None = None
+    env_keys: list[EnvKey] = Field(default_factory=list)
 
 
 class ForgeArtifactFile(_StrictModel):
@@ -135,6 +143,7 @@ class ForgeReceiptV0(_StrictModel):
     producer: ForgeProducerIdentity
     source: ForgeSourceBinding
     generation: ForgeGenerationEvidence
+    launch: ForgeLaunchConfig | None = None
     artifact: ForgeArtifactInventory
     toolbom: list[ForgeToolBOMEntry] = Field(min_length=1)
     validation: ForgeValidationEvidence
@@ -152,6 +161,15 @@ class ForgeReceiptV0(_StrictModel):
             expected = f"{self.source.server_id}#{tool.name}"
             if tool.tool_id != expected:
                 raise ValueError(f"tool_id {tool.tool_id!r} must equal {expected!r}")
+        if self.launch is not None:
+            if self.source.transport == "stdio" and (
+                not self.launch.command or self.launch.url is not None
+            ):
+                raise ValueError("stdio launch requires command and forbids url")
+            if self.source.transport == "streamable-http" and (
+                self.launch.command is not None or not self.launch.url
+            ):
+                raise ValueError("streamable-http launch requires url and forbids command")
         passed = all(
             state is CheckState.PASSED
             for state in (self.validation.syntax, self.validation.security, self.validation.lint)
@@ -203,10 +221,12 @@ def build_forge_receipt(
             plan_digest=_digest_json(plan_payload),
             required_env_keys=sorted(plan.env_vars),
         ),
+        launch=_launch_config(output_dir / "config.json", plan.slug),
         artifact=ForgeArtifactInventory(
             tree_digest=_digest_json([item.model_dump(mode="json") for item in files]),
             files=files,
             dependency_manifest_digest=_file_digest(output_dir / "pyproject.toml"),
+            lockfile_digest=_file_digest(output_dir / "uv.lock"),
             package_identities=_package_identities(output_dir / "pyproject.toml"),
         ),
         toolbom=[_toolbom_entry(plan, tool, output_dir / "server.py") for tool in plan.tools],
@@ -286,8 +306,8 @@ def _toolbom_entry(plan: ServerPlan, tool: ToolDef, server_path: Path) -> ForgeT
         tool_id=f"{plan.slug}#{tool.name}",
         name=tool.name,
         description_digest=_digest_bytes(tool.description.encode()),
-        input_schema_digest=_digest_json([param.model_dump(mode="json") for param in tool.params]),
-        output_schema_digest=_digest_json({"return_type": tool.return_type}),
+        input_schema_digest=_digest_json(_runtime_input_schema(tool)),
+        output_schema_digest=_digest_json(_runtime_output_schema(tool)),
         implementation_digest=implementation_digest,
         observed_capabilities=observed,
         observed_egress_destinations=destinations,
@@ -414,6 +434,48 @@ def _literal_destination(value: str) -> str | None:
     return urlsplit(value).hostname
 
 
+_JSON_TYPES = {
+    "str": "string",
+    "string": "string",
+    "int": "integer",
+    "integer": "integer",
+    "float": "number",
+    "number": "number",
+    "bool": "boolean",
+    "boolean": "boolean",
+}
+
+
+def _runtime_input_schema(tool: ToolDef) -> dict[str, object]:
+    """Derive the exact FastMCP schema shape for the supported scalar plan types."""
+    properties: dict[str, object] = {}
+    required: list[str] = []
+    for parameter in tool.params:
+        json_type = _JSON_TYPES.get(parameter.type.lower())
+        if json_type is None:
+            raise ValueError(
+                f"tool {tool.name!r} parameter {parameter.name!r} "
+                "has unsupported runtime schema type"
+            )
+        properties[parameter.name] = {"type": json_type}
+        required.append(parameter.name)
+    return {
+        "additionalProperties": False,
+        "properties": properties,
+        "required": required,
+        "type": "object",
+    }
+
+
+def _runtime_output_schema(tool: ToolDef) -> dict[str, object]:
+    if tool.return_type.lower() in {"dict", "object"}:
+        return {"additionalProperties": True, "type": "object"}
+    json_type = _JSON_TYPES.get(tool.return_type.lower())
+    if json_type is None:
+        raise ValueError(f"tool {tool.name!r} has unsupported runtime output schema type")
+    return {"type": json_type}
+
+
 def _normalize_destination(value: str) -> str:
     return _literal_destination(value) or value.lower().strip(".")
 
@@ -430,6 +492,29 @@ def _package_identities(path: Path) -> list[str]:
     ):
         raise ValueError("generated pyproject.toml must declare a string dependency list")
     return sorted(dependencies)
+
+
+def _launch_config(path: Path, server_id: str) -> ForgeLaunchConfig:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    servers = payload.get("mcpServers")
+    if not isinstance(servers, dict) or set(servers) != {server_id}:
+        raise ValueError("generated config must contain exactly the receipt server")
+    server = servers[server_id]
+    if not isinstance(server, dict):
+        raise ValueError("generated server launch config must be an object")
+    command = server.get("command")
+    args = server.get("args", [])
+    url = server.get("url")
+    env = server.get("env", {})
+    if command is not None and not isinstance(command, str):
+        raise ValueError("generated launch command must be a string")
+    if not isinstance(args, list) or not all(isinstance(item, str) for item in args):
+        raise ValueError("generated launch args must be strings")
+    if url is not None and not isinstance(url, str):
+        raise ValueError("generated launch URL must be a string")
+    if not isinstance(env, dict) or not all(isinstance(key, str) for key in env):
+        raise ValueError("generated launch env must be an object with string keys")
+    return ForgeLaunchConfig(command=command, args=args, url=url, env_keys=sorted(env))
 
 
 def _digest_json(value: object) -> Digest:

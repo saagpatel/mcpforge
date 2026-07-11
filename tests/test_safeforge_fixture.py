@@ -28,6 +28,7 @@ _EXPECTED_FILES = [
     "pyproject.toml",
     "server.py",
     "test_server.py",
+    "uv.lock",
 ]
 
 
@@ -82,6 +83,12 @@ async def test_generation_is_static_no_execute(
     assert receipt.validation.eligible_for_preinstall_audit
     assert [item.path for item in receipt.artifact.files] == _EXPECTED_FILES
     assert receipt.artifact.package_identities == ["fastmcp>=3.1.0"]
+    assert receipt.artifact.lockfile_digest is not None
+    assert receipt.launch is not None
+    assert receipt.launch.command == "uv"
+    assert receipt.launch.args == ["--directory", ".", "run", "python", "server.py"]
+    assert receipt.launch.url is None
+    assert receipt.launch.env_keys == []
 
 
 async def test_receipt_is_deterministic_for_same_inputs(tmp_path: Path) -> None:

@@ -184,6 +184,12 @@ def check_plan_conformance(code: str, plan: ServerPlan) -> list[str]:
                 and isinstance(decorator.value, ast.Name)
                 and decorator.value.id == "mcp"
                 and decorator.attr == "tool"
+            ) or (
+                isinstance(decorator, ast.Call)
+                and isinstance(decorator.func, ast.Attribute)
+                and isinstance(decorator.func.value, ast.Name)
+                and decorator.func.value.id == "mcp"
+                and decorator.func.attr == "tool"
             )
             if is_mcp_tool:
                 generated_tools.add(node.name)
