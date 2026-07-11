@@ -70,6 +70,8 @@ async def generate_safeforge_echo_fixture(
     server_code = await generate_server(plan, client)
     test_code = await generate_tests(plan, server_code, client)
     write_server(plan, server_code, test_code, output_dir)
+    lock_bytes = files("mcpforge").joinpath("safeforge_assets", "uv.lock").read_bytes()
+    (output_dir / "uv.lock").write_bytes(lock_bytes)
 
     warnings = check_plan_conformance(server_code, plan)
     if warnings:

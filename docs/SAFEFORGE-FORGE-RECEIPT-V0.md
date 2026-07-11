@@ -34,7 +34,8 @@ The receipt records:
 - source-description digest, server ID, and transport;
 - plan digest, provider/model identity, and environment-variable key names;
 - exact generated-file inventory and SHA-256 tree digest;
-- dependency-manifest digest and package identities;
+- dependency-manifest digest, committed lock digest, and package identities;
+- exact generated command, arguments, URL, and environment key names;
 - ToolBOM identity, schema digests, explicit MCP annotation hints, and declared
   capability lists;
 - per-tool implementation digests plus code-observed filesystem/network
@@ -73,9 +74,11 @@ compatibility belongs after MCPAudit consumes the first real receipt.
 `scripts/verify_safeforge_handoff.py` generates the trusted replay fixture with
 `static-no-execute` validation, writes its schema and receipt only to a temporary
 directory, and invokes an existing MCPAudit virtual environment's public
-`safeforge-preinstall` command twice. It fails unless both JSON outputs are
-byte-identical, accepted, canonicalized, and contain the exact six preinstall
-stages. It never installs dependencies or executes the generated MCP server.
+`safeforge-preinstall` and `safeforge-run` commands twice. It requires
+byte-identical preinstall results and identical final runtime manifests with all
+thirteen stages, an eligible decision, zero egress, and verified cleanup. Only
+the runtime command installs and executes, and it does so inside MCPAudit's
+disposable boundary.
 
 ```bash
 .venv/bin/python scripts/verify_safeforge_handoff.py \
