@@ -85,6 +85,14 @@ class ToolDef(BaseModel):
     auth_location: str | None = None
     auth_parameter_name: str | None = None
     retry_safe: bool = False
+    permissions: list[str] = Field(default_factory=list)
+    auth_scopes: list[str] = Field(default_factory=list)
+    data_zones: list[str] = Field(default_factory=list)
+    egress_destinations: list[str] = Field(default_factory=list)
+    read_only_hint: bool | None = None
+    destructive_hint: bool | None = None
+    idempotent_hint: bool | None = None
+    open_world_hint: bool | None = None
 
 
 class ResourceDef(BaseModel):
