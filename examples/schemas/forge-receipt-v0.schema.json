@@ -1,0 +1,461 @@
+{
+  "$defs": {
+    "CheckState": {
+      "enum": [
+        "passed",
+        "failed",
+        "skipped",
+        "unknown"
+      ],
+      "title": "CheckState",
+      "type": "string"
+    },
+    "ForgeArtifactFile": {
+      "additionalProperties": false,
+      "properties": {
+        "digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Digest",
+          "type": "string"
+        },
+        "media_type": {
+          "title": "Media Type",
+          "type": "string"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "media_type",
+        "digest"
+      ],
+      "title": "ForgeArtifactFile",
+      "type": "object"
+    },
+    "ForgeArtifactInventory": {
+      "additionalProperties": false,
+      "properties": {
+        "dependency_manifest_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Dependency Manifest Digest",
+          "type": "string"
+        },
+        "files": {
+          "items": {
+            "$ref": "#/$defs/ForgeArtifactFile"
+          },
+          "minItems": 1,
+          "title": "Files",
+          "type": "array"
+        },
+        "lockfile_digest": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lockfile Digest"
+        },
+        "package_identities": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Package Identities",
+          "type": "array"
+        },
+        "tree_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Tree Digest",
+          "type": "string"
+        }
+      },
+      "required": [
+        "tree_digest",
+        "files",
+        "dependency_manifest_digest"
+      ],
+      "title": "ForgeArtifactInventory",
+      "type": "object"
+    },
+    "ForgeDeclaredCapabilities": {
+      "additionalProperties": false,
+      "properties": {
+        "auth_scopes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Auth Scopes",
+          "type": "array"
+        },
+        "credential_keys": {
+          "items": {
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+            "type": "string"
+          },
+          "title": "Credential Keys",
+          "type": "array"
+        },
+        "data_zones": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Data Zones",
+          "type": "array"
+        },
+        "egress_destinations": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Egress Destinations",
+          "type": "array"
+        },
+        "permissions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Permissions",
+          "type": "array"
+        }
+      },
+      "title": "ForgeDeclaredCapabilities",
+      "type": "object"
+    },
+    "ForgeGenerationEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "model": {
+          "title": "Model",
+          "type": "string"
+        },
+        "no_execute": {
+          "const": true,
+          "default": true,
+          "title": "No Execute",
+          "type": "boolean"
+        },
+        "plan_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Plan Digest",
+          "type": "string"
+        },
+        "provider": {
+          "title": "Provider",
+          "type": "string"
+        },
+        "required_env_keys": {
+          "items": {
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+            "type": "string"
+          },
+          "title": "Required Env Keys",
+          "type": "array"
+        }
+      },
+      "required": [
+        "provider",
+        "model",
+        "plan_digest"
+      ],
+      "title": "ForgeGenerationEvidence",
+      "type": "object"
+    },
+    "ForgeProducerIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "dirty": {
+          "title": "Dirty",
+          "type": "boolean"
+        },
+        "executable": {
+          "const": "mcpforge",
+          "default": "mcpforge",
+          "title": "Executable",
+          "type": "string"
+        },
+        "name": {
+          "const": "mcpforge",
+          "default": "mcpforge",
+          "title": "Name",
+          "type": "string"
+        },
+        "revision": {
+          "title": "Revision",
+          "type": "string"
+        },
+        "source": {
+          "const": "io.github.saagpatel/mcpforge",
+          "default": "io.github.saagpatel/mcpforge",
+          "title": "Source",
+          "type": "string"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "version",
+        "revision",
+        "dirty"
+      ],
+      "title": "ForgeProducerIdentity",
+      "type": "object"
+    },
+    "ForgeSourceBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "description_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Description Digest",
+          "type": "string"
+        },
+        "kind": {
+          "const": "natural-language",
+          "default": "natural-language",
+          "title": "Kind",
+          "type": "string"
+        },
+        "server_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "title": "Server Id",
+          "type": "string"
+        },
+        "transport": {
+          "enum": [
+            "stdio",
+            "streamable-http"
+          ],
+          "title": "Transport",
+          "type": "string"
+        }
+      },
+      "required": [
+        "server_id",
+        "description_digest",
+        "transport"
+      ],
+      "title": "ForgeSourceBinding",
+      "type": "object"
+    },
+    "ForgeToolAnnotations": {
+      "additionalProperties": false,
+      "properties": {
+        "destructive": {
+          "title": "Destructive",
+          "type": "boolean"
+        },
+        "idempotent": {
+          "title": "Idempotent",
+          "type": "boolean"
+        },
+        "open_world": {
+          "title": "Open World",
+          "type": "boolean"
+        },
+        "read_only": {
+          "title": "Read Only",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "read_only",
+        "destructive",
+        "idempotent",
+        "open_world"
+      ],
+      "title": "ForgeToolAnnotations",
+      "type": "object"
+    },
+    "ForgeToolBOMEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "annotations": {
+          "$ref": "#/$defs/ForgeToolAnnotations"
+        },
+        "declared": {
+          "$ref": "#/$defs/ForgeDeclaredCapabilities"
+        },
+        "description_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Description Digest",
+          "type": "string"
+        },
+        "implementation_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Implementation Digest",
+          "type": "string"
+        },
+        "input_schema_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Input Schema Digest",
+          "type": "string"
+        },
+        "name": {
+          "pattern": "^[A-Za-z_][A-Za-z0-9_.-]*$",
+          "title": "Name",
+          "type": "string"
+        },
+        "observed_capabilities": {
+          "items": {
+            "enum": [
+              "filesystem",
+              "network"
+            ],
+            "type": "string"
+          },
+          "title": "Observed Capabilities",
+          "type": "array"
+        },
+        "observed_egress_destinations": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Observed Egress Destinations",
+          "type": "array"
+        },
+        "output_schema_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Output Schema Digest",
+          "type": "string"
+        },
+        "tool_id": {
+          "title": "Tool Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "tool_id",
+        "name",
+        "description_digest",
+        "input_schema_digest",
+        "output_schema_digest",
+        "implementation_digest",
+        "annotations",
+        "declared"
+      ],
+      "title": "ForgeToolBOMEntry",
+      "type": "object"
+    },
+    "ForgeValidationEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "eligible_for_preinstall_audit": {
+          "title": "Eligible For Preinstall Audit",
+          "type": "boolean"
+        },
+        "import_check": {
+          "const": "skipped",
+          "default": "skipped",
+          "title": "Import Check",
+          "type": "string"
+        },
+        "lint": {
+          "$ref": "#/$defs/CheckState"
+        },
+        "mode": {
+          "const": "static-no-execute",
+          "default": "static-no-execute",
+          "title": "Mode",
+          "type": "string"
+        },
+        "security": {
+          "$ref": "#/$defs/CheckState"
+        },
+        "security_warning_count": {
+          "minimum": 0,
+          "title": "Security Warning Count",
+          "type": "integer"
+        },
+        "syntax": {
+          "$ref": "#/$defs/CheckState"
+        },
+        "tests": {
+          "const": "skipped",
+          "default": "skipped",
+          "title": "Tests",
+          "type": "string"
+        }
+      },
+      "required": [
+        "syntax",
+        "security",
+        "lint",
+        "security_warning_count",
+        "eligible_for_preinstall_audit"
+      ],
+      "title": "ForgeValidationEvidence",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "artifact": {
+      "$ref": "#/$defs/ForgeArtifactInventory"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "generation": {
+      "$ref": "#/$defs/ForgeGenerationEvidence"
+    },
+    "limitations": {
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Limitations",
+      "type": "array"
+    },
+    "producer": {
+      "$ref": "#/$defs/ForgeProducerIdentity"
+    },
+    "receipt_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]*$",
+      "title": "Receipt Id",
+      "type": "string"
+    },
+    "receipt_version": {
+      "const": "0.1.0",
+      "default": "0.1.0",
+      "title": "Receipt Version",
+      "type": "string"
+    },
+    "source": {
+      "$ref": "#/$defs/ForgeSourceBinding"
+    },
+    "toolbom": {
+      "items": {
+        "$ref": "#/$defs/ForgeToolBOMEntry"
+      },
+      "minItems": 1,
+      "title": "Toolbom",
+      "type": "array"
+    },
+    "validation": {
+      "$ref": "#/$defs/ForgeValidationEvidence"
+    }
+  },
+  "required": [
+    "receipt_id",
+    "created_at",
+    "producer",
+    "source",
+    "generation",
+    "artifact",
+    "toolbom",
+    "validation",
+    "limitations"
+  ],
+  "title": "ForgeReceiptV0",
+  "type": "object"
+}
