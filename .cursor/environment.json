@@ -1,0 +1,5 @@
+{
+  "name": "mcpforge",
+  "install": "bash .cursor/install.sh",
+  "start": "true"
+}
