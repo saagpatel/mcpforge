@@ -31,6 +31,13 @@ uv build
 
 Use hosted generation smoke tests only when the task explicitly authorizes the required provider credentials.
 
+## Cursor Cloud specific instructions
+
+- `.cursor/environment.json` is the repo-local Cloud environment definition; it runs `.cursor/install.sh` during each Build.
+- The Cloud setup pins Python `3.12.13` and uv `0.12.12`, installs dependencies with the tracked `uv.lock`, and runs non-hosted lint, format, test, and package-build checks.
+- Do not copy local `.env` files, provider keys, keychains, browser profiles, or other credentials into a Cloud environment. Add any explicitly authorized provider secrets through Cursor's environment-scoped Secrets settings.
+- Hosted generation smoke tests are intentionally not part of the baseline Build because they require external provider credentials and network access.
+
 ## Known Risks
 
 - Generated MCP servers can widen local tool reach; validate generated code before installing or wiring it into clients.
