@@ -228,10 +228,51 @@ class TestMcpServerTools:
 
         gen_ts.assert_awaited_once()
         write_ts.assert_called_once()
-        validate_ts.assert_awaited_once_with(tmp_path.resolve())
+        validate_ts.assert_awaited_once_with(tmp_path.resolve(), skip_execution=False)
         assert result["valid"] is True
         assert result["structurally_valid"] is True
         assert result["tests_ok"] is True
+        assert "validation_mode" not in result
+
+    async def test_generate_tool_typescript_no_execute_writes_without_validation(
+        self, tmp_path: Path, monkeypatch
+    ):
+        from mcpforge.mcp_server import generate
+
+        monkeypatch.setenv("MCPFORGE_WORKSPACE", str(tmp_path))
+        output = tmp_path / "typescript-server"
+        with (
+            patch("mcpforge.mcp_server._get_client", return_value=object()),
+            patch("mcpforge.mcp_server.extract_plan", new=AsyncMock(return_value=_mock_plan())),
+            patch(
+                "mcpforge.mcp_server.generate_server_ts",
+                new=AsyncMock(return_value="not valid TypeScript"),
+            ),
+            patch(
+                "mcpforge.mcp_server.generate_tests_ts",
+                new=AsyncMock(return_value="also not valid TypeScript"),
+            ),
+            patch("asyncio.create_subprocess_exec") as mock_exec,
+        ):
+            result = await generate(
+                "A todo server",
+                output_path=str(output),
+                language="typescript",
+                no_execute=True,
+                strict=True,
+            )
+
+        mock_exec.assert_not_called()
+        assert (output / "src" / "server.ts").read_text() == "not valid TypeScript"
+        assert (output / "src" / "server.test.ts").read_text() == "also not valid TypeScript"
+        assert result["generation_completed"] is True
+        assert result["validation_mode"] == "write_only"
+        assert result["checks_not_run"] == ["typescript_typecheck", "generated_tests"]
+        assert result["tests_status"] == "not_run"
+        assert result["valid"] is False
+        assert result["structurally_valid"] is False
+        assert result["tests_ok"] is True  # Legacy no-output flag; tests_status is authoritative.
+        assert result["tests_run"] == 0
 
     async def test_generate_tool_multi_file_respects_no_execute_and_strict(
         self, tmp_path: Path, monkeypatch

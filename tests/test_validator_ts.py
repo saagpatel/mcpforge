@@ -3,6 +3,7 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from mcpforge.validator_ts import (
+    TypeScriptWriteOnlyResult,
     _parse_vitest_counts,
     check_types,
     npm_install,
@@ -172,6 +173,36 @@ class TestRunTestsTs:
 
 
 class TestValidateServerTs:
+    async def test_skip_execution_returns_unvalidated_without_subprocesses(self, tmp_path):
+        (tmp_path / "src").mkdir()
+        (tmp_path / "src" / "server.ts").write_text("not valid TypeScript")
+
+        with (
+            patch("mcpforge.validator_ts.npm_install", new=AsyncMock()) as mock_install,
+            patch("mcpforge.validator_ts.check_types", new=AsyncMock()) as mock_types,
+            patch("mcpforge.validator_ts.run_tests_ts", new=AsyncMock()) as mock_tests,
+            patch("asyncio.create_subprocess_exec") as mock_exec,
+        ):
+            result = await validate_server_ts(tmp_path, skip_execution=True)
+
+        mock_install.assert_not_awaited()
+        mock_types.assert_not_awaited()
+        mock_tests.assert_not_awaited()
+        mock_exec.assert_not_called()
+        assert result.validation_mode == "write_only"
+        assert result.model_dump()["validation_mode"] == "write_only"
+        assert result.is_valid is False
+        assert result.syntax_ok is False
+        assert result.import_ok is False
+        assert result.tests_passed is False
+        assert result.tests_run == 0
+        assert result.tests_failed == 0
+        assert result.tests_ok is True  # Legacy no-output flag is not passed-test evidence.
+
+    def test_write_only_result_never_claims_structural_validity(self):
+        result = TypeScriptWriteOnlyResult(syntax_ok=True, import_ok=True)
+        assert result.is_valid is False
+
     async def test_returns_early_when_type_check_fails(self, tmp_path):
         npm_proc = _mock_process()
         tsc_proc = _mock_process(
@@ -208,6 +239,7 @@ class TestValidateServerTs:
         assert result.tests_failed == 0
         assert result.test_output == vitest_output
         assert result.errors == []
+        assert "validation_mode" not in result.model_dump()
 
     async def test_failed_test_run_preserves_validation_success_and_test_failure(self, tmp_path):
         npm_proc = _mock_process()

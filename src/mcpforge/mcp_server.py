@@ -20,7 +20,7 @@ from mcpforge.template_hints import TEMPLATE_HINTS
 from mcpforge.test_generator import generate_tests
 from mcpforge.updater import update_server
 from mcpforge.validator import uv_sync, validate_server
-from mcpforge.validator_ts import validate_server_ts
+from mcpforge.validator_ts import TypeScriptWriteOnlyResult, validate_server_ts
 from mcpforge.writer import write_server, write_server_multi, write_server_ts
 
 mcp = FastMCP(
@@ -92,6 +92,7 @@ async def generate(
     """Generate a complete FastMCP 3.x server from a plain-English description.
 
     Returns a dict with keys: path, plan (dict), valid (bool), tests_run (int).
+    TypeScript no_execute also reports write-only generation and checks not run.
     """
     if from_openapi:
         spec_path = _resolve_workspace_path(from_openapi, must_exist=True)
@@ -127,7 +128,7 @@ async def generate(
         server_code = await generate_server_ts(server_plan, client)
         test_code = await generate_tests_ts(server_plan, server_code, client)
         write_server_ts(server_plan, server_code, test_code, out_dir)
-        result = await validate_server_ts(out_dir)
+        result = await validate_server_ts(out_dir, skip_execution=no_execute)
     elif multi_file:
         files = await generate_server_multi(server_plan, client, template_hint=template_hint)
         test_code = await generate_tests(server_plan, files.get("server.py", ""), client)
@@ -143,7 +144,7 @@ async def generate(
             await uv_sync(out_dir, plan=server_plan)
         result = await validate_server(out_dir, skip_execution=no_execute, strict=strict)
 
-    return {
+    response = {
         "path": str(out_dir.resolve()),
         "plan": server_plan.model_dump(),
         "valid": _validation_passed(result),
@@ -151,6 +152,14 @@ async def generate(
         "tests_ok": result.tests_ok,
         "tests_run": result.tests_run,
     }
+    if isinstance(result, TypeScriptWriteOnlyResult):
+        response.update(
+            generation_completed=True,
+            validation_mode="write_only",
+            checks_not_run=["typescript_typecheck", "generated_tests"],
+            tests_status="not_run",
+        )
+    return response
 
 
 @mcp.tool

@@ -202,5 +202,5 @@ class ValidationResult(BaseModel):
 
     @property
     def tests_ok(self) -> bool:
-        """True when tests passed, were skipped, or produced no executable output."""
+        """Legacy flag for passed tests or no output; not proof that tests ran."""
         return self.tests_passed or (self.tests_run == 0 and not self.test_output)

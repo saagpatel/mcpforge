@@ -4,10 +4,21 @@ import asyncio
 import logging
 import re
 from pathlib import Path
+from typing import Literal
 
 from mcpforge.models import ValidationResult
 
 logger = logging.getLogger(__name__)
+
+
+class TypeScriptWriteOnlyResult(ValidationResult):
+    """Generated TypeScript files exist, but no validation was performed."""
+
+    validation_mode: Literal["write_only"] = "write_only"
+
+    @property
+    def is_valid(self) -> bool:
+        return False
 
 
 def _parse_vitest_counts(output: str) -> tuple[int, int]:
@@ -105,8 +116,11 @@ async def run_tests_ts(output_dir: Path) -> tuple[bool, int, int, str]:
         return False, 0, 0, "Tests timed out after 120 seconds"
 
 
-async def validate_server_ts(output_dir: Path) -> ValidationResult:
-    """Orchestrate npm install → tsc → vitest for a generated TS server."""
+async def validate_server_ts(output_dir: Path, *, skip_execution: bool = False) -> ValidationResult:
+    """Orchestrate npm install → tsc → vitest, or record write-only generation."""
+    if skip_execution:
+        return TypeScriptWriteOnlyResult()
+
     errors: list[str] = []
 
     # Step 1: npm install
