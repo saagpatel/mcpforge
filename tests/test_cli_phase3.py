@@ -3,6 +3,7 @@
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from click.testing import CliRunner
 
 from mcpforge.cli import cli
@@ -165,6 +166,51 @@ class TestLanguageFlag:
             )
         assert result.exit_code == 0
         mock_gen_ts.assert_called_once()
+
+    @pytest.mark.parametrize(
+        "validation_result",
+        [
+            ValidationResult(lint_errors=["TypeScript error"], errors=["TypeScript error"]),
+            ValidationResult(
+                syntax_ok=True,
+                import_ok=True,
+                tests_run=1,
+                tests_failed=1,
+                test_output="1 failed",
+            ),
+        ],
+        ids=["typecheck-failure", "generated-test-failure"],
+    )
+    def test_typescript_generation_exits_1_when_validation_fails(
+        self, tmp_path: Path, validation_result: ValidationResult
+    ) -> None:
+        output = tmp_path / "typescript-server"
+        validator = AsyncMock(return_value=validation_result)
+        with (
+            patch("mcpforge.cli._create_cli_client", return_value=object()),
+            patch("mcpforge.cli.extract_plan", new=AsyncMock(return_value=_mock_plan())),
+            patch("mcpforge.cli.generate_server_ts", new=AsyncMock(return_value="server code")),
+            patch("mcpforge.cli.generate_tests_ts", new=AsyncMock(return_value="test code")),
+            patch("mcpforge.cli.validate_server_ts", new=validator),
+        ):
+            result = CliRunner().invoke(
+                cli,
+                [
+                    "generate",
+                    "A test server",
+                    "--language",
+                    "typescript",
+                    "--yes",
+                    "--output",
+                    str(output),
+                ],
+            )
+
+        assert result.exit_code == 1, result.output
+        assert "Status: INVALID" in result.output
+        assert "validation not run" not in result.output
+        validator.assert_awaited_once_with(output)
+        assert (output / "src" / "server.ts").read_text() == "server code"
 
     def test_typescript_no_execute_writes_and_reports_skipped_validation(
         self, tmp_path: Path

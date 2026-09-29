@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- TypeScript `--no-execute` and MCP `no_execute` now write generated files without
+  installing dependencies, type checking, or running generated tests. The CLI
+  reports skipped validation and exits successfully after writing; MCP responses
+  identify write-only generation without claiming the server was validated.
+
 ### Tests
 
 - Raised local test coverage from 84.32% to 91.55%, clearing the
