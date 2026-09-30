@@ -36,7 +36,7 @@ from mcpforge.test_generator import generate_tests
 from mcpforge.updater import update_server
 from mcpforge.utils import strip_code_fences
 from mcpforge.validator import check_plan_conformance, uv_sync, validate_server
-from mcpforge.validator_ts import validate_server_ts
+from mcpforge.validator_ts import TypeScriptWriteOnlyResult, validate_server_ts
 from mcpforge.writer import write_server, write_server_multi, write_server_ts
 
 console = Console()
@@ -106,6 +106,18 @@ def _display_results(
     heal_attempted: bool,
 ) -> None:
     """Display final validation results as a Rich panel."""
+    if isinstance(result, TypeScriptWriteOnlyResult):
+        console.print(
+            Panel(
+                f"Status: [green]GENERATED[/green]; validation not run\n"
+                f"Output: {output_path}\n"
+                "TypeScript type check: not run\n"
+                "Generated tests: not run",
+                title="mcpforge result",
+            )
+        )
+        return
+
     status = "[green]VALID[/green]" if _validation_passed(result) else "[red]INVALID[/red]"
     lines = [
         f"Status: {status}",
@@ -226,16 +238,19 @@ async def _run_generate(
         write_server_ts(plan, server_code, test_code, output_path, force=force)
         console.print(f"[dim]Written to {output_path}[/dim]")
 
-        # Stage 4: Install + Validate (no self-heal for TS)
-        with Progress(
-            SpinnerColumn(), TextColumn("{task.description}"), console=console
-        ) as progress:
-            task = progress.add_task("Validating TypeScript server...", total=None)
-            result = await validate_server_ts(output_path)
-            progress.remove_task(task)
+        # Stage 4: Validate only when execution is allowed (no self-heal for TS).
+        if no_execute:
+            result = await validate_server_ts(output_path, skip_execution=True)
+        else:
+            with Progress(
+                SpinnerColumn(), TextColumn("{task.description}"), console=console
+            ) as progress:
+                task = progress.add_task("Validating TypeScript server...", total=None)
+                result = await validate_server_ts(output_path)
+                progress.remove_task(task)
 
         _display_results(plan, result, output_path, heal_attempted=False)
-        if not _validation_passed(result):
+        if not no_execute and not _validation_passed(result):
             raise SystemExit(1)
 
     else:
@@ -642,13 +657,16 @@ def cli() -> None:
     "no_execute",
     is_flag=True,
     default=False,
-    help="Skip import check and test execution (write files only).",
+    help=(
+        "Write files without dependency installation or generated-code execution; "
+        "skip TypeScript type checking."
+    ),
 )
 @click.option(
     "--strict",
     is_flag=True,
     default=False,
-    help="Treat lint errors as validation failures (halt on lint issues).",
+    help="Treat Python lint errors as validation failures (halt on lint issues).",
 )
 @click.option(
     "--auth-profile",

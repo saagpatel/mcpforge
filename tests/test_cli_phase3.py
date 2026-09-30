@@ -3,6 +3,7 @@
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from click.testing import CliRunner
 
 from mcpforge.cli import cli
@@ -165,6 +166,124 @@ class TestLanguageFlag:
             )
         assert result.exit_code == 0
         mock_gen_ts.assert_called_once()
+
+    @pytest.mark.parametrize(
+        "validation_result",
+        [
+            ValidationResult(lint_errors=["TypeScript error"], errors=["TypeScript error"]),
+            ValidationResult(
+                syntax_ok=True,
+                import_ok=True,
+                tests_run=1,
+                tests_failed=1,
+                test_output="1 failed",
+            ),
+        ],
+        ids=["typecheck-failure", "generated-test-failure"],
+    )
+    def test_typescript_generation_exits_1_when_validation_fails(
+        self, tmp_path: Path, validation_result: ValidationResult
+    ) -> None:
+        output = tmp_path / "typescript-server"
+        validator = AsyncMock(return_value=validation_result)
+        with (
+            patch("mcpforge.cli._create_cli_client", return_value=object()),
+            patch("mcpforge.cli.extract_plan", new=AsyncMock(return_value=_mock_plan())),
+            patch("mcpforge.cli.generate_server_ts", new=AsyncMock(return_value="server code")),
+            patch("mcpforge.cli.generate_tests_ts", new=AsyncMock(return_value="test code")),
+            patch("mcpforge.cli.validate_server_ts", new=validator),
+        ):
+            result = CliRunner().invoke(
+                cli,
+                [
+                    "generate",
+                    "A test server",
+                    "--language",
+                    "typescript",
+                    "--yes",
+                    "--output",
+                    str(output),
+                ],
+            )
+
+        assert result.exit_code == 1, result.output
+        assert "Status: INVALID" in result.output
+        assert "validation not run" not in result.output
+        validator.assert_awaited_once_with(output)
+        assert (output / "src" / "server.ts").read_text() == "server code"
+
+    def test_typescript_no_execute_writes_and_reports_skipped_validation(
+        self, tmp_path: Path
+    ) -> None:
+        output = tmp_path / "typescript-server"
+        runner = CliRunner()
+        with (
+            patch("mcpforge.cli._create_cli_client", return_value=object()),
+            patch("mcpforge.cli.extract_plan", new=AsyncMock(return_value=_mock_plan())),
+            patch(
+                "mcpforge.cli.generate_server_ts",
+                new=AsyncMock(return_value="not valid TypeScript"),
+            ),
+            patch(
+                "mcpforge.cli.generate_tests_ts",
+                new=AsyncMock(return_value="also not valid TypeScript"),
+            ),
+            patch("asyncio.create_subprocess_exec") as mock_exec,
+        ):
+            result = runner.invoke(
+                cli,
+                [
+                    "generate",
+                    "A test server",
+                    "--language",
+                    "typescript",
+                    "--no-execute",
+                    "--strict",
+                    "--yes",
+                    "--output",
+                    str(output),
+                ],
+            )
+
+        assert result.exit_code == 0, result.output
+        mock_exec.assert_not_called()
+        assert (output / "src" / "server.ts").read_text() == "not valid TypeScript"
+        assert (output / "src" / "server.test.ts").read_text() == "also not valid TypeScript"
+        assert "GENERATED; validation not run" in result.output
+        assert "TypeScript type check: not run" in result.output
+        assert "Generated tests: not run" in result.output
+        assert "INVALID" not in result.output
+
+    def test_typescript_no_execute_preserves_writer_refusal(self, tmp_path: Path) -> None:
+        output = tmp_path / "typescript-server"
+        output.mkdir()
+        (output / "existing.txt").write_text("keep")
+        runner = CliRunner()
+        with (
+            patch("mcpforge.cli._create_cli_client", return_value=object()),
+            patch("mcpforge.cli.extract_plan", new=AsyncMock(return_value=_mock_plan())),
+            patch("mcpforge.cli.generate_server_ts", new=AsyncMock(return_value="code")),
+            patch("mcpforge.cli.generate_tests_ts", new=AsyncMock(return_value="tests")),
+            patch("asyncio.create_subprocess_exec") as mock_exec,
+        ):
+            result = runner.invoke(
+                cli,
+                [
+                    "generate",
+                    "A test server",
+                    "--language",
+                    "typescript",
+                    "--no-execute",
+                    "--yes",
+                    "--output",
+                    str(output),
+                ],
+            )
+
+        assert result.exit_code == 1
+        assert (output / "existing.txt").read_text() == "keep"
+        assert not (output / "src").exists()
+        mock_exec.assert_not_called()
 
     def test_invalid_language_fails(self) -> None:
         """--language with invalid value exits nonzero."""

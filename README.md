@@ -178,8 +178,8 @@ mcpforge doctor
 
 Useful generation flags:
 - `--dry-run` displays the structured plan without writing files.
-- `--no-execute` writes files but skips import and test execution.
-- `--strict` treats lint errors as hard validation failures.
+- `--no-execute` writes files but skips dependency installation and generated-code execution. For TypeScript it also skips type checking; generation reports validation as not run, not passed. Provider-backed planning and code generation may still make API calls. In the MCP response, `validation_mode: "write_only"` and `tests_status: "not_run"` identify this state; the legacy `tests_ok` flag alone does not prove tests ran.
+- `--strict` treats Python lint errors as hard validation failures; TypeScript has no lint stage.
 - `--from-openapi FILE` generates from an OpenAPI 3.x spec.
 - `--openapi-include-tag TAG`, `--openapi-exclude-tag TAG`, `--openapi-operation ID`, and `--openapi-limit N` curate OpenAPI conversion.
 - `--language python|typescript` chooses the target server language.
