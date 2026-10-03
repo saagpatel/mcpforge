@@ -21,6 +21,14 @@ from mcpforge.security import check_security
 logger = logging.getLogger(__name__)
 
 
+def _normalize(name: str) -> str:
+    """PEP 503 name normalization, so `typing_extensions` and `typing-extensions` match."""
+    return re.sub(r"[-_.]+", "-", name).lower()
+
+
+_KNOWN_NORMALIZED: frozenset[str] = frozenset(_normalize(p) for p in KNOWN_PACKAGES)
+
+
 def check_syntax(code: str) -> tuple[bool, list[str]]:
     """Check Python source code for syntax errors using ast.parse."""
     try:
@@ -56,7 +64,7 @@ def check_packages(plan: ServerPlan) -> str | None:
 
     Returns an error message string listing rejected packages, or None if all allowed.
     """
-    rejected = [pkg for pkg in plan.external_packages if pkg.lower() not in KNOWN_PACKAGES]
+    rejected = [pkg for pkg in plan.external_packages if _normalize(pkg) not in _KNOWN_NORMALIZED]
     if rejected:
         return (
             f"Package allowlist violation — refusing uv sync. "

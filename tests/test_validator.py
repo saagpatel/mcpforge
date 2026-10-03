@@ -209,6 +209,10 @@ class TestCheckPackages:
     def test_allows_known_external_packages_case_insensitively(self):
         assert check_packages(make_plan(["Requests", "HTTPX"])) is None
 
+    def test_allows_known_packages_under_pep503_spellings(self):
+        plan = make_plan(["typing-extensions", "Typing.Extensions", "python_dateutil"])
+        assert check_packages(plan) is None
+
 
 class TestUvSync:
     @pytest.mark.parametrize("package", ["asyncio", "uuid", "enum", "typing"])
