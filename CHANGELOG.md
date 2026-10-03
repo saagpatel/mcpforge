@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `mcpforge doctor --json` now exits 1 when prerequisite checks fail and 0 when
+  they succeed, matching ordinary `doctor` while preserving the complete JSON report.
 - TypeScript `--no-execute` and MCP `no_execute` now write generated files without
   installing dependencies, type checking, or running generated tests. The CLI
   reports skipped validation and exits successfully after writing; MCP responses

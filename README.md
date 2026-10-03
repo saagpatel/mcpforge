@@ -194,6 +194,9 @@ Useful status flags:
 - `mcpforge doctor --json`
 - `mcpforge version --json`
 
+`mcpforge doctor --json` always prints the complete JSON report and exits 0 when
+the report's `ok` is true, or 1 when it is false, matching ordinary `doctor`.
+
 ## Tech Stack
 
 | Layer | Technology |

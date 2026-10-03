@@ -955,23 +955,22 @@ def doctor_cmd(workspace: str, json_output: bool) -> None:
     report = run_doctor(Path(workspace))
     if json_output:
         _print_json(report)
-        return
-
-    table = Table(title="mcpforge doctor")
-    table.add_column("Check", style="cyan")
-    table.add_column("Result")
-    table.add_row(
-        "Python", f"{'OK' if report['python']['ok'] else 'FAIL'} {report['python']['version']}"
-    )
-    for command in report["commands"]:
-        table.add_row(command["name"], "OK" if command["ok"] else "missing")
-    table.add_row("FastMCP", report["packages"]["fastmcp"] or "not installed")
-    table.add_row("Anthropic key", "set" if report["anthropic_api_key"]["ok"] else "not set")
-    table.add_row("OpenAI key", "set" if report["openai_api_key"]["ok"] else "not set")
-    table.add_row("Workspace writable", "yes" if report["workspace"]["ok"] else "no")
-    table.add_row("Default provider", report["provider"]["default_provider"])
-    table.add_row("Default model", report["provider"]["default_model"])
-    console.print(table)
+    else:
+        table = Table(title="mcpforge doctor")
+        table.add_column("Check", style="cyan")
+        table.add_column("Result")
+        table.add_row(
+            "Python", f"{'OK' if report['python']['ok'] else 'FAIL'} {report['python']['version']}"
+        )
+        for command in report["commands"]:
+            table.add_row(command["name"], "OK" if command["ok"] else "missing")
+        table.add_row("FastMCP", report["packages"]["fastmcp"] or "not installed")
+        table.add_row("Anthropic key", "set" if report["anthropic_api_key"]["ok"] else "not set")
+        table.add_row("OpenAI key", "set" if report["openai_api_key"]["ok"] else "not set")
+        table.add_row("Workspace writable", "yes" if report["workspace"]["ok"] else "no")
+        table.add_row("Default provider", report["provider"]["default_provider"])
+        table.add_row("Default model", report["provider"]["default_model"])
+        console.print(table)
     if not report["ok"]:
         raise SystemExit(1)
 
