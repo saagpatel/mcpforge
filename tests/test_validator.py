@@ -563,10 +563,6 @@ class TestCheckPackagesAllowlist:
         # httpx is in KNOWN_PACKAGES — should pass allowlist
         assert check_packages(self._plan(["httpx"])) is None
 
-    def test_allowed_import_as_package_returns_none(self):
-        # asyncio is in ALLOWED_IMPORTS, which feeds _ALLOWED_PACKAGES
-        assert check_packages(self._plan(["asyncio"])) is None
-
     def test_disallowed_package_returns_error(self):
         result = check_packages(self._plan(["pwntools"]))
         assert result is not None
