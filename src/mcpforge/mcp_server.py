@@ -21,7 +21,13 @@ from mcpforge.test_generator import generate_tests
 from mcpforge.updater import update_server
 from mcpforge.validator import uv_sync, validate_server
 from mcpforge.validator_ts import TypeScriptWriteOnlyResult, validate_server_ts
-from mcpforge.writer import write_server, write_server_multi, write_server_ts
+from mcpforge.writer import (
+    resolve_default_output_dir,
+    resolve_output_dir,
+    write_server,
+    write_server_multi,
+    write_server_ts,
+)
 
 mcp = FastMCP(
     "mcpforge",
@@ -117,21 +123,23 @@ async def generate(
     if from_openapi:
         client = _get_client(model, provider)
 
+    workspace = Path(os.environ.get("MCPFORGE_WORKSPACE", ".")).resolve()
     if output_path:
         out_dir = _resolve_workspace_path(output_path)
     else:
-        workspace = Path(os.environ.get("MCPFORGE_WORKSPACE", ".")).resolve()
-        out_dir = workspace / server_plan.slug
+        out_dir = resolve_default_output_dir(server_plan, workspace)
 
     template_hint = TEMPLATE_HINTS.get(template, "")
     if language == "typescript":
         server_code = await generate_server_ts(server_plan, client)
         test_code = await generate_tests_ts(server_plan, server_code, client)
+        out_dir = resolve_output_dir(out_dir, root=workspace, allow_root=bool(output_path))
         write_server_ts(server_plan, server_code, test_code, out_dir)
         result = await validate_server_ts(out_dir, skip_execution=no_execute)
     elif multi_file:
         files = await generate_server_multi(server_plan, client, template_hint=template_hint)
         test_code = await generate_tests(server_plan, files.get("server.py", ""), client)
+        out_dir = resolve_output_dir(out_dir, root=workspace, allow_root=bool(output_path))
         write_server_multi(server_plan, files, test_code, out_dir)
         if not no_execute:
             await uv_sync(out_dir, plan=server_plan)
@@ -139,6 +147,7 @@ async def generate(
     else:
         server_code = await generate_server(server_plan, client, template_hint=template_hint)
         test_code = await generate_tests(server_plan, server_code, client)
+        out_dir = resolve_output_dir(out_dir, root=workspace, allow_root=bool(output_path))
         write_server(server_plan, server_code, test_code, out_dir)
         if not no_execute:
             await uv_sync(out_dir, plan=server_plan)

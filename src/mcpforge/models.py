@@ -144,6 +144,17 @@ class ServerPlan(BaseModel):
     middleware_profiles: list[str] = Field(default_factory=list)
     openapi_metadata: dict[str, str | list[str]] = Field(default_factory=dict)
 
+    @field_validator("slug")
+    @classmethod
+    def validate_slug(cls, value: str) -> str:
+        """Keep supplied project identifiers portable and confined to one path component."""
+        if value and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", value):
+            raise ValueError(
+                f"Invalid server slug: {value!r}; use letters, digits, dots, underscores or "
+                "hyphens, starting with a letter or digit"
+            )
+        return value
+
     @field_validator("external_packages", mode="before")
     @classmethod
     def validate_external_packages(cls, v: list[str]) -> list[str]:
