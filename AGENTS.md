@@ -49,6 +49,7 @@ Use hosted generation smoke tests only when the task explicitly authorizes the r
 
 ## Codex Cloud specific instructions
 
+- Use the portable [MCP Forge Cloud workflow skill](.agents/skills/mcpforge-cloud-workflow/SKILL.md) for startup, credential-free verification, GitHub delivery, and resuming a requested PR.
 - Follow automatically supplied working instructions and any referenced reusable startup guide before development commands. Use the existing isolated task checkout; an extra worktree is not needed by default.
 - Prepared Cloud startup governs dependency preparation and does not prohibit authorized source edits or commits. Follow its conditional installation refresh without upgrading dependencies or changing locks to bypass startup problems.
 - Local configuration, tools, credentials, browser sign-ins, and services do not automatically transfer. Verify available capabilities; select parent model and reasoning in the Cloud product UI rather than inventing local configuration knobs.

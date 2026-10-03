@@ -1,7 +1,6 @@
 ---
 name: repo-onboarding
-description: Onboard quickly into the mcpforge codebase. Use this skill when working in ~/Projects/mcpforge to understand the product shape, core architecture, validation flow, and safest places to change code before making edits.
-effort: low
+description: Onboard quickly into the mcpforge codebase from any MCP Forge checkout, including Cloud, to understand the product shape, core architecture, validation flow, and safest places to change code before making edits.
 ---
 
 # repo-onboarding
@@ -20,7 +19,7 @@ effort: low
 ## Skill Contract v2
 
 use_when:
-- The current workspace is `~/Projects/mcpforge`.
+- The detected Git root is an MCP Forge checkout, regardless of its local or Cloud path.
 - The user asks for onboarding, architecture, safe edit targets, or a quick mental model before changes.
 - A request touches generation, validation, CLI behavior, MCP server output, or tests and repo context would reduce risk.
 

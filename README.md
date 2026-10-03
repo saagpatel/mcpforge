@@ -197,6 +197,11 @@ Useful status flags:
 `mcpforge doctor --json` always prints the complete JSON report and exits 0 when
 the report's `ok` is true, or 1 when it is false, matching ordinary `doctor`.
 
+For Cloud development, use the portable [MCP Forge Cloud workflow skill](.agents/skills/mcpforge-cloud-workflow/SKILL.md).
+It covers prepared startup and credential-free checks, continuing an authorized
+existing PR, and the tested GitHub connector fallback when configured Git transport
+is blocked, with remote history and tested contents verified before delivery.
+
 ## Tech Stack
 
 | Layer | Technology |
