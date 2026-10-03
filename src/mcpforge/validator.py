@@ -16,13 +16,7 @@ from pathlib import Path
 
 from mcpforge.models import KNOWN_PACKAGES, ServerPlan, ValidationResult
 from mcpforge.sandbox import sandboxed_command
-from mcpforge.security import ALLOWED_IMPORTS, check_security
-
-# Combined package allowlist: stdlib/common imports + known safe third-party packages.
-# Union of ALLOWED_IMPORTS (used for import scanning) and KNOWN_PACKAGES (pip names).
-_ALLOWED_PACKAGES: frozenset[str] = frozenset(
-    {p.lower() for p in ALLOWED_IMPORTS} | {p.lower() for p in KNOWN_PACKAGES}
-)
+from mcpforge.security import check_security
 
 logger = logging.getLogger(__name__)
 
@@ -58,11 +52,11 @@ def check_lint(file_path: Path) -> list[str]:
 
 
 def check_packages(plan: ServerPlan) -> str | None:
-    """Validate that all external packages in the plan are on the allowlist.
+    """Validate external packages against reviewed pip distribution names.
 
     Returns an error message string listing rejected packages, or None if all allowed.
     """
-    rejected = [pkg for pkg in plan.external_packages if pkg.lower() not in _ALLOWED_PACKAGES]
+    rejected = [pkg for pkg in plan.external_packages if pkg.lower() not in KNOWN_PACKAGES]
     if rejected:
         return (
             f"Package allowlist violation — refusing uv sync. "

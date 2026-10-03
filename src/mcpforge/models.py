@@ -16,6 +16,7 @@ KNOWN_PACKAGES: frozenset[str] = frozenset(
         "click",
         "cryptography",
         "elasticsearch",
+        "fastmcp",
         "flask",
         "gql",
         "google-cloud-storage",
@@ -49,6 +50,7 @@ KNOWN_PACKAGES: frozenset[str] = frozenset(
         "toml",
         "tqdm",
         "typer",
+        "typing_extensions",
         "ujson",
         "websockets",
     }
