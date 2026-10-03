@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from click.testing import CliRunner
 
 from mcpforge.cli import cli
@@ -163,13 +164,37 @@ class TestInspectAndDoctorCommands:
         payload = json.loads(result.output)
         assert payload["tools"]["names"] == ["ping"]
 
-    def test_doctor_json(self, tmp_path):
+    @pytest.mark.parametrize("ok, expected_exit_code", [(True, 0), (False, 1)])
+    def test_doctor_json(self, tmp_path, ok, expected_exit_code):
+        report = {
+            "ok": ok,
+            "python": {"ok": True, "version": "3.12.13", "detail": "requires Python 3.12+"},
+            "commands": [
+                {"name": "uv", "ok": True, "path": "/tools/uv", "version": "uv", "detail": ""},
+                {"name": "node", "ok": False, "path": "", "version": "", "detail": "not found"},
+            ],
+            "packages": {"fastmcp": "3.4.2", "mcpforge": "0.3.4"},
+            "anthropic_api_key": {"ok": False, "detail": "not set"},
+            "openai_api_key": {"ok": False, "detail": "not set"},
+            "workspace": {
+                "ok": ok,
+                "path": str(tmp_path),
+                "detail": "" if ok else "Permission denied",
+            },
+            "provider": {
+                "default_provider": "anthropic",
+                "default_model": "example-model",
+                "capabilities": [{"provider": "anthropic", "enabled": True}],
+            },
+        }
         runner = CliRunner()
-        with patch("mcpforge.cli.run_doctor", return_value={"ok": True, "provider": {}}):
+        with patch("mcpforge.cli.run_doctor", return_value=report) as mock_doctor:
             result = runner.invoke(cli, ["doctor", "--path", str(tmp_path), "--json"])
 
-        assert result.exit_code == 0
-        assert json.loads(result.output)["ok"] is True
+        mock_doctor.assert_called_once_with(tmp_path)
+        assert json.loads(result.output) == report
+        assert result.stderr == ""
+        assert result.exit_code == expected_exit_code
 
     def test_version_json(self):
         runner = CliRunner()
