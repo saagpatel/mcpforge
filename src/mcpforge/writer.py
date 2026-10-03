@@ -13,6 +13,28 @@ from mcpforge.models import ServerPlan
 _JINJA_SYNTAX_RE = re.compile(r"\{\{.*?\}\}|\{%.*?%\}")
 
 
+def resolve_output_dir(
+    output_dir: Path, *, root: Path | None = None, allow_root: bool = True
+) -> Path:
+    """Resolve the actual destination and enforce a selected output boundary."""
+    resolved = output_dir.resolve()
+    if root is not None:
+        # Callers capture the canonical boundary before generation. Do not follow
+        # a replacement symlink and move that boundary during the final check.
+        root = root.absolute()
+        if not resolved.is_relative_to(root) or (not allow_root and resolved == root):
+            raise ValueError(f"Output path {output_dir!s} is outside its project root {root!s}")
+    return resolved
+
+
+def resolve_default_output_dir(plan: ServerPlan, root: Path) -> Path:
+    """Revalidate copied/mutated plans before deriving an untrusted default path."""
+    slug = ServerPlan.validate_slug(plan.slug)
+    if not slug:
+        raise ValueError("Invalid server slug: the default output requires a project identifier")
+    return resolve_output_dir(root / slug, root=root, allow_root=False)
+
+
 def _validate_template_context(plan: ServerPlan) -> None:
     """Reject plan fields containing Jinja2 template syntax to prevent SSTI."""
 

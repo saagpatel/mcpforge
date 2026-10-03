@@ -37,7 +37,13 @@ from mcpforge.updater import update_server
 from mcpforge.utils import strip_code_fences
 from mcpforge.validator import check_plan_conformance, uv_sync, validate_server
 from mcpforge.validator_ts import TypeScriptWriteOnlyResult, validate_server_ts
-from mcpforge.writer import write_server, write_server_multi, write_server_ts
+from mcpforge.writer import (
+    resolve_default_output_dir,
+    resolve_output_dir,
+    write_server,
+    write_server_multi,
+    write_server_ts,
+)
 
 console = Console()
 
@@ -221,7 +227,8 @@ async def _run_generate(
     if not yes:
         click.confirm("Generate server?", abort=True)
 
-    output_path = Path(output) if output else Path(plan.slug)
+    output_root = None if output else Path.cwd().resolve()
+    output_path = Path(output) if output else resolve_default_output_dir(plan, output_root)
 
     # Stage 2: Generate code
     if language == "typescript":
@@ -235,6 +242,7 @@ async def _run_generate(
             progress.remove_task(task)
 
         # Stage 3: Write files
+        output_path = resolve_output_dir(output_path, root=output_root, allow_root=False)
         write_server_ts(plan, server_code, test_code, output_path, force=force)
         console.print(f"[dim]Written to {output_path}[/dim]")
 
@@ -265,6 +273,7 @@ async def _run_generate(
                 test_code = await generate_tests(plan, files.get("server.py", ""), client)
                 progress.remove_task(task)
 
+            output_path = resolve_output_dir(output_path, root=output_root, allow_root=False)
             write_server_multi(plan, files, test_code, output_path, force=force)
             console.print(f"[dim]Written to {output_path} ({len(files)} files)[/dim]")
 
@@ -342,6 +351,7 @@ async def _run_generate(
                 progress.remove_task(task)
 
         # Stage 3: Write files
+        output_path = resolve_output_dir(output_path, root=output_root, allow_root=False)
         write_server(plan, server_code, test_code, output_path, force=force)
         console.print(f"[dim]Written to {output_path}[/dim]")
 
@@ -450,7 +460,6 @@ async def _run_update(
     # Reuse _display_results — build a minimal plan for display
     dummy_plan = ServerPlan(
         name=output_dir.name,
-        slug=output_dir.name,
         description="",
         tools=[],
     )
@@ -1028,7 +1037,7 @@ def init(
         auth_profile=auth_profile,
         middleware_profiles=middleware_profiles,
     )
-    output_path = Path(output) if output else Path(plan.slug)
+    output_path = Path(output) if output else resolve_default_output_dir(plan, Path.cwd().resolve())
 
     env = SandboxedEnvironment(loader=BaseLoader(), autoescape=False)
     context = {"plan": plan}
