@@ -3,7 +3,9 @@
 import subprocess
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from mcpforge.models import PromptDef, ResourceDef, ServerPlan, ToolDef
+import pytest
+
+from mcpforge.models import KNOWN_PACKAGES, PromptDef, ResourceDef, ServerPlan, ToolDef
 from mcpforge.validator import (
     check_import,
     check_lint,
@@ -174,6 +176,28 @@ class TestCheckLint:
 
 
 class TestCheckPackages:
+    @pytest.mark.parametrize("package", ["asyncio", "uuid", "enum", "typing", "ASYNCIO"])
+    def test_rejects_stdlib_module_names(self, package):
+        error = check_packages(make_plan(["httpx", package]))
+
+        assert error is not None
+        assert "Package allowlist violation" in error
+        assert package in error
+        assert "httpx" not in error
+
+    @pytest.mark.parametrize("package", sorted(KNOWN_PACKAGES))
+    def test_allows_known_distribution(self, package):
+        assert check_packages(make_plan([package])) is None
+
+    @pytest.mark.parametrize("package", ["fastmcp", "typing_extensions", "python-jose"])
+    def test_allows_reviewed_distributions_for_common_imports(self, package):
+        assert check_packages(make_plan([package])) is None
+
+    def test_rejects_import_alias_as_distribution(self):
+        error = check_packages(make_plan(["jose"]))
+        assert error is not None
+        assert "Rejected packages: jose." in error
+
     def test_rejects_external_packages_not_on_allowlist(self):
         error = check_packages(make_plan(["requests", "sketchy-pkg"]))
 
@@ -185,8 +209,21 @@ class TestCheckPackages:
     def test_allows_known_external_packages_case_insensitively(self):
         assert check_packages(make_plan(["Requests", "HTTPX"])) is None
 
+    def test_allows_known_packages_under_pep503_spellings(self):
+        plan = make_plan(["typing-extensions", "Typing.Extensions", "python_dateutil"])
+        assert check_packages(plan) is None
+
 
 class TestUvSync:
+    @pytest.mark.parametrize("package", ["asyncio", "uuid", "enum", "typing"])
+    async def test_stdlib_package_blocks_subprocess(self, tmp_path, package):
+        with patch("asyncio.create_subprocess_exec") as mock_exec:
+            result = await uv_sync(tmp_path, make_plan([package]))
+
+        assert result is not None
+        assert package in result
+        mock_exec.assert_not_called()
+
     async def test_calls_uv_sync_in_output_dir(self, tmp_path):
         proc = AsyncMock()
         proc.communicate = AsyncMock(return_value=(b"", b""))
