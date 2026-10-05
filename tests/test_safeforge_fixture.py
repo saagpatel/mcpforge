@@ -82,7 +82,7 @@ async def test_generation_is_static_no_execute(
     assert receipt.validation.tests == "skipped"
     assert receipt.validation.eligible_for_preinstall_audit
     assert [item.path for item in receipt.artifact.files] == _EXPECTED_FILES
-    assert receipt.artifact.package_identities == ["fastmcp>=3.1.0"]
+    assert receipt.artifact.package_identities == ["fastmcp>=3.1.0", "mcp>=1.30.0"]
     assert receipt.artifact.lockfile_digest is not None
     assert receipt.launch is not None
     assert receipt.launch.command == "uv"
