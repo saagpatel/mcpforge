@@ -70,6 +70,7 @@ class TestWriteServer:
         write_server(plan, "s", "t", out)
         content = (out / "pyproject.toml").read_text()
         assert "fastmcp>=3.1.0" in content
+        assert "mcp>=1.30.0" in content
 
     def test_pyproject_toml_testpaths_is_dot(self, tmp_path):
         plan = _sample_plan()
@@ -163,6 +164,7 @@ class TestWriteServer:
         config = json.loads((out / "fastmcp.json").read_text())
         assert config["source"]["entrypoint"] == "mcp"
         assert "httpx" in config["environment"]["dependencies"]
+        assert "mcp>=1.30.0" in config["environment"]["dependencies"]
         assert config["deployment"]["profiles"]["local_http"]["url"] == "http://127.0.0.1:8000/mcp/"
         assert config["deployment"]["profiles"]["production_http"]["requires_auth"] is False
         assert "env" not in config["deployment"]
@@ -238,6 +240,7 @@ class TestWriteServerTs:
         parsed = json.loads((out / "package.json").read_text())
         assert parsed["scripts"]["start"] == "tsx src/server.ts"
         assert "tsx" in parsed["devDependencies"]
+        assert parsed["dependencies"]["@modelcontextprotocol/sdk"] == "^1.32.0"
 
     def test_typescript_writes_readme_and_env_example(self, tmp_path):
         plan = _sample_plan(env_vars=["API_KEY"])
