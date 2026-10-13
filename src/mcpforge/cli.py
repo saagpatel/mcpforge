@@ -22,7 +22,7 @@ from mcpforge.doctor import run_doctor
 from mcpforge.generator import generate_server, generate_server_multi
 from mcpforge.generator_ts import generate_server_ts, generate_tests_ts
 from mcpforge.inspection import inspect_server
-from mcpforge.models import ServerPlan, ToolDef, ValidationResult
+from mcpforge.models import ServerPlan, ToolDef, ValidationNotRunResult, ValidationResult
 from mcpforge.openapi import load_spec, parse_openapi
 from mcpforge.openrouter_client import OPENROUTER_DISCLAIMER
 from mcpforge.planner import extract_plan, refine_plan
@@ -79,6 +79,11 @@ def _validation_result_dict(result: ValidationResult) -> dict[str, Any]:
         "tests_run": result.tests_run,
         "tests_failed": result.tests_failed,
         "errors": result.errors,
+        **(
+            {"validation_mode": result.validation_mode, "tests_status": "not_run"}
+            if isinstance(result, ValidationNotRunResult)
+            else {}
+        ),
     }
 
 
@@ -112,6 +117,17 @@ def _display_results(
     heal_attempted: bool,
 ) -> None:
     """Display final validation results as a Rich panel."""
+    if isinstance(result, ValidationNotRunResult):
+        details = "\n".join(result.errors)
+        console.print(
+            Panel(
+                f"Status: [red]INVALID[/red]; validation not run\n"
+                f"Output: {output_path}\n"
+                f"Tests: not run\n\n{details}",
+                title="mcpforge result",
+            )
+        )
+        return
     if isinstance(result, TypeScriptWriteOnlyResult):
         console.print(
             Panel(
@@ -125,13 +141,18 @@ def _display_results(
         return
 
     status = "[green]VALID[/green]" if _validation_passed(result) else "[red]INVALID[/red]"
+    tests_line = (
+        "not run"
+        if isinstance(result, ValidationNotRunResult)
+        else f"{result.tests_run} run, {result.tests_failed} failed"
+    )
     lines = [
         f"Status: {status}",
         f"Output: {output_path}",
         f"Syntax: {'✓' if result.syntax_ok else '✗'}",
         f"Lint: {'✓' if not result.lint_errors else f'✗ ({len(result.lint_errors)} errors)'}",
         f"Import: {'✓' if result.import_ok else '✗'}",
-        f"Tests: {result.tests_run} run, {result.tests_failed} failed",
+        f"Tests: {tests_line}",
     ]
     if heal_attempted:
         lines.append("[yellow]Self-heal was attempted.[/yellow]")
@@ -210,6 +231,8 @@ async def _run_generate(
             feedback = click.prompt("Changes (Enter to proceed)", default="", show_default=False)
             if not feedback.strip():
                 break
+            if client is None:
+                client = _create_cli_client(provider, model)
             with Progress(
                 SpinnerColumn(), TextColumn("{task.description}"), console=console
             ) as progress:
@@ -290,15 +313,19 @@ async def _run_generate(
                 if not no_execute:
                     sync_err = await uv_sync(output_path, plan=plan)
                     if sync_err:
-                        console.print(f"[yellow]Warning:[/yellow] {sync_err}")
-                progress.update(task, description="Validating server...")
-                result = await validate_server(
-                    output_path, skip_execution=no_execute, strict=strict
-                )
+                        result = ValidationNotRunResult(errors=[sync_err])
+                    else:
+                        result = await validate_server(output_path, strict=strict)
+                else:
+                    result = await validate_server(output_path, skip_execution=True, strict=strict)
                 progress.remove_task(task)
 
             heal_attempted = False
-            if not result.is_valid and not no_execute:
+            if (
+                not result.is_valid
+                and not no_execute
+                and not isinstance(result, ValidationNotRunResult)
+            ):
                 heal_attempted = True
                 main_code = files.get("server.py", "")
                 with Progress(
@@ -368,15 +395,22 @@ async def _run_generate(
             if not no_execute:
                 sync_err = await uv_sync(output_path, plan=plan)
                 if sync_err:
-                    console.print(f"[yellow]Warning:[/yellow] {sync_err}")
-            progress.update(task, description="Validating server...")
-            result = await validate_server(output_path, skip_execution=no_execute, strict=strict)
+                    result = ValidationNotRunResult(errors=[sync_err])
+                else:
+                    result = await validate_server(output_path, strict=strict)
+            else:
+                result = await validate_server(output_path, skip_execution=True, strict=strict)
             progress.remove_task(task)
 
         # Stage 5: Self-heal (1 retry if invalid). Skip for the replay client —
         # a recorded cassette has no further responses to regenerate from.
         heal_attempted = False
-        if not result.is_valid and not no_execute and not isinstance(client, ReplayClient):
+        if (
+            not result.is_valid
+            and not no_execute
+            and not isinstance(result, ValidationNotRunResult)
+            and not isinstance(client, ReplayClient)
+        ):
             heal_attempted = True
             with Progress(
                 SpinnerColumn(), TextColumn("{task.description}"), console=console
@@ -437,14 +471,14 @@ async def _run_update(
         task = progress.add_task("Installing dependencies (uv sync)...", total=None)
         sync_err = await uv_sync(output_dir)
         if sync_err:
-            console.print(f"[yellow]Warning:[/yellow] {sync_err}")
-        progress.update(task, description="Validating server...")
-        result = await validate_server(output_dir)
+            result = ValidationNotRunResult(errors=[sync_err])
+        else:
+            result = await validate_server(output_dir)
         progress.remove_task(task)
 
     # Self-heal (1 retry if invalid)
     heal_attempted = False
-    if not result.is_valid:
+    if not result.is_valid and not isinstance(result, ValidationNotRunResult):
         heal_attempted = True
         with Progress(
             SpinnerColumn(), TextColumn("{task.description}"), console=console
@@ -491,8 +525,12 @@ async def _validate_command(path: str, json_output: bool = False) -> None:
         if server_ts.exists() and not server_py.exists():
             result = await validate_server_ts(output_dir)
         else:
-            await uv_sync(output_dir)
-            result = await validate_server(output_dir)
+            sync_err = await uv_sync(output_dir)
+            result = (
+                ValidationNotRunResult(errors=[sync_err])
+                if sync_err
+                else await validate_server(output_dir)
+            )
         payload = {"path": str(output_dir.resolve()), **_validation_result_dict(result)}
         _print_json(payload)
         if not _validation_passed(result):
@@ -507,10 +545,14 @@ async def _validate_command(path: str, json_output: bool = False) -> None:
             task = progress.add_task("Installing dependencies (uv sync)...", total=None)
             sync_err = await uv_sync(output_dir)
             if sync_err:
-                console.print(f"[yellow]Warning:[/yellow] {sync_err}")
-            progress.update(task, description="Validating server...")
-            result = await validate_server(output_dir)
+                result = ValidationNotRunResult(errors=[sync_err])
+            else:
+                result = await validate_server(output_dir)
         progress.remove_task(task)
+
+    if isinstance(result, ValidationNotRunResult):
+        console.print(f"[red]Validation not run:[/red] {result.errors[0]}")
+        raise SystemExit(1)
 
     table = Table(title="Validation Results")
     table.add_column("Check", style="cyan")
@@ -523,12 +565,14 @@ async def _validate_command(path: str, json_output: bool = False) -> None:
     table.add_row("Import", "✓ OK" if result.import_ok else "[red]✗ FAIL[/red]")
     table.add_row(
         "Tests",
-        f"{result.tests_run} run, {result.tests_failed} failed",
+        "not run"
+        if isinstance(result, ValidationNotRunResult)
+        else f"{result.tests_run} run, {result.tests_failed} failed",
     )
     console.print(table)
 
-    if result.lint_errors:
-        for err in result.lint_errors:
+    if result.errors:
+        for err in result.errors:
             console.print(f"  [yellow]{err}[/yellow]")
 
     if not _validation_passed(result):
@@ -940,7 +984,7 @@ def inspect_cmd(path: str, json_output: bool) -> None:
     )
     table.add_row("Tests", "present" if info["tests"]["present"] else "missing")
     table.add_row("Env Vars", ", ".join(info["env_vars"]) or "none")
-    table.add_row("Remote MCP Ready", "yes" if info["remote_mcp"]["ready"] else "no")
+    table.add_row("Remote MCP Config Complete", "yes" if info["remote_mcp"]["ready"] else "no")
     table.add_row("Validation Ready", "yes" if info["validation_ready"] else "no")
     if info["missing_files"]:
         table.add_row("Missing", ", ".join(info["missing_files"]))

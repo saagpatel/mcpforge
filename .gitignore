@@ -13,3 +13,5 @@ docs/LAUNCH.md
 docs/CURRENT-STATE.md
 docs/PORTFOLIO-DISPOSITION.md
 .serena/
+.DS_Store
+.uv-cache/

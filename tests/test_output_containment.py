@@ -86,9 +86,13 @@ async def test_mcp_unsafe_default_rejected_before_generation(
     with (
         patch("mcpforge.mcp_server._get_client", return_value=object()),
         patch("mcpforge.mcp_server.extract_plan", new=AsyncMock(return_value=plan)),
-        patch("mcpforge.mcp_server.generate_server", new=AsyncMock()) as python,
-        patch("mcpforge.mcp_server.generate_server_multi", new=AsyncMock()) as multi,
-        patch("mcpforge.mcp_server.generate_server_ts", new=AsyncMock()) as typescript,
+        patch("mcpforge.mcp_server.generate_server", new=AsyncMock(return_value=None)) as python,
+        patch(
+            "mcpforge.mcp_server.generate_server_multi", new=AsyncMock(return_value=None)
+        ) as multi,
+        patch(
+            "mcpforge.mcp_server.generate_server_ts", new=AsyncMock(return_value=None)
+        ) as typescript,
     ):
         with pytest.raises(ValueError, match="Invalid server slug"):
             await generate("unsafe", language=language, multi_file=multi_file, no_execute=True)
@@ -141,9 +145,9 @@ def test_symlink_added_during_generation_cannot_redirect_write(
         patch(f"{module}.extract_plan", new=AsyncMock(return_value=make_plan())),
         patch(f"{module}.{generator}", new=AsyncMock(side_effect=generate_code)),
         patch(f"{module}.{test_generator}", new=AsyncMock(return_value="tests")),
-        patch(f"{module}.uv_sync", new=AsyncMock()) as sync,
-        patch(f"{module}.validate_server", new=AsyncMock()) as validate,
-        patch(f"{module}.validate_server_ts", new=AsyncMock()) as validate_ts,
+        patch(f"{module}.uv_sync", new=AsyncMock(return_value=None)) as sync,
+        patch(f"{module}.validate_server", new=AsyncMock(return_value=None)) as validate,
+        patch(f"{module}.validate_server_ts", new=AsyncMock(return_value=None)) as validate_ts,
     ):
         if surface == "mcp":
             from mcpforge.mcp_server import generate
@@ -172,7 +176,7 @@ def test_update_existing_directory_with_spaces_keeps_display_working(tmp_path):
     with (
         patch("mcpforge.cli._create_cli_client", return_value=object()),
         patch("mcpforge.cli.update_server", new=AsyncMock(return_value=("code", "tests"))),
-        patch("mcpforge.cli.uv_sync", new=AsyncMock()),
+        patch("mcpforge.cli.uv_sync", new=AsyncMock(return_value=None)),
         patch(
             "mcpforge.cli.validate_server",
             new=AsyncMock(return_value=ValidationResult(syntax_ok=True, import_ok=True)),

@@ -1,66 +1,41 @@
 # AGENTS.md
 
-## What This Project Is
+## Purpose
 
-`mcpforge` is a Python 3.12+ CLI and MCP server that generates runnable FastMCP servers from plain-English descriptions, then validates generated projects before they are trusted.
+`mcpforge` is a Python 3.12+ CLI and MCP server that generates FastMCP servers from plain-English descriptions, then validates generated projects before they are trusted.
 
-## Current State
+## Layout
 
-Use `docs/PROVIDER-MATRIX.md` for hosted-provider readiness, `CHANGELOG.md` for release history, and live git/package state for current release context before acting.
+- `src/mcpforge/` contains the CLI, MCP server, generation, validation, and templates.
+- `tests/` contains the automated test suite.
+- `examples/` contains generated Python and TypeScript examples.
+- `docs/` contains provider and project documentation.
 
-## Stack
+## Setup
 
-- Python 3.12+
-- FastMCP
-- `uv`
-- pytest
-- ruff
-- Generated Python and TypeScript MCP server examples
+- Python is pinned by `.python-version` to 3.12.15.
+- uv 0.13.0 or later is required by `pyproject.toml` and pinned in CI.
+- Run `make setup` to install the locked dependencies.
+- The `.cursor/environment.json` setup uses `.cursor/install.sh`, which pins Python 3.12.15 and uv 0.13.0, syncs from `uv.lock`, and runs credential-free checks. Do not copy local credentials or configuration into Cloud. Hosted generation checks remain opt-in.
+- For Codex Cloud, use the portable [MCP Forge Cloud workflow skill](.agents/skills/mcpforge-cloud-workflow/SKILL.md). Follow supplied startup instructions and use the existing isolated task checkout. Prepared startup permits authorized source edits and commits. Refresh installation only when the supplied procedure requires it; do not upgrade dependencies or change locks to bypass startup failures.
 
-## Working and completion
+## Checks
 
-- Own the requested outcome through implementation, appropriate verification, and authorized delivery; do not stop at a plan or a partial first step.
-- Inspect the actual checkout, branch, relevant files, and applicable instructions before editing. Preserve unrelated work and existing branches.
-- Make reasonable, reversible decisions within scope without repeated questions. Ask only when a missing answer is necessary to preserve the user's intent or authority.
-- Continue independent authorized work when one step is blocked, and report actual blockers clearly.
-- Verify actual results with the smallest meaningful check, then the required baseline. Distinguish local or Cloud tests from hosted-provider, deployment, or production proof.
-- When authorized, finish committing on a task branch, pushing, and opening a PR; verify the remote branch and PR. Merge, publish, deploy, or widen access only with explicit authorization.
+- `make check` runs lockfile, lint, formatting, tests, build, and example validation checks without applying source fixes.
+- The CI matrix covers verified Python 3.12 through 3.14 lanes. Python 3.15 is excluded because the locked `watchfiles` build currently uses PyO3 0.26, which supports up to Python 3.14.
+- Hosted-provider smoke tests require explicit authorization and credentials; they are not part of credential-free checks.
+- A green local or Cloud check does not establish hosted-provider, deployment, production, recovery, or human acceptance.
 
-## How To Run
+## Boundaries
 
-Core verification baseline:
-
-```sh
-uv run ruff check .
-uv run ruff format --check .
-uv run pytest
-uv run mcpforge validate examples/todo-server
-uv build
-```
-
-Use hosted generation smoke tests only when the task explicitly authorizes the required provider credentials.
-
-## Cursor Cloud specific instructions
-
-- `.cursor/environment.json` is the repo-local Cloud environment definition; it runs `.cursor/install.sh` during each Build.
-- The Cloud setup pins Python `3.12.13` and uv `0.12.12`, installs dependencies with the tracked `uv.lock`, and runs non-hosted lint, format, test, and package-build checks.
-- Do not copy local `.env` files, provider keys, keychains, browser profiles, or other credentials into a Cloud environment. Add any explicitly authorized provider secrets through Cursor's environment-scoped Secrets settings.
-- Hosted generation smoke tests are intentionally not part of the baseline Build because they require external provider credentials and network access.
-
-## Codex Cloud specific instructions
-
-- Use the portable [MCP Forge Cloud workflow skill](.agents/skills/mcpforge-cloud-workflow/SKILL.md) for startup, credential-free verification, GitHub delivery, and resuming a requested PR.
-- Follow automatically supplied working instructions and any referenced reusable startup guide before development commands. Use the existing isolated task checkout; an extra worktree is not needed by default.
-- Prepared Cloud startup governs dependency preparation and does not prohibit authorized source edits or commits. Follow its conditional installation refresh without upgrading dependencies or changing locks to bypass startup problems.
-- Local configuration, tools, credentials, browser sign-ins, and services do not automatically transfer. Verify available capabilities; select parent model and reasoning in the Cloud product UI rather than inventing local configuration knobs.
-- Preserve Cloud network, privacy, approval, and secret settings. Keep hosted opt-ins disabled for the credential-free baseline, and keep machine-specific infrastructure, personal memory, and secrets out of the repository.
-
-## Known Risks
-
-- Generated MCP servers can widen local tool reach; validate generated code before installing or wiring it into clients.
+- Generated MCP servers can widen local tool reach. Review generated code before installing it or wiring it into clients.
 - Do not read provider keys, `.env` files, keychains, OAuth stores, browser profiles, raw logs, private transcripts, or credential-bearing configs.
-- Keep PyPI/package naming, release state, and docs/template drift synchronized before any publish framing.
+- Cursor Cloud uses repo-local `.cursor/environment.json`; keep Cloud secrets in its environment-scoped Secrets settings only when explicitly authorized. Hosted generation checks stay opt-in.
+- Codex Cloud settings, tools, credentials, browser sign-ins, and services may differ from local state. Preserve network, privacy, approval, and secret settings. Keep machine-specific infrastructure, personal memory, and secrets out of the repository.
+- Keep PyPI/package naming, release state, and documentation synchronized before release work.
 
-## Next Recommended Move
+## Delivery
 
-For this repo, first decide publish/park or active follow-up status, then verify the provider matrix, changelog, package metadata, and live git before doing feature work.
+- Read the applicable project contract before pushing; never add a remote to a repository that has none.
+- Keep changes scoped, preserve unrelated work, and report the checks actually run and any limits.
+- Do not publish, tag, release, deploy, or widen access unless the task explicitly authorizes it.

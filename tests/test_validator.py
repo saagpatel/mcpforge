@@ -148,6 +148,26 @@ class TestCheckLint:
             result = check_lint(f)
         assert result == ["Lint check timed out after 30 seconds"]
 
+    def test_missing_ruff_returns_clear_message(self, tmp_path):
+        f = tmp_path / "test.py"
+        f.write_text(VALID_SERVER)
+        with patch("mcpforge.validator.subprocess.run", side_effect=FileNotFoundError):
+            result = check_lint(f)
+        assert result == ["ruff unavailable; install the project dependencies to run lint checks"]
+
+    def test_missing_ruff_module_returns_clear_message(self, tmp_path):
+        f = tmp_path / "test.py"
+        f.write_text(VALID_SERVER)
+        completed = subprocess.CompletedProcess(
+            args=["python", "-m", "ruff"],
+            returncode=1,
+            stdout="",
+            stderr="/python: No module named ruff",
+        )
+        with patch("mcpforge.validator.subprocess.run", return_value=completed):
+            result = check_lint(f)
+        assert result == ["ruff unavailable; install the project dependencies to run lint checks"]
+
     def test_malformed_json_returns_raw_stdout(self, tmp_path):
         f = tmp_path / "test.py"
         f.write_text(VALID_SERVER)
@@ -269,11 +289,14 @@ class TestUvSync:
 class TestCheckImport:
     async def test_subprocess_success_returns_true(self, tmp_path):
         proc = FakeProcess(returncode=0)
-        with patch("asyncio.create_subprocess_exec", return_value=proc):
+        with patch("asyncio.create_subprocess_exec", return_value=proc) as mock_exec:
             ok, error = await check_import(tmp_path)
 
         assert ok is True
         assert error == ""
+        args = mock_exec.call_args.args
+        uv_index = args.index("uv")
+        assert args[uv_index : uv_index + 3] == ("uv", "run", "--no-sync")
 
     async def test_subprocess_failure_returns_stderr(self, tmp_path):
         proc = FakeProcess(returncode=1, stderr=b"ModuleNotFoundError: fastmcp")
@@ -298,13 +321,16 @@ class TestRunTests:
     async def test_parses_passed_and_failed_counts(self, tmp_path):
         output = b"test_a PASSED\ntest_b FAILED\n=== 3 passed, 2 failed in 0.04s ==="
         proc = FakeProcess(returncode=1, stdout=output)
-        with patch("asyncio.create_subprocess_exec", return_value=proc):
+        with patch("asyncio.create_subprocess_exec", return_value=proc) as mock_exec:
             passed, tests_run, tests_failed, test_output = await run_tests(tmp_path)
 
         assert passed is False
         assert tests_run == 5
         assert tests_failed == 2
         assert "3 passed, 2 failed" in test_output
+        args = mock_exec.call_args.args
+        uv_index = args.index("uv")
+        assert args[uv_index : uv_index + 3] == ("uv", "run", "--no-sync")
 
     async def test_timeout_kills_process_and_returns_message(self, tmp_path):
         proc = FakeProcess(timeout=True)

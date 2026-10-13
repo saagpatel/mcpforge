@@ -217,3 +217,14 @@ class ValidationResult(BaseModel):
     def tests_ok(self) -> bool:
         """Legacy flag for passed tests or no output; not proof that tests ran."""
         return self.tests_passed or (self.tests_run == 0 and not self.test_output)
+
+
+class ValidationNotRunResult(ValidationResult):
+    """Validation stopped before checks ran, for example after install failure."""
+
+    validation_mode: str = "not_run"
+
+    @property
+    def tests_ok(self) -> bool:
+        """A skipped test stage is not a passing test stage."""
+        return False

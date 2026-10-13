@@ -12,6 +12,7 @@ from mcpforge.doctor import run_doctor
 from mcpforge.generator import generate_server, generate_server_multi
 from mcpforge.generator_ts import generate_server_ts, generate_tests_ts
 from mcpforge.inspection import inspect_server
+from mcpforge.models import ValidationNotRunResult
 from mcpforge.openapi import load_spec, parse_openapi
 from mcpforge.planner import extract_plan
 from mcpforge.profiles import apply_generation_profiles
@@ -142,16 +143,28 @@ async def generate(
         out_dir = resolve_output_dir(out_dir, root=workspace, allow_root=bool(output_path))
         write_server_multi(server_plan, files, test_code, out_dir)
         if not no_execute:
-            await uv_sync(out_dir, plan=server_plan)
-        result = await validate_server(out_dir, skip_execution=no_execute, strict=strict)
+            sync_err = await uv_sync(out_dir, plan=server_plan)
+            result = (
+                ValidationNotRunResult(errors=[sync_err])
+                if sync_err
+                else await validate_server(out_dir, strict=strict)
+            )
+        else:
+            result = await validate_server(out_dir, skip_execution=True, strict=strict)
     else:
         server_code = await generate_server(server_plan, client, template_hint=template_hint)
         test_code = await generate_tests(server_plan, server_code, client)
         out_dir = resolve_output_dir(out_dir, root=workspace, allow_root=bool(output_path))
         write_server(server_plan, server_code, test_code, out_dir)
         if not no_execute:
-            await uv_sync(out_dir, plan=server_plan)
-        result = await validate_server(out_dir, skip_execution=no_execute, strict=strict)
+            sync_err = await uv_sync(out_dir, plan=server_plan)
+            result = (
+                ValidationNotRunResult(errors=[sync_err])
+                if sync_err
+                else await validate_server(out_dir, strict=strict)
+            )
+        else:
+            result = await validate_server(out_dir, skip_execution=True, strict=strict)
 
     response = {
         "path": str(out_dir.resolve()),
@@ -161,6 +174,8 @@ async def generate(
         "tests_ok": result.tests_ok,
         "tests_run": result.tests_run,
     }
+    if isinstance(result, ValidationNotRunResult):
+        response.update(validation_mode="not_run", tests_status="not_run", errors=result.errors)
     if isinstance(result, TypeScriptWriteOnlyResult):
         response.update(
             generation_completed=True,
@@ -187,15 +202,20 @@ async def update(
     server_code, test_code = await update_server(out_dir, request, client)
     (out_dir / "server.py").write_text(server_code, encoding="utf-8")
     (out_dir / "test_server.py").write_text(test_code, encoding="utf-8")
-    await uv_sync(out_dir)
-    result = await validate_server(out_dir)
-    return {
+    sync_err = await uv_sync(out_dir)
+    result = (
+        ValidationNotRunResult(errors=[sync_err]) if sync_err else await validate_server(out_dir)
+    )
+    response = {
         "path": str(out_dir.resolve()),
         "valid": _validation_passed(result),
         "structurally_valid": result.is_valid,
         "tests_ok": result.tests_ok,
         "tests_run": result.tests_run,
     }
+    if isinstance(result, ValidationNotRunResult):
+        response.update(validation_mode="not_run", tests_status="not_run", errors=result.errors)
+    return response
 
 
 @mcp.tool
@@ -205,8 +225,13 @@ async def validate(server_path: str) -> dict:
     if (out_dir / "src" / "server.ts").exists() and not (out_dir / "server.py").exists():
         result = await validate_server_ts(out_dir)
     else:
-        result = await validate_server(out_dir)
-    return {
+        sync_err = await uv_sync(out_dir)
+        result = (
+            ValidationNotRunResult(errors=[sync_err])
+            if sync_err
+            else await validate_server(out_dir)
+        )
+    response = {
         "valid": _validation_passed(result),
         "structurally_valid": result.is_valid,
         "tests_ok": result.tests_ok,
@@ -216,6 +241,9 @@ async def validate(server_path: str) -> dict:
         "tests_run": result.tests_run,
         "tests_failed": result.tests_failed,
     }
+    if isinstance(result, ValidationNotRunResult):
+        response.update(validation_mode="not_run", tests_status="not_run", errors=result.errors)
+    return response
 
 
 @mcp.tool

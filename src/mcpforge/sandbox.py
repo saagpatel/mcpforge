@@ -1,7 +1,7 @@
 """Sandbox: restrict execution of AI-generated code during validation.
 
-Uses macOS sandbox-exec (seatbelt) when available, with resource limits
-via setrlimit as a cross-platform fallback. Controlled by environment:
+Uses macOS sandbox-exec (seatbelt) on macOS when enabled. Other platforms
+run generated code without sandboxing. Controlled by environment:
   MCPFORGE_NO_SANDBOX=1  — disable all sandboxing (for CI or non-macOS)
 """
 

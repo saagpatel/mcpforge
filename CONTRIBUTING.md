@@ -14,11 +14,11 @@ Thank you for your interest in contributing! This document covers how to set up 
 git clone https://github.com/saagpatel/mcpforge.git
 cd mcpforge
 
-# Install all dependencies (including dev extras)
-uv sync
+# Install the locked dependencies (including dev tools)
+make setup
 
-# Verify the install
-uv run mcpforge --help
+# Run the repository checks
+make check
 ```
 
 ## Running Tests
@@ -49,12 +49,13 @@ uv run ruff check --fix .
 uv run ruff format .
 ```
 
-Or use the Makefile shortcuts:
+The aggregate check covers lint, formatting, tests, package build and example validation. The focused Makefile shortcuts are:
 
 ```bash
 make lint    # ruff check
 make test    # pytest
-make install # uv sync
+make setup   # uv sync --locked
+make check   # full non-fixing check
 ```
 
 ## Project Structure
