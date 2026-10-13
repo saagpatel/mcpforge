@@ -178,7 +178,7 @@ mcpforge doctor
 
 Useful generation flags:
 - `--dry-run` displays the structured plan without writing files.
-- `--no-execute` writes files but skips dependency installation and generated-code execution. For TypeScript it also skips type checking; generation reports validation as not run, not passed. Provider-backed planning and code generation may still make API calls. In the MCP response, `validation_mode: "write_only"` and `tests_status: "not_run"` identify this state; the legacy `tests_ok` flag alone does not prove tests ran.
+- `--no-execute` writes files but skips dependency installation and generated-code execution. Python still reports static syntax, security, and lint results; imports and generated tests do not run. TypeScript also skips type checking and generated tests, and its MCP response reports `validation_mode: "write_only"` and `tests_status: "not_run"`. Provider-backed planning and code generation may still make API calls. The legacy `tests_ok` flag alone does not prove tests ran.
 - `--strict` treats Python lint errors as hard validation failures; TypeScript has no lint stage.
 - `--from-openapi FILE` generates from an OpenAPI 3.x spec.
 - `--openapi-include-tag TAG`, `--openapi-exclude-tag TAG`, `--openapi-operation ID`, and `--openapi-limit N` curate OpenAPI conversion.
@@ -214,19 +214,37 @@ is blocked, with remote history and tested contents verified before delivery.
 | Validation | Pydantic v2 |
 | Output | Rich |
 
+## Development setup
+
+The repository pins Python 3.12.15 in `.python-version` and requires uv 0.13.0 or later. Set up the locked environment and run the full local check with:
+
+```bash
+make setup
+make check
+```
+
+`make check` includes validation of `examples/todo-server`; on macOS it uses the available `sandbox-exec` boundary. CI disables that wrapper for the example-validation command because GitHub-hosted runners do not provide it.
+
 ## Architecture
 
 The `generate` command sends the user's description to Claude with a structured prompt that includes FastMCP 3.x idioms and a tool-schema contract. Claude returns a JSON plan (tool names, signatures, and descriptions) that mcpforge validates against a Pydantic model before rendering through Jinja2 templates into a complete project directory. The generated project is then validated with syntax checks, security scanning, ruff linting, import checks, and pytest execution. The `update` command reads an existing generated server, asks Claude for a targeted modification, writes backups for changed files, and validates the result.
 
-## Current Status — v0.3.4
+## Status
 
-mcpforge is published to PyPI as `fastmcp-builder`. v0.3.4 adds a `fastmcp-builder`
-console-script alias so the MCP server launches via `uvx fastmcp-builder` (matching the
-MCP Registry's `uvx <package>` launch model) and corrects the registry metadata. v0.3.3
-added the `mcpforge demo` command (try the full generate pipeline with no API key, no
-cost), an OpenRouter provider (`--provider openrouter`), and official MCP Registry
-metadata. The `generate`, `update`, `validate`, `inspect`, `doctor`, and `demo` commands
-work against FastMCP 3.4.2+.
+### Stack
+
+The current package version is 0.3.4, published to PyPI as `fastmcp-builder`. It adds a `fastmcp-builder` console-script alias and corrects the registry metadata. Version 0.3.3 added `mcpforge demo`, the OpenRouter provider, and MCP Registry metadata. The project targets Python 3.12+ and FastMCP 3.x. The repository toolchain pins Python 3.12.15 and requires uv 0.13.0 or later.
+
+### Known risks
+
+- Generated code runs during ordinary validation. macOS uses `sandbox-exec` when available; non-macOS validation runs without that sandbox. Review generated code before use.
+- Python `--no-execute` performs static syntax, security, and lint checks only; imports and generated tests do not run. Static results are not proof of runtime behavior.
+- The update command currently handles Python servers. TypeScript validation is narrower than the Python validation pipeline and does not use the Python lint or security stages.
+- Provider compatibility and deployment readiness depend on the selected provider and environment. See [the provider matrix](docs/PROVIDER-MATRIX.md).
+
+### Next steps
+
+Use [CHANGELOG.md](CHANGELOG.md) for release history and [the provider matrix](docs/PROVIDER-MATRIX.md) for hosted-provider readiness before planning release work.
 
 See [CHANGELOG.md](CHANGELOG.md) for the full version history.
 
