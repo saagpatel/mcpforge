@@ -22,8 +22,6 @@ OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 # Recommended default; override with --model to use any OpenRouter model id.
 DEFAULT_OPENROUTER_MODEL = "anthropic/claude-opus-4.8"
 
-# Models known to handle strict structured outputs well at high reasoning effort.
-RECOMMENDED_MODELS = ("anthropic/claude-opus-4.8", "openai/gpt-5.5")
 OPENROUTER_DISCLAIMER = (
     "OpenRouter lets you run mcpforge against any model and key, including free "
     "and low-cost ones. Generation quality and structured-output (JSON schema) "
