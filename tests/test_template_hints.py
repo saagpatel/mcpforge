@@ -107,7 +107,7 @@ class TestTemplateCLIFlag:
             patch("mcpforge.cli.generate_server", new=mock_generate),
             patch("mcpforge.cli.generate_tests", new=AsyncMock(return_value="tests")),
             patch("mcpforge.cli.write_server", return_value=tmp_path),
-            patch("mcpforge.cli.uv_sync", new=AsyncMock()),
+            patch("mcpforge.cli.uv_sync", new=AsyncMock(return_value=None)),
             patch("mcpforge.cli.validate_server", new=AsyncMock(return_value=_valid_result())),
         ):
             runner.invoke(
@@ -135,7 +135,7 @@ class TestTemplateCLIFlag:
             patch("mcpforge.cli.generate_server", new=mock_generate),
             patch("mcpforge.cli.generate_tests", new=AsyncMock(return_value="tests")),
             patch("mcpforge.cli.write_server", return_value=tmp_path),
-            patch("mcpforge.cli.uv_sync", new=AsyncMock()),
+            patch("mcpforge.cli.uv_sync", new=AsyncMock(return_value=None)),
             patch("mcpforge.cli.validate_server", new=AsyncMock(return_value=_valid_result())),
         ):
             runner.invoke(

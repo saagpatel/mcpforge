@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 from typing import Literal
 
-from mcpforge.models import ValidationResult
+from mcpforge.models import ValidationNotRunResult, ValidationResult
 
 logger = logging.getLogger(__name__)
 
@@ -46,24 +46,34 @@ def _parse_vitest_counts(output: str) -> tuple[int, int]:
     return tests_passed_count + tests_failed_count, tests_failed_count
 
 
-async def npm_install(output_dir: Path) -> None:
+async def npm_install(output_dir: Path) -> str | None:
     """Run npm install in output_dir.
 
-    Does not raise on failure — type check will surface errors.
+    Returns an error message when installation fails.
     """
-    proc = await asyncio.create_subprocess_exec(
-        "npm",
-        "install",
-        cwd=output_dir.resolve(),
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
     try:
-        await asyncio.wait_for(proc.communicate(), timeout=120.0)
+        proc = await asyncio.create_subprocess_exec(
+            "npm",
+            "install",
+            cwd=output_dir.resolve(),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+    except OSError as exc:
+        return f"Dependency installation failed: {exc}"
+    try:
+        _, stderr = await asyncio.wait_for(proc.communicate(), timeout=120.0)
+        if proc.returncode != 0:
+            message = stderr.decode(errors="replace").strip()
+            if not message:
+                message = f"npm install exited with status {proc.returncode}"
+            return f"Dependency installation failed: {message}"
+        return None
     except TimeoutError:
         proc.kill()
         await proc.wait()
         logger.warning("npm install timed out after 120 seconds in %s", output_dir)
+        return "Dependency installation timed out after 120 seconds"
 
 
 async def check_types(output_dir: Path) -> tuple[bool, list[str]]:
@@ -124,7 +134,9 @@ async def validate_server_ts(output_dir: Path, *, skip_execution: bool = False) 
     errors: list[str] = []
 
     # Step 1: npm install
-    await npm_install(output_dir)
+    install_error = await npm_install(output_dir)
+    if install_error:
+        return ValidationNotRunResult(errors=[install_error])
 
     # Step 2: Type check (covers both syntax and type errors)
     type_ok, tsc_errors = await check_types(output_dir)

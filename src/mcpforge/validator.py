@@ -12,6 +12,7 @@ import json
 import logging
 import re
 import subprocess
+import sys
 from pathlib import Path
 
 from mcpforge.models import KNOWN_PACKAGES, ServerPlan, ValidationResult
@@ -42,15 +43,19 @@ def check_lint(file_path: Path) -> list[str]:
     """Run ruff on a file and return lint error messages."""
     try:
         result = subprocess.run(
-            ["ruff", "check", "--output-format=json", str(file_path)],
+            [sys.executable, "-m", "ruff", "check", "--output-format=json", str(file_path)],
             capture_output=True,
             text=True,
             timeout=30,
         )
     except subprocess.TimeoutExpired:
         return ["Lint check timed out after 30 seconds"]
+    except OSError:
+        return ["ruff unavailable; install the project dependencies to run lint checks"]
     if result.returncode == 0:
         return []
+    if "No module named ruff" in result.stderr:
+        return ["ruff unavailable; install the project dependencies to run lint checks"]
     try:
         violations = json.loads(result.stdout)
         return [f"{v['code']}: {v['message']} (line {v['location']['row']})" for v in violations]
@@ -86,17 +91,22 @@ async def uv_sync(output_dir: Path, plan: ServerPlan | None = None) -> str | Non
             logger.warning("uv sync blocked by package allowlist: %s", pkg_err)
             return pkg_err
 
-    proc = await asyncio.create_subprocess_exec(
-        "uv",
-        "sync",
-        cwd=output_dir.resolve(),
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            "uv",
+            "sync",
+            cwd=output_dir.resolve(),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+    except OSError as exc:
+        return f"Dependency installation failed: {exc}"
     try:
         _, stderr = await asyncio.wait_for(proc.communicate(), timeout=120.0)
         if proc.returncode != 0:
             msg = stderr.decode(errors="replace").strip()
+            if not msg:
+                msg = f"uv sync exited with status {proc.returncode}"
             logger.warning("uv sync failed in %s: %s", output_dir, msg)
             return f"Dependency installation failed: {msg}"
         return None
@@ -113,7 +123,7 @@ async def check_import(output_dir: Path) -> tuple[bool, str]:
     The command is wrapped with sandbox-exec on macOS to restrict
     network access and filesystem writes outside the output directory.
     """
-    base_cmd = ["uv", "run", "python", "-c", "from server import mcp"]
+    base_cmd = ["uv", "run", "--no-sync", "python", "-c", "from server import mcp"]
     cmd = sandboxed_command(base_cmd, output_dir)
     proc = await asyncio.create_subprocess_exec(
         *cmd,
@@ -141,7 +151,7 @@ async def run_tests(output_dir: Path) -> tuple[bool, int, int, str]:
     Returns:
         (passed, tests_run, tests_failed, output)
     """
-    base_cmd = ["uv", "run", "pytest", "test_server.py", "-v", "--tb=short"]
+    base_cmd = ["uv", "run", "--no-sync", "pytest", "test_server.py", "-v", "--tb=short"]
     cmd = sandboxed_command(base_cmd, output_dir)
     proc = await asyncio.create_subprocess_exec(
         *cmd,

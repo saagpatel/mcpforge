@@ -87,7 +87,7 @@ class TestGenerate:
             patch("mcpforge.cli.generate_server", new=AsyncMock(return_value="code")),
             patch("mcpforge.cli.generate_tests", new=AsyncMock(return_value="tests")),
             patch("mcpforge.cli.write_server", return_value=Path("/tmp/todo-manager")),
-            patch("mcpforge.cli.uv_sync", new=AsyncMock()),
+            patch("mcpforge.cli.uv_sync", new=AsyncMock(return_value=None)),
             patch("mcpforge.cli.validate_server", new=AsyncMock(return_value=_valid_result())),
         ):
             result = runner.invoke(cli, ["generate", "A todo server", "--yes"])
@@ -106,7 +106,7 @@ class TestGenerate:
             patch("mcpforge.cli.generate_server", new=AsyncMock(return_value="code")),
             patch("mcpforge.cli.generate_tests", new=AsyncMock(return_value="tests")),
             patch("mcpforge.cli.write_server", return_value=Path("/tmp/test-out")),
-            patch("mcpforge.cli.uv_sync", new=AsyncMock()),
+            patch("mcpforge.cli.uv_sync", new=AsyncMock(return_value=None)),
             patch("mcpforge.cli.validate_server", new=AsyncMock(return_value=_valid_result())),
         ):
             result = runner.invoke(
@@ -152,7 +152,7 @@ class TestGenerate:
             patch("mcpforge.cli.generate_server", new=AsyncMock(return_value="code")),
             patch("mcpforge.cli.generate_tests", new=AsyncMock(return_value="tests")),
             patch("mcpforge.cli.write_server", return_value=tmp_path) as mock_write,
-            patch("mcpforge.cli.uv_sync", new=AsyncMock()),
+            patch("mcpforge.cli.uv_sync", new=AsyncMock(return_value=None)),
             patch("mcpforge.cli.validate_server", new=AsyncMock(return_value=_valid_result())),
         ):
             result = runner.invoke(
@@ -215,7 +215,7 @@ class TestGenerate:
             patch("mcpforge.cli.generate_server", new=AsyncMock(return_value="broken code")),
             patch("mcpforge.cli.generate_tests", new=AsyncMock(return_value="tests")),
             patch("mcpforge.cli.write_server", return_value=tmp_path),
-            patch("mcpforge.cli.uv_sync", new=AsyncMock()),
+            patch("mcpforge.cli.uv_sync", new=AsyncMock(return_value=None)),
             patch("mcpforge.cli.validate_server", new=mock_validate),
             patch("mcpforge.cli.attempt_fix", new=mock_fix),
         ):
@@ -267,7 +267,7 @@ class TestGenerate:
             patch("mcpforge.cli.generate_server", new=AsyncMock(return_value="code")),
             patch("mcpforge.cli.generate_tests", new=AsyncMock(return_value="tests")),
             mock_write as mock_w,
-            patch("mcpforge.cli.uv_sync", new=AsyncMock()),
+            patch("mcpforge.cli.uv_sync", new=AsyncMock(return_value=None)),
             patch("mcpforge.cli.validate_server", new=AsyncMock(return_value=_valid_result())),
         ):
             result = runner.invoke(
@@ -312,12 +312,37 @@ class TestGenerate:
 
 
 class TestValidate:
+    def test_rejected_install_stops_before_import_and_reports_not_run(self, tmp_path):
+        (tmp_path / "server.py").write_text("from fastmcp import FastMCP\nmcp = FastMCP('Test')")
+        runner = CliRunner()
+        with (
+            patch(
+                "mcpforge.cli.uv_sync", new=AsyncMock(return_value="Package allowlist violation")
+            ),
+            patch(
+                "mcpforge.cli.validate_server", new=AsyncMock(return_value=None)
+            ) as mock_validate,
+            patch(
+                "mcpforge.validator.check_import", new=AsyncMock(return_value=None)
+            ) as mock_import,
+        ):
+            result = runner.invoke(cli, ["validate", str(tmp_path), "--json"])
+        assert result.exit_code == 1
+        assert '"validation_mode": "not_run"' in result.output
+        assert '"tests_status": "not_run"' in result.output
+        assert "Package allowlist violation" in result.output
+        mock_validate.assert_not_awaited()
+        mock_import.assert_not_awaited()
+
     def test_validate_runs_with_path(self, tmp_path):
         (tmp_path / "server.py").write_text("from fastmcp import FastMCP\nmcp = FastMCP('Test')")
         runner = CliRunner()
-        with patch(
-            "mcpforge.cli.validate_server",
-            new=AsyncMock(return_value=_valid_result()),
+        with (
+            patch(
+                "mcpforge.cli.validate_server",
+                new=AsyncMock(return_value=_valid_result()),
+            ),
+            patch("mcpforge.cli.uv_sync", new=AsyncMock(return_value=None)),
         ):
             result = runner.invoke(cli, ["validate", str(tmp_path)])
         assert result.exit_code == 0
@@ -337,7 +362,10 @@ class TestValidate:
         (tmp_path / "server.py").write_text("from fastmcp import FastMCP\nmcp = FastMCP('Test')")
         runner = CliRunner()
         invalid = ValidationResult(syntax_ok=False, errors=["SyntaxError at line 1"])
-        with patch("mcpforge.cli.validate_server", new=AsyncMock(return_value=invalid)):
+        with (
+            patch("mcpforge.cli.uv_sync", new=AsyncMock(return_value=None)),
+            patch("mcpforge.cli.validate_server", new=AsyncMock(return_value=invalid)),
+        ):
             result = runner.invoke(cli, ["validate", str(tmp_path)])
         assert result.exit_code != 0
 
@@ -353,7 +381,10 @@ class TestValidate:
             tests_failed=1,
             test_output="1 failed, 2 passed",
         )
-        with patch("mcpforge.cli.validate_server", new=AsyncMock(return_value=failed_tests)):
+        with (
+            patch("mcpforge.cli.uv_sync", new=AsyncMock(return_value=None)),
+            patch("mcpforge.cli.validate_server", new=AsyncMock(return_value=failed_tests)),
+        ):
             result = runner.invoke(cli, ["validate", str(tmp_path)])
         assert result.exit_code != 0
 
@@ -380,7 +411,7 @@ class TestStream:
             patch("mcpforge.cli.extract_plan", new=AsyncMock(return_value=_mock_plan())),
             patch("mcpforge.cli.generate_tests", new=AsyncMock(return_value="tests")),
             patch("mcpforge.cli.write_server", return_value=Path("/tmp/todo-manager")),
-            patch("mcpforge.cli.uv_sync", new=AsyncMock()),
+            patch("mcpforge.cli.uv_sync", new=AsyncMock(return_value=None)),
             patch("mcpforge.cli.validate_server", new=AsyncMock(return_value=_valid_result())),
         ):
             result = runner.invoke(cli, ["generate", "A todo server", "--stream", "--yes"])

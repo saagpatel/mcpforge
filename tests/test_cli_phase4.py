@@ -224,7 +224,7 @@ class TestMultiFileFlag:
             ),
             patch("mcpforge.cli.generate_tests", new=AsyncMock(return_value="tests")),
             patch("mcpforge.cli.write_server_multi", return_value=Path("/tmp/todo")),
-            patch("mcpforge.cli.uv_sync", new=AsyncMock()),
+            patch("mcpforge.cli.uv_sync", new=AsyncMock(return_value=None)),
             patch("mcpforge.cli.validate_server", new=AsyncMock(return_value=_valid_result())),
         ):
             result = runner.invoke(cli, ["generate", "A server", "--multi-file", "--yes"])
@@ -247,7 +247,7 @@ class TestMultiFileFlag:
             ),
             patch("mcpforge.cli.generate_tests", new=AsyncMock(return_value="tests")),
             patch("mcpforge.cli.write_server_multi", return_value=Path("/tmp/todo")),
-            patch("mcpforge.cli.uv_sync", new=AsyncMock()),
+            patch("mcpforge.cli.uv_sync", new=AsyncMock(return_value=None)),
             patch("mcpforge.cli.validate_server", new=AsyncMock(return_value=_valid_result())),
         ):
             runner.invoke(cli, ["generate", "A server", "--multi-file", "--yes"])
@@ -277,7 +277,7 @@ class TestStreamFlag:
             patch("mcpforge.cli.extract_plan", new=AsyncMock(return_value=_mock_plan())),
             patch("mcpforge.cli.generate_tests", new=AsyncMock(return_value="tests")),
             patch("mcpforge.cli.write_server", return_value=Path("/tmp/todo")),
-            patch("mcpforge.cli.uv_sync", new=AsyncMock()),
+            patch("mcpforge.cli.uv_sync", new=AsyncMock(return_value=None)),
             patch("mcpforge.cli.validate_server", new=AsyncMock(return_value=_valid_result())),
         ):
             result = runner.invoke(cli, ["generate", "A server", "--stream", "--yes"])

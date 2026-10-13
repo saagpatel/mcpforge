@@ -137,9 +137,12 @@ class TestMcpServerTools:
 
         monkeypatch.setenv("MCPFORGE_WORKSPACE", str(tmp_path))
         (tmp_path / "server.py").write_text("code")
-        with patch(
-            "mcpforge.mcp_server.validate_server",
-            new=AsyncMock(return_value=_valid_result()),
+        with (
+            patch(
+                "mcpforge.mcp_server.validate_server",
+                new=AsyncMock(return_value=_valid_result()),
+            ),
+            patch("mcpforge.mcp_server.uv_sync", new=AsyncMock(return_value=None)),
         ):
             result = await validate(str(tmp_path))
 
@@ -160,7 +163,7 @@ class TestMcpServerTools:
             patch("mcpforge.mcp_server.generate_server", new=AsyncMock(return_value="code")),
             patch("mcpforge.mcp_server.generate_tests", new=AsyncMock(return_value="tests")),
             patch("mcpforge.mcp_server.write_server", return_value=tmp_path),
-            patch("mcpforge.mcp_server.uv_sync", new=AsyncMock()),
+            patch("mcpforge.mcp_server.uv_sync", new=AsyncMock(return_value=None)),
             patch(
                 "mcpforge.mcp_server.validate_server",
                 new=AsyncMock(return_value=_valid_result()),
@@ -185,7 +188,7 @@ class TestMcpServerTools:
             patch("mcpforge.mcp_server.generate_server", new=AsyncMock(return_value="code")),
             patch("mcpforge.mcp_server.generate_tests", new=AsyncMock(return_value="tests")),
             patch("mcpforge.mcp_server.write_server", return_value=tmp_path) as mock_write,
-            patch("mcpforge.mcp_server.uv_sync", new=AsyncMock()),
+            patch("mcpforge.mcp_server.uv_sync", new=AsyncMock(return_value=None)),
             patch(
                 "mcpforge.mcp_server.validate_server",
                 new=AsyncMock(return_value=_valid_result()),
@@ -214,7 +217,9 @@ class TestMcpServerTools:
         with (
             patch("mcpforge.mcp_server.AnthropicClient"),
             patch("mcpforge.mcp_server.extract_plan", new=AsyncMock(return_value=_mock_plan())),
-            patch("mcpforge.mcp_server.generate_server", new=AsyncMock()) as mock_generate,
+            patch(
+                "mcpforge.mcp_server.generate_server", new=AsyncMock(return_value=None)
+            ) as mock_generate,
             patch("mcpforge.mcp_server.write_server") as mock_write,
         ):
             monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
@@ -257,7 +262,7 @@ class TestMcpServerTools:
             patch("mcpforge.mcp_server.generate_server", new=AsyncMock(return_value="code")),
             patch("mcpforge.mcp_server.generate_tests", new=AsyncMock(return_value="tests")),
             patch("mcpforge.mcp_server.write_server") as mock_write,
-            patch("mcpforge.mcp_server.uv_sync", new=AsyncMock()),
+            patch("mcpforge.mcp_server.uv_sync", new=AsyncMock(return_value=None)),
             patch(
                 "mcpforge.mcp_server.validate_server",
                 new=AsyncMock(return_value=_valid_result()),
@@ -370,7 +375,7 @@ class TestMcpServerTools:
                 "mcpforge.mcp_server.generate_tests", new=AsyncMock(return_value="tests")
             ) as gen_tests,
             patch("mcpforge.mcp_server.write_server_multi") as write_multi,
-            patch("mcpforge.mcp_server.uv_sync", new=AsyncMock()) as uv_sync,
+            patch("mcpforge.mcp_server.uv_sync", new=AsyncMock(return_value=None)) as uv_sync,
             patch("mcpforge.mcp_server.validate_server", new=mock_validate),
         ):
             monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
@@ -406,7 +411,7 @@ class TestMcpServerTools:
             ),
             patch("mcpforge.mcp_server.generate_tests", new=AsyncMock(return_value="tests")),
             patch("mcpforge.mcp_server.write_server_multi"),
-            patch("mcpforge.mcp_server.uv_sync", new=AsyncMock()) as uv_sync,
+            patch("mcpforge.mcp_server.uv_sync", new=AsyncMock(return_value=None)) as uv_sync,
             patch(
                 "mcpforge.mcp_server.validate_server",
                 new=AsyncMock(return_value=_valid_result()),
@@ -433,7 +438,7 @@ class TestMcpServerTools:
             patch("mcpforge.mcp_server.generate_server", new=AsyncMock(return_value="code")),
             patch("mcpforge.mcp_server.generate_tests", new=AsyncMock(return_value="tests")),
             patch("mcpforge.mcp_server.write_server"),
-            patch("mcpforge.mcp_server.uv_sync", new=AsyncMock()) as uv_sync,
+            patch("mcpforge.mcp_server.uv_sync", new=AsyncMock(return_value=None)) as uv_sync,
             patch("mcpforge.mcp_server.validate_server", new=mock_validate),
         ):
             monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
@@ -463,7 +468,7 @@ class TestMcpServerTools:
                 "mcpforge.mcp_server.update_server",
                 new=AsyncMock(return_value=("new code", "new tests")),
             ),
-            patch("mcpforge.mcp_server.uv_sync", new=AsyncMock()),
+            patch("mcpforge.mcp_server.uv_sync", new=AsyncMock(return_value=None)),
             patch(
                 "mcpforge.mcp_server.validate_server",
                 new=AsyncMock(return_value=_valid_result()),
@@ -530,7 +535,9 @@ class TestMcpServerTools:
                 "mcpforge.mcp_server.validate_server_ts",
                 new=AsyncMock(return_value=_valid_result()),
             ) as validate_ts,
-            patch("mcpforge.mcp_server.validate_server", new=AsyncMock()) as validate_py,
+            patch(
+                "mcpforge.mcp_server.validate_server", new=AsyncMock(return_value=None)
+            ) as validate_py,
         ):
             result = await validate(str(server_dir))
 

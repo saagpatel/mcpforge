@@ -88,6 +88,12 @@ class TestNpmInstall:
         proc.kill.assert_called_once()
         proc.wait.assert_called_once()
 
+    async def test_nonzero_exit_returns_install_error(self, tmp_path):
+        proc = _mock_process(stderr=b"package unavailable", returncode=1)
+        with patch("asyncio.create_subprocess_exec", return_value=proc):
+            error = await npm_install(tmp_path)
+        assert error == "Dependency installation failed: package unavailable"
+
 
 class TestCheckTypes:
     async def test_success_returns_ok_without_errors(self, tmp_path):
@@ -220,6 +226,21 @@ class TestValidateServerTs:
         assert result.tests_passed is False
         assert result.tests_ok is True
         assert mock_exec.call_count == 2
+
+    async def test_install_failure_stops_before_typecheck_and_tests(self, tmp_path):
+        npm_proc = _mock_process(stderr=b"package unavailable", returncode=1)
+        with (
+            patch("asyncio.create_subprocess_exec", return_value=npm_proc) as mock_exec,
+            patch("mcpforge.validator_ts.check_types", new=AsyncMock()) as mock_types,
+            patch("mcpforge.validator_ts.run_tests_ts", new=AsyncMock()) as mock_tests,
+        ):
+            result = await validate_server_ts(tmp_path)
+        assert result.validation_mode == "not_run"
+        assert result.tests_ok is False
+        assert result.errors == ["Dependency installation failed: package unavailable"]
+        mock_exec.assert_awaited_once()
+        mock_types.assert_not_awaited()
+        mock_tests.assert_not_awaited()
 
     async def test_successful_type_check_runs_tests_and_returns_success(self, tmp_path):
         npm_proc = _mock_process()
