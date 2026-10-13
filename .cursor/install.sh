@@ -4,8 +4,8 @@ set -euo pipefail
 # Cursor Cloud starts from a clean Ubuntu image. Keep the toolchain explicit and
 # install uv into the cloud user's home only when the image does not already
 # provide the required version.
-readonly PYTHON_VERSION="3.12.13"
-readonly UV_VERSION="0.12.12"
+readonly PYTHON_VERSION="3.12.15"
+readonly UV_VERSION="0.13.0"
 readonly UV_BIN_DIR="${HOME}/.local/bin"
 
 export PATH="${UV_BIN_DIR}:${PATH}"
@@ -19,7 +19,7 @@ if ! command -v uv >/dev/null 2>&1 || [[ "$(uv --version | awk '{print $2}')" !=
     exit 1
   fi
   curl --fail --silent --show-error --location \
-    "https://astral.sh/uv/${UV_VERSION}/install.sh" \
+    "https://releases.astral.sh/github/uv/releases/download/${UV_VERSION}/uv-installer.sh" \
     | sh
 fi
 

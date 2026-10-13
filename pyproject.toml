@@ -15,6 +15,8 @@ classifiers = [
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Software Development :: Code Generators",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
@@ -45,11 +47,14 @@ Repository = "https://github.com/saagpatel/mcpforge"
 "Bug Tracker" = "https://github.com/saagpatel/mcpforge/issues"
 
 [build-system]
-requires = ["uv_build>=0.11.2,<0.13.0"]
+requires = ["uv_build>=0.13.0,<0.14.0"]
 build-backend = "uv_build"
 
 [tool.uv.build-backend]
 module-name = "mcpforge"
+
+[tool.uv]
+required-version = ">=0.13.0"
 
 [dependency-groups]
 dev = [
