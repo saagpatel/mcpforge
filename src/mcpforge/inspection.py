@@ -135,7 +135,7 @@ def inspect_server(path: Path) -> dict[str, Any]:
         or "deployment boundary" in readme
         or "gateway" in readme
     )
-    remote_ready = bool(
+    remote_config_complete = bool(
         language == "python"
         and fastmcp_config
         and has_http_config
@@ -163,7 +163,11 @@ def inspect_server(path: Path) -> dict[str, Any]:
             "has_package_json": package_json.exists(),
         },
         "remote_mcp": {
-            "ready": remote_ready,
+            "ready": remote_config_complete,
+            "meaning": (
+                "configuration completeness only; deployment and operational readiness "
+                "are not verified"
+            ),
             "has_http_config": has_http_config,
             "has_security_notes": has_security_notes,
             "has_remote_checklist": has_remote_checklist,

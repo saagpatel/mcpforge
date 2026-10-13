@@ -4,8 +4,8 @@
 SafeForge research pipeline. It proves what mcpforge planned, wrote, and
 checked before any dependency installation or generated-server execution.
 
-It is not an MCPAudit report, trust grade, sandbox receipt, runtime-policy
-decision, or publication approval.
+It is not an MCPAudit report, trust grade, sandbox receipt, runtime-egress detector,
+runtime-policy decision, or publication approval.
 
 ## Deterministic fixture
 
@@ -44,12 +44,13 @@ The receipt records:
 - explicit skipped import and test states;
 - limitations stating that this is preinstall generation evidence only.
 
-Receipt creation fails when generated tool code uses an undeclared literal
-egress destination, performs dynamic network egress while `open_world_hint` is
-false, or uses network capability without either a destination or an open-world
-declaration. Observation is intentionally module-wide and follows import aliases,
-so every tool binds the full server implementation digest and conservatively
-inherits filesystem/network behavior found anywhere in that server module.
+Receipt creation rejects undeclared literal egress destinations and applies a
+static AST heuristic for network use: when it sees a supported network-client
+import but finds no literal HTTP or WebSocket destination, it requires
+`open_world_hint`. This heuristic does not execute code or detect runtime egress.
+Observation is intentionally module-wide and follows import aliases, so every
+tool binds the full server implementation digest and conservatively inherits
+filesystem/network behavior found anywhere in that server module.
 Observed filesystem access requires the exact `filesystem` permission.
 Static security warnings are unresolved review requirements: they set security
 to `failed` and make the receipt ineligible for preinstall audit.
