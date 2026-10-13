@@ -34,7 +34,7 @@ class TestUpdateCommand:
                 "mcpforge.cli.update_server",
                 new=AsyncMock(return_value=("new server code", "new test code")),
             ),
-            patch("mcpforge.cli.uv_sync", new=AsyncMock()),
+            patch("mcpforge.cli.uv_sync", new=AsyncMock(return_value=None)),
             patch("mcpforge.cli.validate_server", new=AsyncMock(return_value=_valid_result())),
         ):
             result = runner.invoke(cli, ["update", str(tmp_path), "add a search tool", "--yes"])
@@ -50,7 +50,7 @@ class TestUpdateCommand:
                 "mcpforge.cli.update_server",
                 new=AsyncMock(return_value=("updated server", "updated tests")),
             ),
-            patch("mcpforge.cli.uv_sync", new=AsyncMock()),
+            patch("mcpforge.cli.uv_sync", new=AsyncMock(return_value=None)),
             patch("mcpforge.cli.validate_server", new=AsyncMock(return_value=_valid_result())),
         ):
             runner.invoke(cli, ["update", str(tmp_path), "add search", "--yes"])
@@ -77,7 +77,7 @@ class TestUpdateCommand:
         with (
             patch("mcpforge.cli.AnthropicClient"),
             patch("mcpforge.cli.update_server", new=mock_update),
-            patch("mcpforge.cli.uv_sync", new=AsyncMock()),
+            patch("mcpforge.cli.uv_sync", new=AsyncMock(return_value=None)),
             patch("mcpforge.cli.validate_server", new=AsyncMock(return_value=_valid_result())),
         ):
             runner.invoke(cli, ["update", str(tmp_path), "add search tool", "--yes"])
@@ -293,6 +293,38 @@ class TestLanguageFlag:
 
 
 class TestInteractiveFlag:
+    def test_openapi_interactive_feedback_creates_client_before_refinement(
+        self, tmp_path: Path
+    ) -> None:
+        spec_file = tmp_path / "spec.json"
+        spec_file.write_text("{}")
+        mock_client = object()
+        mock_refine = AsyncMock(return_value=_mock_plan())
+        runner = CliRunner()
+
+        with (
+            patch("mcpforge.cli._create_cli_client", return_value=mock_client) as client_factory,
+            patch("mcpforge.cli.parse_openapi", return_value=_mock_plan()),
+            patch("mcpforge.cli.load_spec", return_value={}),
+            patch("mcpforge.cli.refine_plan", new=mock_refine),
+        ):
+            result = runner.invoke(
+                cli,
+                [
+                    "generate",
+                    "ignored",
+                    "--from-openapi",
+                    str(spec_file),
+                    "--interactive",
+                    "--dry-run",
+                ],
+                input="add a tool\n\n",
+            )
+
+        assert result.exit_code == 0, result.output
+        client_factory.assert_called_once()
+        assert mock_refine.await_args.args[2] is mock_client
+
     def test_interactive_calls_refine_plan_on_input(self) -> None:
         """--interactive calls refine_plan when user provides feedback."""
         refined_plan = ServerPlan(
