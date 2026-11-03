@@ -2,7 +2,7 @@
 name = "todo-server"
 version = "0.1.0"
 requires-python = ">=3.12"
-dependencies = ["fastmcp>=3.1.0"]
+dependencies = ["fastmcp>=3.4.10"]
 
 [dependency-groups]
 dev = ["pytest>=9.0.3", "pytest-asyncio>=0.23.0"]
