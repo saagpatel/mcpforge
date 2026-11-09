@@ -46,7 +46,8 @@ class OffsetAdapter(AdapterBase):
         resume_behaviour="Restart traversal if the overlap boundary cannot be found.",
         incompleteness_detection=(
             "Fetch offset-1 with limit+1; locate the unchanged last item and discard overlap. "
-            "Missing or changed boundary, duplicate ids, or order regression means page_shifted."
+            "A shift is detected only when it changes an observable overlap boundary; "
+            "a missing or changed boundary, duplicate ids, or order regression means page_shifted."
         ),
     )
     state_model = OffsetState

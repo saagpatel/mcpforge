@@ -23,6 +23,10 @@ class AdapterDefinition(BaseModel):
     ordering_guarantee: str
     resume_behaviour: str
     incompleteness_detection: str
+    contract_defaults: str = (
+        "retryable follows retry_safe, idempotent_hint, or read_only_hint; "
+        "partial_result_allowed is true for pagination tools."
+    )
 
 
 @dataclass
