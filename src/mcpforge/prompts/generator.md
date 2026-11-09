@@ -121,7 +121,7 @@ if __name__ == "__main__":
 
 ## Upstream Failure Outcomes
 
-For every tool that calls an upstream service, import the vendored `failure_runtime.py`, wrap the upstream operation with its `call_upstream` runtime, and return the normalized outcome envelope (`status`, `failure`, and `items`). Use the tool's declared failure contract; do not return raw upstream responses or invent failure kinds.
+Only if at least one tool in the plan has a non-null `failure_contract` or `pagination`, apply these instructions: for every tool that calls an upstream service, import the vendored `failure_runtime.py`, wrap the upstream operation with its `call_upstream` runtime, and return the normalized outcome envelope (`status`, `failure`, and `items`). Use each tool's effective contract from `failure_contracts.json`; do not return raw upstream responses or invent failure kinds. Otherwise, do not import or depend on these artifacts.
 
 ## Full Example
 

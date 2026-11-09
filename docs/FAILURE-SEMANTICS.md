@@ -1,5 +1,11 @@
 # Failure semantics
 
+Python generation opts into these semantics when at least one tool declares a
+non-null `failure_contract` or `pagination`. The writer then includes
+`failure_runtime.py` and `failure_contracts.json`, with an explicit or derived
+default contract for every tool. Plans without either field retain the legacy
+artifact set. OpenAPI-derived pagination opts in automatically.
+
 mcpforge uses the vocabulary in `mcpforge.contracts`: `timeout`, `malformed`,
 `cancelled`, `upstream_error`, `cursor_expired`, and `page_shifted`. A
 `FailureContract` records whether the tool may be retried and whether partial

@@ -10,6 +10,7 @@ from jinja2 import BaseLoader
 from jinja2.sandbox import SandboxedEnvironment
 
 from mcpforge.contracts import default_contract
+from mcpforge.failure import plan_declares_contracts
 from mcpforge.models import ServerPlan
 
 _JINJA_SYNTAX_RE = re.compile(r"\{\{.*?\}\}|\{%.*?%\}")
@@ -137,7 +138,8 @@ def write_server(
 
     (output_dir / "server.py").write_text(server_code, encoding="utf-8")
     (output_dir / "test_server.py").write_text(test_code, encoding="utf-8")
-    _write_failure_artifacts(plan, output_dir)
+    if plan_declares_contracts(plan):
+        _write_failure_artifacts(plan, output_dir)
 
     for tmpl_name, out_name in [
         ("pyproject.toml.j2", "pyproject.toml"),
@@ -180,7 +182,8 @@ def write_server_multi(
 
     # Write test file
     (output_dir / "test_server.py").write_text(test_code, encoding="utf-8")
-    _write_failure_artifacts(plan, output_dir)
+    if plan_declares_contracts(plan):
+        _write_failure_artifacts(plan, output_dir)
 
     # Render standard scaffolding templates
     _validate_template_context(plan)
