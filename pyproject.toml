@@ -66,7 +66,7 @@ dev = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
-markers = ["examples_install: isolated wheel installation checks"]
+markers = ["examples_install: isolated wheel and example-server installation checks"]
 
 [tool.ruff]
 line-length = 100
