@@ -4,6 +4,7 @@ import json
 import re
 from pathlib import Path
 
+from mcpforge.contracts import PaginationSpec
 from mcpforge.models import ServerPlan, ToolDef, ToolParam
 
 _TYPE_MAP: dict[str, str] = {
@@ -137,6 +138,23 @@ def _pagination_params(params: list[ToolParam]) -> list[str]:
         "offset",
     }
     return [param.name for param in params if param.location == "query" and param.name in common]
+
+
+def _pagination_spec(names: list[str]) -> PaginationSpec | None:
+    """Infer a pattern only when query names indicate a single pagination family."""
+    params = set(names)
+    cursor = bool(params & {"cursor", "next_cursor", "after", "before"})
+    page_token = "page_token" in params
+    offset_hints = bool(params & {"offset", "page", "per_page"})
+    if sum((cursor, page_token, offset_hints)) != 1:
+        return None
+    if cursor:
+        return PaginationSpec(pattern="cursor")
+    if page_token:
+        return PaginationSpec(pattern="page_token")
+    if "offset" in params or {"page", "per_page"} <= params:
+        return PaginationSpec(pattern="offset")
+    return None
 
 
 def _auth_metadata(scheme_name: str, scheme: dict) -> dict[str, str] | None:
@@ -359,6 +377,7 @@ def parse_openapi(
                     auth_location=auth_location,
                     auth_parameter_name=auth_parameter_name,
                     retry_safe=method.upper() in {"GET", "HEAD", "OPTIONS"},
+                    pagination=_pagination_spec(pagination),
                 )
             )
             if operation_limit is not None and len(tools) >= operation_limit:

@@ -2,7 +2,15 @@
 
 import re
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import (
+    BaseModel,
+    Field,
+    SerializerFunctionWrapHandler,
+    field_validator,
+    model_serializer,
+)
+
+from mcpforge.contracts import FailureContract, PaginationSpec
 
 KNOWN_PACKAGES: frozenset[str] = frozenset(
     {
@@ -95,6 +103,17 @@ class ToolDef(BaseModel):
     destructive_hint: bool | None = None
     idempotent_hint: bool | None = None
     open_world_hint: bool | None = None
+    failure_contract: FailureContract | None = None
+    pagination: PaginationSpec | None = None
+
+    @model_serializer(mode="wrap")
+    def serialize_tool(self, handler: SerializerFunctionWrapHandler) -> dict:
+        """Preserve legacy dumps when the new contracts are unspecified."""
+        data = handler(self)
+        for key in ("failure_contract", "pagination"):
+            if getattr(self, key) is None:
+                data.pop(key, None)
+        return data
 
 
 class ResourceDef(BaseModel):
