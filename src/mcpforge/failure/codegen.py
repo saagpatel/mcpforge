@@ -65,6 +65,20 @@ def _python_handlers(plan: ServerPlan) -> str:
         "        'retryable': False, 'partial_result_allowed': False})",
         "    return await call_upstream(upstream, selected, timeout_s)",
         "",
+        "def mcp_tool_result(outcome):",
+        '    """Preserve the outcome envelope and signal failed tool calls."""',
+        "    from fastmcp.tools import ToolResult",
+        "    return ToolResult(",
+        "        content=outcome,",
+        "        structured_content=outcome,",
+        "        is_error=outcome['status'] == 'failed',",
+        "    )",
+        "",
+        "def mcp_tool_handler(handler):",
+        "    async def invoke(upstream, timeout_s=0.05):",
+        "        return mcp_tool_result(await handler(upstream, timeout_s))",
+        "    return invoke",
+        "",
         "TOOL_HANDLERS = {}",
     ]
     for tool in plan.tools:
@@ -76,7 +90,7 @@ def _python_handlers(plan: ServerPlan) -> str:
                 "    return await handle_upstream(",
                 f"        upstream, FAILURE_CONTRACTS[{tool.name!r}], timeout_s",
                 "    )",
-                f"mcp.tool(name={tool.name!r})({ident})",
+                f"mcp.tool(name={tool.name!r})(mcp_tool_handler({ident}))",
                 f"TOOL_HANDLERS[{tool.name!r}] = {ident}",
                 "",
             ]
@@ -102,9 +116,6 @@ def _write_python_multi(plan: ServerPlan, out: Path) -> None:
         f"from tools.{identifiers[tool.name]} import {identifiers[tool.name]}"
         for tool in plan.tools
     )
-    registrations = "\n".join(
-        f"mcp.tool(name={tool.name!r})({identifiers[tool.name]})" for tool in plan.tools
-    )
     encoded_contracts = json.dumps(
         json.dumps(_contracts(plan), sort_keys=True, separators=(",", ":"))
     )
@@ -121,7 +132,22 @@ def _write_python_multi(plan: ServerPlan, out: Path) -> None:
         "    selected = contract or next(iter(FAILURE_CONTRACTS.values()), {\n"
         "        'retryable': False, 'partial_result_allowed': False})\n"
         "    return await call_upstream(upstream, selected, timeout_s)\n\n"
-        f"{registrations}\n\n"
+        "def mcp_tool_result(outcome):\n"
+        "    from fastmcp.tools import ToolResult\n"
+        "    return ToolResult(\n"
+        "        content=outcome,\n"
+        "        structured_content=outcome,\n"
+        "        is_error=outcome['status'] == 'failed',\n"
+        "    )\n\n"
+        "def mcp_tool_handler(handler):\n"
+        "    async def invoke(upstream, timeout_s=0.05):\n"
+        "        return mcp_tool_result(await handler(upstream, timeout_s))\n"
+        "    return invoke\n\n"
+        + "\n".join(
+            f"mcp.tool(name={tool.name!r})(mcp_tool_handler({identifiers[tool.name]}))"
+            for tool in plan.tools
+        )
+        + "\n\n"
         "if __name__ == '__main__':\n"
         "    mcp.run(transport='streamable-http')\n",
         encoding="utf-8",
@@ -148,9 +174,22 @@ def _write_typescript(plan: ServerPlan, out: Path) -> None:
     contracts = json.dumps(_contracts(plan), sort_keys=True, separators=(",", ":"))
     (out / "server.ts").write_text(
         "// Generated handler shell; MCP SDK wiring may import these handlers.\n"
-        "import { callUpstream, type Upstream, type FailureContract, type RuntimeOptions } "
+        "import { callUpstream, type Outcome, type Upstream, "
+        "type FailureContract, type RuntimeOptions } "
         "from './failureRuntime.ts';\n\n"
         f"export const FAILURE_CONTRACTS = {contracts} as const;\n"
+        "export type McpToolResult = {\n"
+        "  content: Array<{ type: 'text'; text: string }>;\n"
+        "  structuredContent: Outcome;\n"
+        "  isError: boolean;\n"
+        "};\n\n"
+        "export function mcpToolResult(outcome: Outcome): McpToolResult {\n"
+        "  return {\n"
+        "    content: [{ type: 'text', text: JSON.stringify(outcome) }],\n"
+        "    structuredContent: outcome,\n"
+        "    isError: outcome.status === 'failed',\n"
+        "  };\n"
+        "}\n\n"
         "export const TOOL_HANDLERS = {\n"
         + "\n".join(
             f"  {json.dumps(tool.name)}: (\n"
@@ -159,6 +198,14 @@ def _write_typescript(plan: ServerPlan, out: Path) -> None:
             "    options: RuntimeOptions = {},\n"
             f"  ) => callUpstream(upstream, FAILURE_CONTRACTS[{json.dumps(tool.name)}] "
             "as FailureContract, timeoutMs, options),"
+            for tool in plan.tools
+        )
+        + "\n};\n\n"
+        "export const MCP_TOOL_HANDLERS = {\n"
+        + "\n".join(
+            f"  {json.dumps(tool.name)}: async (upstream: Upstream, timeoutMs = 50, "
+            f"options: RuntimeOptions = {{}}) => mcpToolResult(await "
+            f"TOOL_HANDLERS[{json.dumps(tool.name)}](upstream, timeoutMs, options)),"
             for tool in plan.tools
         )
         + "\n};\n",
