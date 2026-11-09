@@ -66,6 +66,7 @@ dev = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = ["examples_install: install isolated pagination examples and test real stdio MCP"]
 
 [tool.ruff]
 line-length = 100
