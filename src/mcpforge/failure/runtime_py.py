@@ -79,6 +79,7 @@ async def call_operation(operation, contract, timeout_s, response_schema=None):
     """Run an async callable or iterator; cancellation propagates after cleanup."""
     items = []
     stopped = False
+    finalizing = False
 
     def outcome(kind, detail):
         result = resolve_failure(contract, kind, bool(items), detail)
@@ -86,6 +87,7 @@ async def call_operation(operation, contract, timeout_s, response_schema=None):
         return result
 
     async def run():
+        nonlocal finalizing
         value = operation() if callable(operation) else operation
         if inspect.isawaitable(value):
             value = await value
@@ -103,16 +105,12 @@ async def call_operation(operation, contract, timeout_s, response_schema=None):
                         return outcome("malformed", "upstream returned malformed data")
                     items.append(item)
             finally:
+                finalizing = True
                 close = getattr(iterator, "aclose", None)
                 if close is not None:
-                    closing = asyncio.ensure_future(close())
-                    try:
-                        await asyncio.shield(closing)
-                    except asyncio.CancelledError:
-                        # Cancellation during an already-running finalizer must
-                        # not abandon or restart that finalizer.
-                        await closing
-                        raise
+                    # Consume and close in the same task/Context so generator
+                    # finalizers can reset ContextVar tokens created on entry.
+                    await close()
         elif not stopped:
             if response_schema is not None and not _valid(value, response_schema):
                 return outcome("malformed", "upstream returned malformed data")
@@ -135,7 +133,10 @@ async def call_operation(operation, contract, timeout_s, response_schema=None):
         caller_cancelled = True
     if timed_out or caller_cancelled:
         stopped = True
-        task.cancel()
+        # Let an active finalizer finish in its owning task. The shield below
+        # protects that task from repeated caller cancellation as well.
+        if not finalizing:
+            task.cancel()
 
     # Shield cleanup from repeated caller cancellation, but remember every
     # cancellation independently of how the operation eventually terminates.

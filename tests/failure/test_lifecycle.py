@@ -1,6 +1,7 @@
 """Lifecycle tables exercise cleanup, cancellation and late results in both runtimes."""
 
 import asyncio
+import contextvars
 import json
 import shutil
 import subprocess
@@ -247,6 +248,49 @@ def assert_lifecycle(mode, result):
 @pytest.mark.asyncio
 async def test_python_lifecycle_table(mode):
     assert_lifecycle(mode, await python_case(mode))
+
+
+@pytest.mark.parametrize("server_type", (None, "python-single", "python-multi"))
+def test_python_malformed_generator_closes_in_own_context(tmp_path, server_type):
+    call = call_operation
+    if server_type is not None:
+        plan = ServerPlan(
+            name="Context",
+            description="Generator context probe",
+            tools=[ToolDef(name="probe", description="Probe", params=[])],
+        )
+        generate_server(plan, tmp_path, server_type)
+        source = tmp_path / (
+            "server.py" if server_type == "python-single" else "failure_runtime.py"
+        )
+        namespace = {"__name__": "context_probe"}
+        exec(compile(source.read_text(), str(source), "exec"), namespace)
+        call = namespace["call_operation"]
+
+    context = contextvars.ContextVar("generator_context", default="outside")
+    cleaned = False
+
+    async def stream():
+        nonlocal cleaned
+        token = context.set("inside")
+        try:
+            yield "invalid"
+        finally:
+            context.reset(token)
+            cleaned = context.get() == "outside"
+
+    result = asyncio.run(call(stream(), CONTRACT, 1, SCHEMA))
+    assert cleaned
+    assert result == {
+        "status": "failed",
+        "failure": {
+            "kind": "malformed",
+            "retryable": False,
+            "partial_result": False,
+            "detail": "upstream returned malformed data",
+        },
+        "items": [],
+    }
 
 
 @pytest.mark.parametrize("mode", CASES)
