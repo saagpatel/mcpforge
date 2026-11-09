@@ -152,7 +152,6 @@ export async function callOperation(
 ): Promise<Outcome> {
   const controller = new AbortController();
   const items: unknown[] = [];
-  let activeIterator: AsyncIterator<unknown> | undefined;
   const timeoutReason = Symbol("timeout");
   const cancelledReason = Symbol("cancelled");
   let cancel: (() => void) | undefined;
@@ -166,35 +165,61 @@ export async function callOperation(
   if (options.signal?.aborted) onAbort();
   options.signal?.addEventListener("abort", onAbort, { once: true });
 
-  const run = async (): Promise<Outcome> => {
-    if (controller.signal.aborted) throw cancelledReason;
-    const result = typeof operation === "function"
-      ? await operation(controller.signal)
-      : operation;
-    if (controller.signal.aborted) {
-      throw controller.signal.reason === "timeout" ? timeoutReason : cancelledReason;
+  const abortReason = () => controller.signal.reason === "timeout" ? timeoutReason : cancelledReason;
+  const aborted = new Promise<never>((_resolve, reject) => {
+    const stop = () => reject(abortReason());
+    if (controller.signal.aborted) stop();
+    else controller.signal.addEventListener("abort", stop, { once: true });
+  });
+  const nextOrAbort = async (iterator: AsyncIterator<unknown>) => {
+    let stop!: () => void;
+    const interrupted = new Promise<never>((_resolve, reject) => {
+      stop = () => reject(abortReason());
+      controller.signal.addEventListener("abort", stop, { once: true });
+    });
+    try {
+      // Observe late next() rejections after abort, without accumulating a new
+      // race handler on the same pending abort promise for every streamed item.
+      return await Promise.race([iterator.next(), interrupted]);
+    } finally {
+      controller.signal.removeEventListener("abort", stop);
     }
-    if (result !== null && typeof result === "object" && Symbol.asyncIterator in result) {
-      const iterator = (result as AsyncIterable<unknown>)[Symbol.asyncIterator]();
-      activeIterator = iterator;
-      while (true) {
-        const next = await iterator.next();
-        if (controller.signal.aborted) {
-          throw controller.signal.reason === "timeout" ? timeoutReason : cancelledReason;
+  };
+  const run = async (): Promise<Outcome> => {
+    let iterator: AsyncIterator<unknown> | undefined;
+    try {
+      if (controller.signal.aborted) throw abortReason();
+      // Retain ownership of the factory after the outer race settles: a late
+      // iterable must still be acquired and closed without consuming it.
+      const result = typeof operation === "function"
+        ? await operation(controller.signal)
+        : operation;
+      if (result !== null && typeof result === "object" && Symbol.asyncIterator in result) {
+        iterator = (result as AsyncIterable<unknown>)[Symbol.asyncIterator]();
+      }
+      if (controller.signal.aborted) throw abortReason();
+      if (iterator) {
+        while (true) {
+          const next = await nextOrAbort(iterator);
+          if (controller.signal.aborted) throw abortReason();
+          if (next.done) break;
+          if (schemaError(next.value, responseSchema)) {
+            return errorOutcome(contract, "malformed", items, "upstream returned malformed data");
+          }
+          items.push(next.value);
         }
-        if (next.done) break;
-        if (schemaError(next.value, responseSchema)) {
+      } else {
+        if (schemaError(result, responseSchema)) {
           return errorOutcome(contract, "malformed", items, "upstream returned malformed data");
         }
-        items.push(next.value);
+        items.push(result);
       }
-    } else {
-      if (schemaError(result, responseSchema)) {
-        return errorOutcome(contract, "malformed", items, "upstream returned malformed data");
-      }
-      items.push(result);
+      return { status: "complete", failure: null, items };
+    } finally {
+      // A single owner awaits cleanup on every exit, including late acquisition.
+      // The outer race observes cleanup rejection even after it has settled.
+      if (iterator?.return) await iterator.return();
     }
-    return { status: "complete", failure: null, items };
   };
 
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -205,9 +230,11 @@ export async function callOperation(
     }, Math.max(0, timeoutMs));
   });
   try {
-    return await Promise.race([run(), timeout, cancelled]);
+    return await Promise.race([run(), timeout, cancelled, aborted]);
   } catch (error) {
-    if (error === cancelledReason) {
+    // Caller cancellation takes priority while another outcome (including a
+    // cleanup error or timeout) is settling, just as it does in Python.
+    if (options.signal?.aborted || error === cancelledReason) {
       const outcome = errorOutcome(contract, "cancelled", items, "upstream cancelled");
       options.onCancelled?.(outcome);
       throw new Error("cancelled");
@@ -218,7 +245,6 @@ export async function callOperation(
     if (timeoutId !== undefined) clearTimeout(timeoutId);
     options.signal?.removeEventListener("abort", onAbort);
     controller.abort("released");
-    if (activeIterator?.return) void activeIterator.return().catch(() => undefined);
   }
 }
 
