@@ -591,6 +591,22 @@ def contracts_cli() -> None:
     """Generate and verify shared pagination and failure contracts."""
 
 
+@contracts_cli.command("pagination-example")
+@click.argument("pattern", type=click.Choice(["cursor", "offset", "page_token"]))
+@click.option(
+    "--output", "output_dir", required=True, type=click.Path(path_type=Path, file_okay=False)
+)
+@click.option("--force", is_flag=True, help="Allow writing into a non-empty directory.")
+def pagination_example_command(pattern: str, output_dir: Path, force: bool) -> None:
+    """Generate an installable pagination example."""
+    from mcpforge.pagination.examples_gen import generate_example
+
+    if output_dir.exists() and any(output_dir.iterdir()) and not force:
+        raise click.ClickException(f"output directory is not empty: {output_dir}; use --force")
+    generate_example(pattern, output_dir)
+    click.echo(f"wrote {pattern} pagination example to {output_dir}")
+
+
 @contracts_cli.command("pagination-docs")
 @click.option(
     "--path",

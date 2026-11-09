@@ -32,6 +32,7 @@ def test_contracts_help_lists_new_commands():
     commands = result.output.split("Commands:\n", 1)[1]
     assert {line.split()[0] for line in commands.splitlines() if line.strip()} == {
         "pagination-docs",
+        "pagination-example",
         "failure-docs",
         "fixtures",
     }

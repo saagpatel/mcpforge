@@ -64,3 +64,18 @@ def test_contract_docs_from_isolated_wheel(tmp_path: Path):
         custom = work / "custom" / ("pages" if command == "pagination-docs" else "failure.md")
         run(executable, "contracts", command, "--path", str(custom), cwd=work)
         run(executable, "contracts", command, "--path", str(custom), "--check", cwd=work)
+    for pattern in ("cursor", "offset", "page_token"):
+        output = work / pattern
+        run(
+            executable,
+            "contracts",
+            "pagination-example",
+            pattern,
+            "--output",
+            str(output),
+            cwd=work,
+        )
+        assert (output / "src" / f"pagination_{pattern}" / "server.py").is_file()
+        assert (
+            output / "src" / f"pagination_{pattern}" / "_vendor/pagination/adapter.py"
+        ).is_file()
