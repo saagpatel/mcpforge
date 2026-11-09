@@ -1,0 +1,15 @@
+[project]
+name = "pagination-page-token-server"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = ["fastmcp>=3.4.10,<4"]
+
+[project.scripts]
+pagination-page-token-server = "pagination_page_token.server:main"
+
+[build-system]
+requires = ["uv_build>=0.13.0,<0.14.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "pagination_page_token"

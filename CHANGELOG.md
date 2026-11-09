@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   servers, and credential-free fixture checks through the additive
   `mcpforge contracts` command group.
 - Added `mcpforge contracts pagination-example` for cursor, offset, and page-token
-  projects, with an installable [cursor example](examples/pagination/cursor-server/).
+  projects, with installable examples under [examples/pagination](examples/pagination/).
 
 
 ### Fixed

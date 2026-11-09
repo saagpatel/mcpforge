@@ -10,7 +10,7 @@ from pathlib import Path
 from mcpforge.pagination.datasets import load_datasets
 from mcpforge.pagination.patterns import DEFINITIONS
 
-COMMITTED_EXAMPLE_PATTERNS = ("cursor",)
+COMMITTED_EXAMPLE_PATTERNS = ("cursor", "offset", "page_token")
 
 _SERVER = '''"""Bundled synthetic records; no provider, credentials, or network required."""
 
