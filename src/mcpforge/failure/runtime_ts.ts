@@ -54,6 +54,12 @@ export type RuntimeOptions = {
   onCancelled?: (outcome: Outcome) => void;
 };
 
+/** An operation receives the runtime's cancellation signal and returns one
+ * value or an async iterable of partial values. */
+export type Operation =
+  | ((signal: AbortSignal) => Promise<unknown> | AsyncIterable<unknown>)
+  | AsyncIterable<unknown>;
+
 const transientKinds = new Set<FailureKind>([
   "timeout", "upstream_error", "cursor_expired", "page_shifted",
 ]);
@@ -108,10 +114,10 @@ function schemaError(value: unknown, schema: Schema, path = "$" ): string | unde
   if (value !== null && typeof value === "object" && !Array.isArray(value)) {
     const objectValue = value as Record<string, unknown>;
     for (const key of schema.required ?? []) {
-      if (!(key in objectValue)) return `${path}.${key} is required`;
+      if (!Object.hasOwn(objectValue, key)) return `${path}.${key} is required`;
     }
     for (const [key, childSchema] of Object.entries(schema.properties ?? {})) {
-      if (key in objectValue) {
+      if (Object.hasOwn(objectValue, key)) {
         const error = schemaError(objectValue[key], childSchema, `${path}.${key}`);
         if (error) return error;
       }
@@ -128,7 +134,92 @@ function schemaError(value: unknown, schema: Schema, path = "$" ): string | unde
 
 function errorOutcome(contract: FailureContract, kind: FailureKind, partial: unknown[], detail: string): Outcome {
   const resolved = resolveOutcome(contract, kind, partial.length > 0, detail);
-  return { ...resolved, items: resolved.status === "incomplete" ? partial : [] };
+  return { ...resolved, items: resolved.status === "incomplete" ? [...partial] : [] };
+}
+
+/** Execute an upstream operation inside the failure contract.
+ *
+ * `operation` receives an AbortSignal and may return a single value or an
+ * async iterable. Streamed values are validated as they arrive, so allowed
+ * partial results survive timeout and malformed-data outcomes.
+ */
+export async function callOperation(
+  operation: Operation,
+  contract: FailureContract,
+  timeoutMs: number,
+  responseSchema: Schema = {},
+  options: RuntimeOptions = {},
+): Promise<Outcome> {
+  const controller = new AbortController();
+  const items: unknown[] = [];
+  let activeIterator: AsyncIterator<unknown> | undefined;
+  const timeoutReason = Symbol("timeout");
+  const cancelledReason = Symbol("cancelled");
+  let cancel: (() => void) | undefined;
+  const cancelled = new Promise<never>((_resolve, reject) => {
+    cancel = () => reject(cancelledReason);
+  });
+  const onAbort = () => {
+    cancel?.();
+    controller.abort("cancelled");
+  };
+  if (options.signal?.aborted) onAbort();
+  options.signal?.addEventListener("abort", onAbort, { once: true });
+
+  const run = async (): Promise<Outcome> => {
+    if (controller.signal.aborted) throw cancelledReason;
+    const result = typeof operation === "function"
+      ? await operation(controller.signal)
+      : operation;
+    if (controller.signal.aborted) {
+      throw controller.signal.reason === "timeout" ? timeoutReason : cancelledReason;
+    }
+    if (result !== null && typeof result === "object" && Symbol.asyncIterator in result) {
+      const iterator = (result as AsyncIterable<unknown>)[Symbol.asyncIterator]();
+      activeIterator = iterator;
+      while (true) {
+        const next = await iterator.next();
+        if (controller.signal.aborted) {
+          throw controller.signal.reason === "timeout" ? timeoutReason : cancelledReason;
+        }
+        if (next.done) break;
+        if (schemaError(next.value, responseSchema)) {
+          return errorOutcome(contract, "malformed", items, "upstream returned malformed data");
+        }
+        items.push(next.value);
+      }
+    } else {
+      if (schemaError(result, responseSchema)) {
+        return errorOutcome(contract, "malformed", items, "upstream returned malformed data");
+      }
+      items.push(result);
+    }
+    return { status: "complete", failure: null, items };
+  };
+
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(timeoutReason);
+      controller.abort("timeout");
+    }, Math.max(0, timeoutMs));
+  });
+  try {
+    return await Promise.race([run(), timeout, cancelled]);
+  } catch (error) {
+    if (error === cancelledReason) {
+      const outcome = errorOutcome(contract, "cancelled", items, "upstream cancelled");
+      options.onCancelled?.(outcome);
+      throw new Error("cancelled");
+    }
+    if (error === timeoutReason) return errorOutcome(contract, "timeout", items, "upstream timed out");
+    return errorOutcome(contract, "upstream_error", items, "upstream failed");
+  } finally {
+    if (timeoutId !== undefined) clearTimeout(timeoutId);
+    options.signal?.removeEventListener("abort", onAbort);
+    controller.abort("released");
+    if (activeIterator?.return) void activeIterator.return().catch(() => undefined);
+  }
 }
 
 /** Run a descriptor's deterministic script and normalize its outcome.

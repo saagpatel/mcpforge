@@ -138,7 +138,7 @@ def _run_generated_python(
                 raise ImportError(f"could not load generated Python tool: {module_path}")
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
-            handler = getattr(module, tool_name)
+            handler = getattr(module, f"_tool_{tool_name}")
         descriptor = json.loads(json.dumps(upstream))
         try:
             result = asyncio.run(handler(descriptor, timeout_s=0.025))

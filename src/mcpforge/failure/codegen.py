@@ -1,9 +1,4 @@
-"""Deterministic writers for failure-aware generated server shells.
-
-The generated handlers deliberately accept a fixture descriptor as their
-upstream input. Real provider wiring can supply the same descriptor-shaped
-adapter contract without changing the failure envelope implementation.
-"""
+"""Deterministic writers for failure-aware generated server shells."""
 
 from __future__ import annotations
 
@@ -59,22 +54,25 @@ def _python_handlers(plan: ServerPlan) -> str:
         f"FAILURE_CONTRACTS = __import__('json').loads({contract_json!r})",
         f"mcp = FastMCP({plan.name!r})",
         "",
-        "async def handle_upstream(upstream, contract=None, timeout_s=0.05):",
-        '    """Run one upstream descriptor and return the normalized envelope."""',
+        "async def _failure_handle_upstream(",
+        "    operation, contract=None, timeout_s=0.05, response_schema=None",
+        "):",
+        '    """Run one upstream operation or descriptor under its failure contract."""',
         "    selected = contract or next(iter(FAILURE_CONTRACTS.values()), {",
         "        'retryable': False, 'partial_result_allowed': False})",
-        "    return await call_upstream(upstream, selected, timeout_s)",
+        "    return await call_upstream(operation, selected, timeout_s, response_schema)",
         "",
         "TOOL_HANDLERS = {}",
     ]
     for tool in plan.tools:
-        ident = identifiers[tool.name]
+        ident = f"_tool_{identifiers[tool.name]}"
         lines.extend(
             [
-                f"async def {ident}(upstream, timeout_s=0.05):",
-                '    """Run this tool upstream and return its outcome envelope."""',
-                "    return await handle_upstream(",
-                f"        upstream, FAILURE_CONTRACTS[{tool.name!r}], timeout_s",
+                f"async def {ident}(operation, timeout_s=0.05, response_schema=None):",
+                '    """Run this tool operation and return its outcome envelope."""',
+                "    return await _failure_handle_upstream(",
+                f"        operation, FAILURE_CONTRACTS[{tool.name!r}], timeout_s,",
+                "        response_schema",
                 "    )",
                 f"mcp.tool(name={tool.name!r})({ident})",
                 f"TOOL_HANDLERS[{tool.name!r}] = {ident}",
@@ -99,11 +97,11 @@ def _write_python_multi(plan: ServerPlan, out: Path) -> None:
     shutil.copyfile(_runtime_path("runtime_py.py"), out / "failure_runtime.py")
     identifiers = _tool_identifiers(plan)
     imports = "\n".join(
-        f"from tools.{identifiers[tool.name]} import {identifiers[tool.name]}"
+        f"from tools.{identifiers[tool.name]} import _tool_{identifiers[tool.name]}"
         for tool in plan.tools
     )
     registrations = "\n".join(
-        f"mcp.tool(name={tool.name!r})({identifiers[tool.name]})" for tool in plan.tools
+        f"mcp.tool(name={tool.name!r})(_tool_{identifiers[tool.name]})" for tool in plan.tools
     )
     encoded_contracts = json.dumps(
         json.dumps(_contracts(plan), sort_keys=True, separators=(",", ":"))
@@ -117,10 +115,14 @@ def _write_python_multi(plan: ServerPlan, out: Path) -> None:
         "FAILURE_CONTRACTS = "
         f"json.loads({encoded_contracts})\n"
         f"mcp = FastMCP({plan.name!r})\n\n"
-        "async def handle_upstream(upstream, contract=None, timeout_s=0.05):\n"
+        "async def _failure_handle_upstream(\n"
+        "    operation, contract=None, timeout_s=0.05, response_schema=None\n"
+        "):\n"
         "    selected = contract or next(iter(FAILURE_CONTRACTS.values()), {\n"
         "        'retryable': False, 'partial_result_allowed': False})\n"
-        "    return await call_upstream(upstream, selected, timeout_s)\n\n"
+        "    return await call_upstream(\n"
+        "        operation, selected, timeout_s, response_schema\n"
+        "    )\n\n"
         f"{registrations}\n\n"
         "if __name__ == '__main__':\n"
         "    mcp.run(transport='streamable-http')\n",
@@ -130,15 +132,17 @@ def _write_python_multi(plan: ServerPlan, out: Path) -> None:
     tools_dir.mkdir(exist_ok=True)
     (tools_dir / "__init__.py").write_text('"""Generated tool handlers."""\n', encoding="utf-8")
     for tool in plan.tools:
-        ident = identifiers[tool.name]
+        ident = f"_tool_{identifiers[tool.name]}"
         contract = _contracts(plan)[tool.name]
         encoded_contract = json.dumps(json.dumps(contract, sort_keys=True, separators=(",", ":")))
-        (tools_dir / f"{ident}.py").write_text(
+        (tools_dir / f"{identifiers[tool.name]}.py").write_text(
             "from failure_runtime import call_upstream\n\n"
             "import json\n\n"
             f"FAILURE_CONTRACT = json.loads({encoded_contract})\n\n"
-            f"async def {ident}(upstream, timeout_s=0.05):\n"
-            "    return await call_upstream(upstream, FAILURE_CONTRACT, timeout_s)\n",
+            f"async def {ident}(operation, timeout_s=0.05, response_schema=None):\n"
+            "    return await call_upstream(\n"
+            "        operation, FAILURE_CONTRACT, timeout_s, response_schema\n"
+            "    )\n",
             encoding="utf-8",
         )
 
@@ -148,16 +152,26 @@ def _write_typescript(plan: ServerPlan, out: Path) -> None:
     contracts = json.dumps(_contracts(plan), sort_keys=True, separators=(",", ":"))
     (out / "server.ts").write_text(
         "// Generated handler shell; MCP SDK wiring may import these handlers.\n"
-        "import { callUpstream, type Upstream, type FailureContract, type RuntimeOptions } "
+        "import { callOperation, callUpstream, type Operation, type Upstream, "
+        "type FailureContract, type RuntimeOptions } "
         "from './failureRuntime.ts';\n\n"
         f"export const FAILURE_CONTRACTS = {contracts} as const;\n"
+        "const isOperation = (value: Upstream | Operation): value is Operation =>\n"
+        "  typeof value === 'function' || (typeof value === 'object' &&\n"
+        "    Symbol.asyncIterator in value);\n\n"
         "export const TOOL_HANDLERS = {\n"
         + "\n".join(
             f"  {json.dumps(tool.name)}: (\n"
-            "    upstream: Upstream,\n"
+            "    operation: Upstream | Operation,\n"
             "    timeoutMs = 50,\n"
+            "    responseSchema: Record<string, unknown> = {},\n"
             "    options: RuntimeOptions = {},\n"
-            f"  ) => callUpstream(upstream, FAILURE_CONTRACTS[{json.dumps(tool.name)}] "
+            "  ) => isOperation(operation)\n"
+            "    ? callOperation(operation, "
+            f"FAILURE_CONTRACTS[{json.dumps(tool.name)}] "
+            "as FailureContract, timeoutMs, responseSchema, options)\n"
+            "    : callUpstream(operation as Upstream, "
+            f"FAILURE_CONTRACTS[{json.dumps(tool.name)}] "
             "as FailureContract, timeoutMs, options),"
             for tool in plan.tools
         )
@@ -175,7 +189,7 @@ const toolName = Object.keys(FAILURE_CONTRACTS)[0];
 let cancellationOutcome;
 let result;
 try {
-  result = await TOOL_HANDLERS[toolName](upstream, 50, {
+    result = await TOOL_HANDLERS[toolName](upstream, 50, {}, {
     onCancelled: (outcome) => { cancellationOutcome = outcome; },
   });
 } catch (error) {

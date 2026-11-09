@@ -6,6 +6,7 @@ Cancellation is always re-raised.
 """
 
 import asyncio
+import inspect
 import json
 import math
 
@@ -74,8 +75,50 @@ def _valid(value, schema):
     return True
 
 
-async def call_upstream(upstream, contract, timeout_s):
-    """Run a synthetic upstream and return a normalized failure or complete outcome."""
+async def call_operation(operation, contract, timeout_s, response_schema=None):
+    """Run an async callable or iterator; cancellation propagates after cleanup."""
+    items = []
+
+    def outcome(kind, detail):
+        result = resolve_failure(contract, kind, bool(items), detail)
+        result["items"] = list(items) if result["failure"]["partial_result"] else []
+        return result
+
+    async def run():
+        value = operation() if callable(operation) else operation
+        if inspect.isawaitable(value):
+            value = await value
+        if hasattr(value, "__aiter__"):
+            iterator = value.__aiter__()
+            try:
+                async for item in iterator:
+                    if response_schema is not None and not _valid(item, response_schema):
+                        return outcome("malformed", "upstream returned malformed data")
+                    items.append(item)
+            finally:
+                close = getattr(iterator, "aclose", None)
+                if close is not None:
+                    await close()
+        else:
+            if response_schema is not None and not _valid(value, response_schema):
+                return outcome("malformed", "upstream returned malformed data")
+            items.append(value)
+        return {"status": "complete", "failure": None, "items": items}
+
+    try:
+        return await asyncio.wait_for(run(), timeout=timeout_s)
+    except TimeoutError:
+        return outcome("timeout", "upstream timed out")
+    except asyncio.CancelledError:
+        raise
+    except Exception:
+        return outcome("upstream_error", "upstream failed")
+
+
+async def call_upstream(upstream, contract, timeout_s, response_schema=None):
+    """Run a descriptor or real operation and return a normalized outcome."""
+    if callable(upstream) or hasattr(upstream, "__aiter__"):
+        return await call_operation(upstream, contract, timeout_s, response_schema)
     items = []
 
     def outcome(kind, detail):
