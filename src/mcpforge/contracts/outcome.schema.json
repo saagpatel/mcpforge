@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$ref": "#/$defs/ToolOutcome",
+  "$defs": {
+    "Failure": {
+      "description": "A typed tool failure, including pagination incompleteness.",
+      "properties": {
+        "kind": {
+          "enum": [
+            "timeout",
+            "malformed",
+            "cancelled",
+            "upstream_error",
+            "cursor_expired",
+            "page_shifted"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "retryable": {
+          "title": "Retryable",
+          "type": "boolean"
+        },
+        "partial_result": {
+          "title": "Partial Result",
+          "type": "boolean"
+        },
+        "detail": {
+          "title": "Detail",
+          "type": "string"
+        },
+        "resume_cursor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resume Cursor"
+        }
+      },
+      "required": [
+        "kind",
+        "retryable",
+        "partial_result",
+        "detail"
+      ],
+      "title": "Failure",
+      "type": "object"
+    },
+    "FailureContract": {
+      "description": "The retry and partial-result permissions for one tool.",
+      "properties": {
+        "retryable": {
+          "title": "Retryable",
+          "type": "boolean"
+        },
+        "partial_result_allowed": {
+          "title": "Partial Result Allowed",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "retryable",
+        "partial_result_allowed"
+      ],
+      "title": "FailureContract",
+      "type": "object"
+    },
+    "ToolOutcome": {
+      "description": "The common envelope for complete, incomplete, and failed tool results.",
+      "properties": {
+        "status": {
+          "enum": [
+            "complete",
+            "incomplete",
+            "failed"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "failure": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Failure"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "status",
+        "failure"
+      ],
+      "title": "ToolOutcome",
+      "type": "object"
+    }
+  }
+}
