@@ -16,6 +16,7 @@ from rich.text import Text
 
 from mcpforge import __version__
 from mcpforge.api_client import DEFAULT_MODEL, AnthropicClient
+from mcpforge.contracts import FailureContract
 from mcpforge.demo import WEATHER_DEMO_DESCRIPTION, load_demo_client
 from mcpforge.discovery import find_servers
 from mcpforge.doctor import run_doctor
@@ -583,6 +584,150 @@ async def _validate_command(path: str, json_output: bool = False) -> None:
 @click.version_option(version=__version__, prog_name="mcpforge")
 def cli() -> None:
     """mcpforge — Generate FastMCP 3.x MCP servers from plain-English descriptions."""
+
+
+@cli.group("contracts")
+def contracts_cli() -> None:
+    """Generate and verify shared pagination and failure contracts."""
+
+
+@contracts_cli.command("pagination-docs")
+@click.option(
+    "--path",
+    "output_dir",
+    type=click.Path(path_type=Path),
+    default=Path("docs/pagination"),
+    show_default=True,
+)
+@click.option("--check", "check_only", is_flag=True, help="Check committed docs without writing.")
+def pagination_docs_command(output_dir: Path, check_only: bool) -> None:
+    """Generate or check pagination documentation."""
+    from mcpforge.pagination.docs_gen import render_docs, write_docs
+
+    out = output_dir
+    expected = render_docs()
+    if check_only:
+        mismatches = [
+            name
+            for name, content in expected.items()
+            if not (out / name).is_file() or (out / name).read_text(encoding="utf-8") != content
+        ]
+        if mismatches:
+            raise click.ClickException(f"pagination docs differ: {', '.join(mismatches)}")
+        click.echo(f"pagination docs match ({len(expected)} files)")
+        return
+    write_docs(out)
+    click.echo(f"wrote pagination docs to {out}")
+
+
+@contracts_cli.command("failure-docs")
+@click.option(
+    "--path",
+    "target",
+    type=click.Path(path_type=Path),
+    default=Path("docs/FAILURE-SEMANTICS.md"),
+    show_default=True,
+)
+@click.option("--check", "check_only", is_flag=True, help="Check committed docs without writing.")
+def failure_docs_command(target: Path, check_only: bool) -> None:
+    """Generate or check the failure semantics documentation examples."""
+    from mcpforge.failure.docs import failure_docs_template, replace_marked_examples
+
+    if check_only and not target.is_file():
+        raise click.ClickException(f"failure docs not found: {target}")
+    current = target.read_text(encoding="utf-8") if target.exists() else failure_docs_template()
+    expected = replace_marked_examples(current)
+    if check_only:
+        if current != expected:
+            raise click.ClickException("failure docs differ; run mcpforge contracts failure-docs")
+        click.echo("failure docs match")
+        return
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(expected, encoding="utf-8")
+    click.echo(f"wrote failure docs to {target}")
+
+
+@contracts_cli.command("fixtures")
+@click.option("--json", "json_output", is_flag=True, help="Print machine-readable summary.")
+def contracts_fixtures_command(json_output: bool) -> None:
+    """Run every pagination and upstream failure fixture across runtimes."""
+    import tempfile
+
+    from mcpforge.failure.fixtures import SERVER_TYPES, assert_expected, load_upstreams, run_fixture
+    from mcpforge.pagination.datasets import load_datasets
+    from mcpforge.pagination.harness import MutatingUpstream
+    from mcpforge.pagination.traverse import traverse
+
+    pagination_ok = 0
+    pagination_errors: list[str] = []
+    for dataset in load_datasets():
+        try:
+            source = MutatingUpstream(dataset.items, dataset.mutations)
+            result = traverse(
+                source.adapter(dataset.pattern, dataset.page_size),
+                FailureContract(retryable=True, partial_result_allowed=True),
+                100,
+            )
+            actual = result.outcome
+            ids = [item["id"] for item in result.items]
+            keys = [(item["order"], item["id"]) for item in result.items]
+            if len(ids) != len(set(ids)) or keys != sorted(keys):
+                raise AssertionError("accepted items are not ordered and unique")
+            if dataset.expect == "complete":
+                if actual.status != "complete" or actual.failure is not None:
+                    raise AssertionError(f"expected complete, got {actual.model_dump(mode='json')}")
+                required_ids = {item["id"] for item in dataset.items} & {
+                    item["id"] for item in source.items
+                }
+                if not required_ids <= set(ids):
+                    missing_ids = sorted(required_ids - set(ids))
+                    raise AssertionError(f"stable traversal omitted ids {missing_ids}")
+            elif (
+                actual.status != dataset.expect.status or actual.failure.kind != dataset.expect.kind
+            ):
+                raise AssertionError(
+                    f"expected {dataset.expect}, got {actual.model_dump(mode='json')}"
+                )
+            pagination_ok += 1
+        except Exception as exc:
+            pagination_errors.append(f"{dataset.id}: {exc}")
+
+    upstreams = load_upstreams()
+    failure_total = len(upstreams) * len(SERVER_TYPES)
+    failure_ok = 0
+    failure_errors: list[str] = []
+    with tempfile.TemporaryDirectory(prefix="mcpforge-contract-fixtures-") as temp:
+        for server_type in SERVER_TYPES:
+            for upstream in upstreams:
+                try:
+                    actual = run_fixture(server_type, upstream, Path(temp) / server_type)
+                    assert_expected(upstream, actual)
+                    failure_ok += 1
+                except Exception as exc:
+                    failure_errors.append(f"{upstream['name']} ({server_type}): {exc}")
+
+    summary = {
+        "pagination": {"matched": pagination_ok, "total": len(load_datasets())},
+        "failure": {
+            "matched": failure_ok,
+            "total": failure_total,
+            "server_types": list(SERVER_TYPES),
+        },
+    }
+    if json_output:
+        _print_json(summary)
+    else:
+        click.echo(f"pagination: {pagination_ok}/{summary['pagination']['total']} match")
+        click.echo(
+            f"failure: {len(upstreams)}/{len(upstreams)} x {len(SERVER_TYPES)} server types match"
+            if failure_ok == failure_total
+            else f"failure: {failure_ok}/{failure_total} match"
+        )
+    errors = pagination_errors + failure_errors
+    if errors:
+        for error in errors:
+            click.echo(error, err=True)
+        raise click.exceptions.Exit(1)
 
 
 @cli.command()

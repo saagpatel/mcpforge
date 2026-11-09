@@ -149,6 +149,17 @@ Workspace paths are resolved against `MCPFORGE_WORKSPACE` and confined to it. No
 - **Scaffold without an LLM** — `mcpforge init` creates a minimal FastMCP server skeleton for local iteration
 - **MCP server mode** — `mcpforge-server` exposes generation, planning, validation, inspection, doctor, and discovery tools so AI assistants can build safely
 
+## Pagination contracts and failure semantics
+
+The [pagination contract docs](docs/pagination/README.md) describe adapter behavior,
+protocol-level list pagination, and observed traversal outcomes. Pagination
+incompleteness follows the shared [failure contract](docs/FAILURE-SEMANTICS.md).
+Run `mcpforge contracts fixtures` to compare all pagination and upstream failure
+fixtures across the supported runtimes. Regenerate or check the examples in the
+docs with `mcpforge contracts pagination-docs [--path DIR] [--check]` and
+`mcpforge contracts failure-docs [--path FILE] [--check]`. Paths default to
+`docs/pagination` and `docs/FAILURE-SEMANTICS.md` under the current directory.
+
 ## More commands
 
 The PyPI distribution is `fastmcp-builder`; the installed commands are `mcpforge` and `mcpforge-server`. Beyond `generate`:
