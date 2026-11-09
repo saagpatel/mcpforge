@@ -159,9 +159,10 @@ fixtures across the supported runtimes. Regenerate or check the examples in the
 docs with `mcpforge contracts pagination-docs [--path DIR] [--check]` and
 `mcpforge contracts failure-docs [--path FILE] [--check]`. Paths default to
 `docs/pagination` and `docs/FAILURE-SEMANTICS.md` under the current directory.
-The installable [cursor example](examples/pagination/cursor-server/) demonstrates
-pagination over stdio. Generate cursor, offset, or page-token projects with
-`mcpforge contracts pagination-example PATTERN --output DIR`.
+Installable example servers for each pattern ([cursor](examples/pagination/cursor-server/),
+[offset](examples/pagination/offset-server/),
+[page-token](examples/pagination/page_token-server/)) demonstrate pagination over
+stdio. Generate your own with `mcpforge contracts pagination-example PATTERN --output DIR`.
 
 ## More commands
 
