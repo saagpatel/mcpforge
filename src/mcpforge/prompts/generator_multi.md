@@ -47,6 +47,10 @@ Return a JSON object where keys are relative file paths and values are complete 
 - Never pass MCP client bearer tokens through to downstream APIs
 - Return ONLY the JSON object — no markdown fences, no explanation
 
+## Upstream Failure Outcomes
+
+Only if at least one tool in the plan has a non-null `failure_contract` or `pagination`, apply these instructions: for every tool that calls an upstream service, import the vendored `failure_runtime.py` and call `await call_operation(operation, contract, timeout_s, response_schema=None)`. The operation is a zero-argument async callable returning one value or an async iterator yielding items; provide a schema for each value when available. For TypeScript, use `callOperation(operation, contract, timeoutMs, responseSchema = {}, options = {})`; an async function receives an AbortSignal, or operation may be an async iterable, and `options.signal` cancels the call. Cancellation propagates to the caller. Return the normalized outcome envelope (`status`, `failure`, and `items`). Use each tool's effective contract from `failure_contracts.json`; do not return raw upstream responses or invent failure kinds. Otherwise, do not import or depend on these artifacts.
+
 ## Example server.py structure
 
 ```python

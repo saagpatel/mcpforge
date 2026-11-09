@@ -1,0 +1,109 @@
+# Failure semantics
+
+Python generation opts into these semantics when at least one tool declares a
+non-null `failure_contract` or `pagination`. The writer then includes
+`failure_runtime.py` and `failure_contracts.json`, with an explicit or derived
+default contract for every tool. Plans without either field retain the legacy
+artifact set. OpenAPI-derived pagination opts in automatically.
+
+mcpforge uses the vocabulary in `mcpforge.contracts`: `timeout`, `malformed`,
+`cancelled`, `upstream_error`, `cursor_expired`, and `page_shifted`. A
+`FailureContract` records whether the tool may be retried and whether partial
+results may be returned. Every failure is resolved by the same outcome rules.
+
+| Condition | `retryable` | `partial_result` | `status` |
+|---|---|---|---|
+| Failure kind is transient and contract allows retry | true | determined below | determined below |
+| `have_partial` and contract allows partial results, except cancellation | contract and kind | true | `incomplete` |
+| All other failures | contract and kind | false | `failed` |
+| No failure occurred | — | — | `complete` |
+
+Only `timeout`, `upstream_error`, `cursor_expired`, and `page_shifted` are
+transient. `malformed` and `cancelled` are never retryable. Cancellation never
+returns partial data: the cancelled request has no MCP response. Pagination's
+`cursor_expired` and `page_shifted` are failure kinds governed by the same
+contract and resolver.
+
+TypeScript operation calls wait for iterator shutdown before returning a timeout
+or propagating cancellation. `RuntimeOptions.cleanupTimeoutMs` bounds this wait
+(default: 1000 ms), including a factory that has not yet returned its iterable.
+If the budget expires, failure detail includes `cleanup_timed_out`; the runtime
+still attempts to close any late iterable and observes late cleanup errors.
+The budget cannot force an uncooperative JavaScript operation to stop.
+
+The examples below are generated from the packaged synthetic upstream fixtures
+and the Python runtime. Regenerate them with
+`python -c 'from mcpforge.failure.docs import regenerate_failure_docs; regenerate_failure_docs()'`.
+
+## Timeout before the first item
+
+<!-- failure-example:timeout_before_first:start -->
+```json
+{
+  "failure": {
+    "detail": "upstream timed out",
+    "kind": "timeout",
+    "partial_result": false,
+    "retryable": true
+  },
+  "items": [],
+  "status": "failed"
+}
+```
+<!-- failure-example:timeout_before_first:end -->
+
+## Malformed upstream response
+
+<!-- failure-example:malformed_invalid_json:start -->
+```json
+{
+  "failure": {
+    "detail": "upstream returned malformed data",
+    "kind": "malformed",
+    "partial_result": false,
+    "retryable": false
+  },
+  "items": [],
+  "status": "failed"
+}
+```
+<!-- failure-example:malformed_invalid_json:end -->
+
+## Cancellation before data
+
+<!-- failure-example:cancellation_before_data:start -->
+```json
+{
+  "failure": {
+    "detail": "upstream cancelled",
+    "kind": "cancelled",
+    "partial_result": false,
+    "retryable": false
+  },
+  "items": [],
+  "status": "failed"
+}
+```
+<!-- failure-example:cancellation_before_data:end -->
+
+## Partial result followed by timeout
+
+<!-- failure-example:timeout_after_partial:start -->
+```json
+{
+  "failure": {
+    "detail": "upstream timed out",
+    "kind": "timeout",
+    "partial_result": true,
+    "retryable": true
+  },
+  "items": [
+    {
+      "id": 1,
+      "value": "ok"
+    }
+  ],
+  "status": "incomplete"
+}
+```
+<!-- failure-example:timeout_after_partial:end -->

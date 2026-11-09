@@ -119,6 +119,10 @@ if __name__ == "__main__":
     `RateLimitingMiddleware` with values read from env vars. Attach middleware
     through `FastMCP(..., middleware=[...])` so local and HTTP runs behave the same.
 
+## Upstream Failure Outcomes
+
+Only if at least one tool in the plan has a non-null `failure_contract` or `pagination`, apply these instructions: for every tool that calls an upstream service, import the vendored `failure_runtime.py` and call `await call_operation(operation, contract, timeout_s, response_schema=None)`. The operation is a zero-argument async callable returning one value or an async iterator yielding items; provide a schema for each value when available. For TypeScript, use `callOperation(operation, contract, timeoutMs, responseSchema = {}, options = {})`; an async function receives an AbortSignal, or operation may be an async iterable, and `options.signal` cancels the call. Cancellation propagates to the caller. Return the normalized outcome envelope (`status`, `failure`, and `items`). Use each tool's effective contract from `failure_contracts.json`; do not return raw upstream responses or invent failure kinds. Otherwise, do not import or depend on these artifacts.
+
 ## Full Example
 
 Plan input: {"name": "Todo Manager", "transport": "streamable-http", "tools": [...]}

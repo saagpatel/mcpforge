@@ -4,7 +4,9 @@ import json
 
 import pytest
 
+from mcpforge.contracts import FailureContract, default_contract
 from mcpforge.models import PromptDef, ResourceDef, ServerPlan, ToolDef, ToolParam
+from mcpforge.openapi import parse_openapi
 from mcpforge.writer import _validate_rel_path, write_server, write_server_multi, write_server_ts
 
 
@@ -25,6 +27,72 @@ def _sample_plan(**kwargs) -> ServerPlan:
         "external_packages": [],
     }
     return ServerPlan(**{**defaults, **kwargs})
+
+
+@pytest.mark.parametrize("multi", [False, True])
+def test_failure_artifacts_are_opt_in(tmp_path, multi):
+    def write(plan, out):
+        if multi:
+            write_server_multi(plan, {"server.py": "server code"}, "test code", out)
+        else:
+            write_server(plan, "server code", "test code", out)
+
+    legacy = tmp_path / "legacy"
+    write(_sample_plan(), legacy)
+    assert {path.name for path in legacy.iterdir()} == {
+        "server.py",
+        "test_server.py",
+        "pyproject.toml",
+        "README.md",
+        "config.json",
+        ".env.example",
+        "fastmcp.json",
+    }
+
+    explicit = ToolDef(
+        name="explicit",
+        description="Explicit",
+        params=[],
+        failure_contract=FailureContract(retryable=True, partial_result_allowed=False),
+    )
+    derived = ToolDef(name="derived", description="Derived", params=[], read_only_hint=True)
+    opted_in = tmp_path / "opted-in"
+    write(_sample_plan(tools=[explicit, derived]), opted_in)
+    assert (opted_in / "failure_runtime.py").is_file()
+    assert json.loads((opted_in / "failure_contracts.json").read_text()) == {
+        "explicit": explicit.failure_contract.model_dump(),
+        "derived": default_contract(derived).model_dump(),
+    }
+
+
+@pytest.mark.parametrize("multi", [False, True])
+def test_openapi_pagination_opts_into_failure_artifacts(tmp_path, multi):
+    plan = parse_openapi(
+        {
+            "openapi": "3.0.0",
+            "info": {"title": "Paged API", "version": "1.0"},
+            "paths": {
+                "/items": {
+                    "get": {
+                        "operationId": "list_items",
+                        "parameters": [
+                            {"name": "cursor", "in": "query", "schema": {"type": "string"}}
+                        ],
+                        "responses": {"200": {"description": "ok"}},
+                    }
+                }
+            },
+        }
+    )
+    assert plan.tools[0].pagination is not None
+    if multi:
+        write_server_multi(plan, {"server.py": "server code"}, "test code", tmp_path)
+    else:
+        write_server(plan, "server code", "test code", tmp_path)
+    assert (tmp_path / "failure_runtime.py").is_file()
+    assert json.loads((tmp_path / "failure_contracts.json").read_text()) == {
+        plan.tools[0].name: default_contract(plan.tools[0]).model_dump()
+    }
 
 
 class TestWriteServer:

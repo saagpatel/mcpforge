@@ -1,0 +1,39 @@
+{
+  "name": "malformed_invalid_json",
+  "mode": "malformed",
+  "response_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "required": [
+      "id",
+      "value"
+    ],
+    "properties": {
+      "id": {
+        "type": "integer"
+      },
+      "value": {
+        "type": "string"
+      }
+    }
+  },
+  "script": [
+    {
+      "emit_raw": "not-json"
+    }
+  ],
+  "contract": {
+    "retryable": true,
+    "partial_result_allowed": false
+  },
+  "expect": {
+    "status": "failed",
+    "failure": {
+      "kind": "malformed",
+      "retryable": false,
+      "partial_result": false,
+      "detail": "upstream returned malformed data"
+    },
+    "items": []
+  }
+}

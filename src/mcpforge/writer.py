@@ -1,6 +1,7 @@
 """Writer: renders Jinja2 templates and writes the generated server to disk."""
 
 import importlib.resources
+import json
 import os
 import re
 from pathlib import Path
@@ -8,6 +9,8 @@ from pathlib import Path
 from jinja2 import BaseLoader
 from jinja2.sandbox import SandboxedEnvironment
 
+from mcpforge.contracts import default_contract
+from mcpforge.failure import plan_declares_contracts
 from mcpforge.models import ServerPlan
 
 _JINJA_SYNTAX_RE = re.compile(r"\{\{.*?\}\}|\{%.*?%\}")
@@ -92,6 +95,21 @@ def _load_template(name: str) -> str:
     )
 
 
+def _write_failure_artifacts(plan: ServerPlan, output_dir: Path) -> None:
+    """Write effective per-tool contracts and the standalone Python runtime."""
+    contracts = {
+        tool.name: (tool.failure_contract or default_contract(tool)).model_dump()
+        for tool in plan.tools
+    }
+    (output_dir / "failure_contracts.json").write_text(
+        json.dumps(contracts, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    runtime_path = importlib.resources.files("mcpforge").joinpath("failure", "runtime_py.py")
+    (output_dir / "failure_runtime.py").write_text(
+        runtime_path.read_text(encoding="utf-8"), encoding="utf-8"
+    )
+
+
 def write_server(
     plan: ServerPlan,
     server_code: str,
@@ -120,6 +138,8 @@ def write_server(
 
     (output_dir / "server.py").write_text(server_code, encoding="utf-8")
     (output_dir / "test_server.py").write_text(test_code, encoding="utf-8")
+    if plan_declares_contracts(plan):
+        _write_failure_artifacts(plan, output_dir)
 
     for tmpl_name, out_name in [
         ("pyproject.toml.j2", "pyproject.toml"),
@@ -162,6 +182,8 @@ def write_server_multi(
 
     # Write test file
     (output_dir / "test_server.py").write_text(test_code, encoding="utf-8")
+    if plan_declares_contracts(plan):
+        _write_failure_artifacts(plan, output_dir)
 
     # Render standard scaffolding templates
     _validate_template_context(plan)
