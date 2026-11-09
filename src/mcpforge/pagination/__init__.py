@@ -2,6 +2,7 @@
 
 from mcpforge.pagination.adapter import AdapterDefinition, Page, PaginationAdapter, PaginationError
 from mcpforge.pagination.cursor_codec import CursorCodec, InvalidCursorError
+from mcpforge.pagination.history import TraversalHistory
 from mcpforge.pagination.patterns import CursorAdapter, OffsetAdapter, PageTokenAdapter
 from mcpforge.pagination.traverse import TraversalResult, traverse
 
@@ -15,6 +16,7 @@ __all__ = [
     "PageTokenAdapter",
     "PaginationAdapter",
     "PaginationError",
+    "TraversalHistory",
     "TraversalResult",
     "traverse",
 ]

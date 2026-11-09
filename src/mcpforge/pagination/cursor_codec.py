@@ -7,6 +7,8 @@ import hmac
 import json
 from typing import Any
 
+from mcpforge.pagination.history import TraversalHistory
+
 
 class InvalidCursorError(ValueError):
     """An invalid client cursor maps to JSON-RPC Invalid params."""
@@ -22,14 +24,17 @@ class CursorCodec:
 
     Clients must neither interpret cursors nor persist them across sessions.
     Authentication does not hide sensitive state; do not put secrets in cursors.
+    Retain this codec or explicitly share its history across resumed calls;
+    reconstructing only the signing key does not restore traversal history.
     """
 
     version = 1
 
-    def __init__(self, key: bytes):
+    def __init__(self, key: bytes, *, history: TraversalHistory | None = None):
         if not isinstance(key, bytes) or not key:
             raise ValueError("a nonempty bytes signing key is required")
         self._key = key
+        self.history = history if history is not None else TraversalHistory()
 
     @staticmethod
     def _encode(value: bytes) -> str:
