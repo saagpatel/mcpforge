@@ -112,6 +112,26 @@ def test_adapter_patterns_float_order_keys_survive_cursor_round_trip():
     assert first.items + traverse(resumed, CONTRACT, 10).items == source.items
 
 
+@pytest.mark.parametrize("page_size", [1, 2])
+def test_adapter_cursor_rejects_duplicate_at_keyset_boundary(page_size):
+    source = MutatingUpstream([{"id": 1, "order": 1}, {"id": 1, "order": 1}])
+    result = traverse(source.adapter("cursor", page_size), CONTRACT, 10)
+    assert result.outcome.status == "failed"
+    assert result.outcome.failure.kind == "page_shifted"
+    assert result.items == []
+
+
+def test_adapter_cursor_validates_lookahead_without_emitting_it():
+    source = MutatingUpstream(ROWS[:3])
+    adapter = source.adapter("cursor", 2)
+    page = adapter.fetch_page(adapter.initial_state)
+    assert source.requests[0]["limit"] == 3
+    assert page.items == ROWS[:2]
+    assert page.continuation["after"] == [1, 1]
+    resumed = source.adapter("cursor", 2, resume_cursor=page.to_mcp(adapter)["nextCursor"])
+    assert traverse(resumed, CONTRACT, 10).items == ROWS[2:3]
+
+
 @pytest.mark.parametrize("pattern", ["cursor", "offset", "page_token"])
 def test_adapter_patterns_support_custom_identity_and_order_keys(pattern):
     rows = [{"uid": str(n), "rank": n // 2} for n in range(8)]

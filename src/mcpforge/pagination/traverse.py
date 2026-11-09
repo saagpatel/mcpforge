@@ -34,9 +34,10 @@ def traverse(
         raise ValueError("max_pages must be a positive integer")
     items: list[Item] = []
     seen: set[Any] = set()
-    previous: tuple[Any, Any] | None = None
     pages = 0
     state: State = adapter.initial_state
+    boundary = state.get("boundary")
+    previous: tuple[Any, Any] | None = tuple(boundary) if boundary is not None else None
 
     def failure(exc: PaginationError) -> TraversalResult:
         resume_state = exc.resume_state

@@ -3,8 +3,12 @@
 import pytest
 
 from mcpforge.contracts import FailureContract
-from mcpforge.pagination import traverse
+from mcpforge.pagination import CursorCodec, traverse
 from mcpforge.pagination.harness import MutatingUpstream
+from mcpforge.pagination.patterns import CursorAdapter, OffsetAdapter, PageTokenAdapter
+from mcpforge.pagination.patterns.cursor import CursorBatch
+from mcpforge.pagination.patterns.offset import OffsetBatch
+from mcpforge.pagination.patterns.page_token import TokenBatch
 
 ROWS = [{"id": n, "order": n} for n in range(9)]
 CONTRACT = FailureContract(retryable=True, partial_result_allowed=True)
@@ -22,6 +26,44 @@ def test_incomplete_budget_has_resume_cursor_and_no_silent_truncation(pattern):
     rest = traverse(source.adapter(pattern, 3, resume_cursor=first.resume_cursor), CONTRACT, 10)
     assert rest.outcome.status == "complete"
     assert first.items + rest.items == ROWS
+
+
+class BoundaryViolationSource:
+    """Return a bad second page even when the adapter requests a strict boundary."""
+
+    def __init__(self, item):
+        self.item = item
+
+    def fetch_cursor(self, after, limit, generation):
+        return CursorBatch([self.item] if after else ROWS[:2], after is None, 0)
+
+    def fetch_offset(self, offset, limit):
+        return OffsetBatch([ROWS[1], self.item] if offset else ROWS[:2], offset == 0)
+
+    def fetch_token(self, token, limit):
+        return TokenBatch([self.item] if token else ROWS[:2], None if token else "next", 0)
+
+
+@pytest.mark.parametrize("cls", [CursorAdapter, OffsetAdapter, PageTokenAdapter])
+@pytest.mark.parametrize(
+    "item", [{"id": 1, "order": 1}, {"id": 2, "order": 0}], ids=["duplicate", "regression"]
+)
+def test_incomplete_resume_rejects_boundary_violations(cls, item):
+    source = BoundaryViolationSource(item)
+    codec = CursorCodec(b"resume-boundary-test")
+    first = traverse(cls(source, codec=codec, page_size=2, order_key="order"), CONTRACT, 1)
+    assert first.outcome.status == "incomplete"
+    assert first.items == ROWS[:2]
+    assert first.resume_cursor
+    assert codec.decode(first.resume_cursor)["position"]["boundary"] == [1, 1]
+    resumed = traverse(
+        cls(source, codec=codec, page_size=2, order_key="order", resume_cursor=first.resume_cursor),
+        CONTRACT,
+        10,
+    )
+    assert resumed.outcome.status == "failed"
+    assert resumed.outcome.failure.kind == "page_shifted"
+    assert resumed.items == []
 
 
 @pytest.mark.parametrize("pattern", ["cursor", "page_token"])

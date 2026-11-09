@@ -3,11 +3,12 @@
 from dataclasses import dataclass
 from typing import Any, Protocol, Self
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import Field, model_validator
 
 from mcpforge.pagination.adapter import (
     AdapterBase,
     AdapterDefinition,
+    AdapterState,
     Item,
     Page,
     PaginationError,
@@ -16,8 +17,7 @@ from mcpforge.pagination.adapter import (
 from mcpforge.pagination.cursor_codec import InvalidCursorError
 
 
-class OffsetState(BaseModel):
-    model_config = ConfigDict(extra="forbid", strict=True)
+class OffsetState(AdapterState):
     offset: int = Field(default=0, ge=0)
     last_item: Item | None = None
 
@@ -42,7 +42,11 @@ class OffsetAdapter(AdapterBase):
     definition = AdapterDefinition(
         pattern="offset",
         cursor_validity_rule="Authenticated session cursor with an unchanged overlap boundary.",
-        ordering_guarantee="Ascending immutable (order_key, id_key), verified on every page.",
+        ordering_guarantee=(
+            "Strict total order on immutable, comparable (order_key, id_key), with unique ids. "
+            "The last accepted pair detects duplicates and regressions across resumes "
+            "without unbounded history."
+        ),
         resume_behaviour="Restart traversal if the overlap boundary cannot be found.",
         incompleteness_detection=(
             "Fetch offset-1 with limit+1; locate the unchanged last item and discard overlap. "
@@ -80,6 +84,8 @@ class OffsetAdapter(AdapterBase):
                 raise PaginationError("page_shifted", "offset boundary cannot be safely located")
             anchor = matches[0]
             items = items[anchor + 1 :]
+        boundary = tuple(state["boundary"]) if state["boundary"] is not None else None
+        self.validate_items(items, boundary)
         if batch.has_more and not items:
             # A boundary at the end advances the physical offset without emitting items.
             if not overlap or matches[0] != len(batch.items) - 1:
@@ -89,5 +95,6 @@ class OffsetAdapter(AdapterBase):
             continuation = {
                 "offset": start + len(batch.items),
                 "last_item": items[-1] if items else state["last_item"],
+                "boundary": list(self.item_key(items[-1])) if items else state["boundary"],
             }
         return Page(items, continuation)

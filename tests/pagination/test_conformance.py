@@ -100,3 +100,19 @@ def test_conformance_signed_but_invalid_adapter_state(pattern, position):
     with pytest.raises(InvalidCursorError) as raised:
         MutatingUpstream([]).adapter(pattern, 2, resume_cursor=cursor)
     assert raised.value.code == -32602
+
+
+@pytest.mark.parametrize("pattern", ["cursor", "offset", "page_token"])
+@pytest.mark.parametrize("boundary", [[1], [1, 2, 3], [True, 1], [{}, 1], [None, 1]])
+def test_conformance_invalid_resume_boundary_maps_to_invalid_params(pattern, boundary):
+    codec = CursorCodec(DEMO_KEY)
+    cursor = codec.encode(
+        {
+            "pattern": pattern,
+            "configuration": [2, "id", "order"],
+            "position": {"boundary": boundary},
+        }
+    )
+    with pytest.raises(InvalidCursorError) as raised:
+        MutatingUpstream([]).adapter(pattern, 2, resume_cursor=cursor)
+    assert raised.value.code == -32602

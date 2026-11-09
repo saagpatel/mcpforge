@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from math import isfinite
 from typing import Any, Literal, Protocol
 
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from mcpforge.pagination.cursor_codec import CursorCodec, InvalidCursorError
 
@@ -12,6 +12,13 @@ Pattern = Literal["cursor", "offset", "page_token"]
 PaginationKind = Literal["cursor_expired", "page_shifted"]
 Item = dict[str, Any]
 State = dict[str, Any]
+
+
+class AdapterState(BaseModel):
+    """Bounded validation history, authenticated with the upstream position."""
+
+    model_config = ConfigDict(extra="forbid", strict=True, allow_inf_nan=False)
+    boundary: list[int | float | str] | None = Field(default=None, min_length=2, max_length=2)
 
 
 class AdapterDefinition(BaseModel):
