@@ -1,0 +1,13 @@
+{
+  "id": "31-offset-single-page",
+  "pattern": "offset",
+  "items": [
+    {
+      "id": 1,
+      "order": 1
+    }
+  ],
+  "page_size": 3,
+  "mutations": [],
+  "expect": "complete"
+}

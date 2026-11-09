@@ -1,0 +1,8 @@
+{
+  "id": "35-page_token-empty",
+  "pattern": "page_token",
+  "items": [],
+  "page_size": 3,
+  "mutations": [],
+  "expect": "complete"
+}

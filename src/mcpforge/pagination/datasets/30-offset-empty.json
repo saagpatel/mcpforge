@@ -1,0 +1,8 @@
+{
+  "id": "30-offset-empty",
+  "pattern": "offset",
+  "items": [],
+  "page_size": 3,
+  "mutations": [],
+  "expect": "complete"
+}
