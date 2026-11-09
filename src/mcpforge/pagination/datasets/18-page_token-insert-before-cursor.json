@@ -1,0 +1,50 @@
+{
+  "id": "18-page_token-insert-before-cursor",
+  "pattern": "page_token",
+  "items": [
+    {
+      "id": 10,
+      "order": 10
+    },
+    {
+      "id": 20,
+      "order": 20
+    },
+    {
+      "id": 30,
+      "order": 30
+    },
+    {
+      "id": 40,
+      "order": 40
+    },
+    {
+      "id": 50,
+      "order": 50
+    },
+    {
+      "id": 60,
+      "order": 60
+    },
+    {
+      "id": 70,
+      "order": 70
+    },
+    {
+      "id": 80,
+      "order": 80
+    }
+  ],
+  "page_size": 3,
+  "mutations": [
+    {
+      "after_page": 1,
+      "op": "insert",
+      "item": {
+        "id": 15,
+        "order": 15
+      }
+    }
+  ],
+  "expect": "complete"
+}

@@ -1,0 +1,45 @@
+{
+  "id": "29-cursor-tied-order-keys",
+  "pattern": "cursor",
+  "items": [
+    {
+      "id": 0,
+      "order": 0
+    },
+    {
+      "id": 1,
+      "order": 0
+    },
+    {
+      "id": 2,
+      "order": 0
+    },
+    {
+      "id": 3,
+      "order": 1
+    },
+    {
+      "id": 4,
+      "order": 1
+    },
+    {
+      "id": 5,
+      "order": 1
+    },
+    {
+      "id": 6,
+      "order": 2
+    },
+    {
+      "id": 7,
+      "order": 2
+    },
+    {
+      "id": 8,
+      "order": 2
+    }
+  ],
+  "page_size": 2,
+  "mutations": [],
+  "expect": "complete"
+}

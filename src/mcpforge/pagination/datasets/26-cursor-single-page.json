@@ -1,0 +1,13 @@
+{
+  "id": "26-cursor-single-page",
+  "pattern": "cursor",
+  "items": [
+    {
+      "id": 1,
+      "order": 1
+    }
+  ],
+  "page_size": 3,
+  "mutations": [],
+  "expect": "complete"
+}

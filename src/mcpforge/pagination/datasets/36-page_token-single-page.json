@@ -1,0 +1,13 @@
+{
+  "id": "36-page_token-single-page",
+  "pattern": "page_token",
+  "items": [
+    {
+      "id": 1,
+      "order": 1
+    }
+  ],
+  "page_size": 3,
+  "mutations": [],
+  "expect": "complete"
+}

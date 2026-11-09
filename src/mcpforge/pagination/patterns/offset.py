@@ -1,0 +1,104 @@
+"""Offset pagination with an overlap boundary and conservative re-anchoring."""
+
+from dataclasses import dataclass
+from typing import Any, Protocol, Self
+
+from pydantic import Field, model_validator
+
+from mcpforge.pagination.adapter import (
+    HISTORY_RULE,
+    AdapterBase,
+    AdapterDefinition,
+    AdapterState,
+    Item,
+    Page,
+    PaginationError,
+    State,
+)
+from mcpforge.pagination.cursor_codec import InvalidCursorError
+
+
+class OffsetState(AdapterState):
+    offset: int = Field(default=0, ge=0)
+    last_item: Item | None = None
+
+    @model_validator(mode="after")
+    def boundary_required(self) -> Self:
+        if (self.offset == 0) != (self.last_item is None):
+            raise ValueError("nonzero offsets require a boundary item")
+        return self
+
+
+@dataclass
+class OffsetBatch:
+    items: list[Item]
+    has_more: bool
+
+
+class OffsetSource(Protocol):
+    def fetch_offset(self, offset: int, limit: int) -> OffsetBatch: ...
+
+
+class OffsetAdapter(AdapterBase):
+    definition = AdapterDefinition(
+        pattern="offset",
+        cursor_validity_rule=(
+            "Authenticated session cursor bound to collection, query, configuration and traversal "
+            "with an unchanged overlap boundary."
+        ),
+        ordering_guarantee=(
+            "Strict total order on immutable, comparable (order_key, id_key), with unique ids. "
+            "The last accepted pair detects regressions; session history detects repeated ids."
+        ),
+        resume_behaviour="Restart traversal if the overlap boundary cannot be found.",
+        incompleteness_detection=(
+            "Fetch offset-1 with limit+1; locate the unchanged last item and discard overlap. "
+            "Missing or changed boundary, duplicate ids, or order regression means page_shifted. "
+            + HISTORY_RULE
+        ),
+    )
+    state_model = OffsetState
+
+    def __init__(self, source: OffsetSource, **kwargs: Any):
+        super().__init__(**kwargs)
+        self.source = source
+
+    def validate_state(self, state: State) -> State:
+        state = super().validate_state(state)
+        if state["last_item"] is not None:
+            try:
+                self.validate_items([state["last_item"]])
+            except PaginationError as exc:
+                raise InvalidCursorError("invalid offset boundary item") from exc
+        return state
+
+    def _fetch_page(self, state: State) -> Page:
+        state = self.validate_state(state)
+        overlap = state["last_item"] is not None
+        start = state["offset"] - int(overlap)
+        batch = self.source.fetch_offset(start, self.page_size + int(overlap))
+        self.validate_items(batch.items)
+        items = batch.items
+        if overlap:
+            boundary = state["last_item"]
+            matches = [
+                i for i, item in enumerate(items) if item[self.id_key] == boundary[self.id_key]
+            ]
+            if len(matches) != 1 or items[matches[0]] != boundary:
+                raise PaginationError("page_shifted", "offset boundary cannot be safely located")
+            anchor = matches[0]
+            items = items[anchor + 1 :]
+        boundary = tuple(state["boundary"]) if state["boundary"] is not None else None
+        self.validate_items(items, boundary)
+        if batch.has_more and not items:
+            # A boundary at the end advances the physical offset without emitting items.
+            if not overlap or matches[0] != len(batch.items) - 1:
+                raise PaginationError("page_shifted", "empty offset page claims more items")
+        continuation = None
+        if batch.has_more:
+            continuation = {
+                "offset": start + len(batch.items),
+                "last_item": items[-1] if items else state["last_item"],
+                "boundary": list(self.item_key(items[-1])) if items else state["boundary"],
+            }
+        return Page(items, continuation)
