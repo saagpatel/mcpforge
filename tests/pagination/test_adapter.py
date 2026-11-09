@@ -20,7 +20,7 @@ ROWS = [{"id": n, "order": n} for n in range(8)]
 def test_adapter_declarative_definitions_are_single_source():
     assert {definition.pattern for definition in DEFINITIONS} == {"cursor", "offset", "page_token"}
     for cls in (CursorAdapter, OffsetAdapter, PageTokenAdapter):
-        adapter = cls(MutatingUpstream([]), codec=CursorCodec(b"demo"))
+        adapter = cls(MutatingUpstream([]), codec=CursorCodec(b"demo"), source_id="rows")
         assert adapter.pattern == adapter.definition.pattern
         assert adapter.definition in DEFINITIONS
         assert all(adapter.definition.model_dump().values())
@@ -97,7 +97,9 @@ class BadSource:
 )
 def test_adapter_incomplete_rejects_duplicates_and_regressions(cls, mode):
     result = traverse(
-        cls(BadSource(mode), codec=CursorCodec(b"demo"), order_key="order"), CONTRACT, 10
+        cls(BadSource(mode), codec=CursorCodec(b"demo"), source_id="rows", order_key="order"),
+        CONTRACT,
+        10,
     )
     assert result.outcome.status == "incomplete"
     assert result.outcome.failure.kind == "page_shifted"

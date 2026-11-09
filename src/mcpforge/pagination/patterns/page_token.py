@@ -6,6 +6,7 @@ from typing import Any, Protocol, Self
 from pydantic import model_validator
 
 from mcpforge.pagination.adapter import (
+    HISTORY_RULE,
     AdapterBase,
     AdapterDefinition,
     AdapterState,
@@ -42,14 +43,19 @@ class TokenSource(Protocol):
 class PageTokenAdapter(AdapterBase):
     definition = AdapterDefinition(
         pattern="page_token",
-        cursor_validity_rule="Session cursor; upstream token bound to snapshot version.",
+        cursor_validity_rule=(
+            "Authenticated session cursor bound to collection, query, configuration and traversal; "
+            "upstream token bound to snapshot version."
+        ),
         ordering_guarantee=(
             "Strict total snapshot order on immutable, comparable (order_key, id_key), "
-            "with unique ids. The last accepted pair detects duplicates and regressions "
-            "across resumes without unbounded history."
+            "with unique ids. The last accepted pair detects regressions; session history "
+            "detects repeated ids."
         ),
         resume_behaviour="Expiry/version change starts a NEW traversal; do not append to partials.",
-        incompleteness_detection="Expired token, version change, duplicates, or order regression.",
+        incompleteness_detection=(
+            "Expired token, version change, duplicates, or order regression. " + HISTORY_RULE
+        ),
     )
     state_model = TokenState
 
@@ -57,7 +63,7 @@ class PageTokenAdapter(AdapterBase):
         super().__init__(**kwargs)
         self.source = source
 
-    def fetch_page(self, state: State) -> Page:
+    def _fetch_page(self, state: State) -> Page:
         state = self.validate_state(state)
         try:
             batch = self.source.fetch_token(state["token"], self.page_size)

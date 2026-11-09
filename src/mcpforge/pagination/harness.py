@@ -1,7 +1,8 @@
-"""Deterministic mutating upstream; no network, clocks, sleeps, or randomness."""
+"""Deterministic upstream data and mutations; traversal ids are opaque and random."""
 
 from copy import deepcopy
 from typing import Any, Literal, Self
+from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -51,6 +52,8 @@ class MutatingUpstream:
     ):
         self.id_key = id_key
         self.order_key = order_key
+        self.source_id = uuid4().hex
+        self.codec = CursorCodec(DEMO_KEY)
         self._items = deepcopy(items)
         self._sort()
         self.mutations = [Mutation.model_validate(m) for m in mutations or []]
@@ -149,7 +152,8 @@ class MutatingUpstream:
         }[pattern]
         return adapter_class(
             self,
-            codec=codec or CursorCodec(DEMO_KEY),
+            codec=codec or self.codec,
+            source_id=self.source_id,
             page_size=page_size,
             id_key=self.id_key,
             order_key=self.order_key,

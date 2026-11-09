@@ -6,6 +6,7 @@ from typing import Any, Protocol
 from pydantic import Field
 
 from mcpforge.pagination.adapter import (
+    HISTORY_RULE,
     AdapterBase,
     AdapterDefinition,
     AdapterState,
@@ -38,14 +39,18 @@ class CursorSource(Protocol):
 class CursorAdapter(AdapterBase):
     definition = AdapterDefinition(
         pattern="cursor",
-        cursor_validity_rule="Authenticated session cursor; upstream generation must remain valid.",
+        cursor_validity_rule=(
+            "Authenticated session cursor bound to collection, query, configuration and traversal; "
+            "upstream generation must remain valid."
+        ),
         ordering_guarantee=(
             "Strict total order on immutable, comparable (order_key, id_key), with unique ids. "
-            "The last accepted pair detects duplicates and regressions across resumes "
-            "without unbounded history."
+            "The last accepted pair detects regressions; session history detects repeated ids."
         ),
         resume_behaviour="Resume after the last key in the current generation, even after expiry.",
-        incompleteness_detection="Expired generation, duplicate ids, or nonascending items.",
+        incompleteness_detection=(
+            "Expired generation, duplicate ids, or nonascending items. " + HISTORY_RULE
+        ),
     )
     state_model = CursorState
 
@@ -53,7 +58,7 @@ class CursorAdapter(AdapterBase):
         super().__init__(**kwargs)
         self.source = source
 
-    def fetch_page(self, state: State) -> Page:
+    def _fetch_page(self, state: State) -> Page:
         state = self.validate_state(state)
         after = tuple(state["after"]) if state["after"] is not None else None
         try:

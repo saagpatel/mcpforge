@@ -90,29 +90,24 @@ def test_conformance_cursor_is_bound_to_adapter_and_configuration():
     ],
 )
 def test_conformance_signed_but_invalid_adapter_state(pattern, position):
-    cursor = CursorCodec(DEMO_KEY).encode(
-        {
-            "pattern": pattern,
-            "configuration": [2, "id", "order"],
-            "position": position,
-        }
-    )
+    source = MutatingUpstream([])
+    adapter = source.adapter(pattern, 2)
+    envelope = adapter.codec.decode(adapter.encode_state(adapter.initial_state))
+    envelope["position"] = position
+    cursor = adapter.codec.encode(envelope)
     with pytest.raises(InvalidCursorError) as raised:
-        MutatingUpstream([]).adapter(pattern, 2, resume_cursor=cursor)
+        source.adapter(pattern, 2, resume_cursor=cursor)
     assert raised.value.code == -32602
 
 
 @pytest.mark.parametrize("pattern", ["cursor", "offset", "page_token"])
 @pytest.mark.parametrize("boundary", [[1], [1, 2, 3], [True, 1], [{}, 1], [None, 1]])
 def test_conformance_invalid_resume_boundary_maps_to_invalid_params(pattern, boundary):
-    codec = CursorCodec(DEMO_KEY)
-    cursor = codec.encode(
-        {
-            "pattern": pattern,
-            "configuration": [2, "id", "order"],
-            "position": {"boundary": boundary},
-        }
-    )
+    source = MutatingUpstream([])
+    adapter = source.adapter(pattern, 2)
+    envelope = adapter.codec.decode(adapter.encode_state(adapter.initial_state))
+    envelope["position"] = {"boundary": boundary}
+    cursor = adapter.codec.encode(envelope)
     with pytest.raises(InvalidCursorError) as raised:
-        MutatingUpstream([]).adapter(pattern, 2, resume_cursor=cursor)
+        source.adapter(pattern, 2, resume_cursor=cursor)
     assert raised.value.code == -32602

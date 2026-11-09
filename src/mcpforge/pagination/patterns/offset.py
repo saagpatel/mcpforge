@@ -6,6 +6,7 @@ from typing import Any, Protocol, Self
 from pydantic import Field, model_validator
 
 from mcpforge.pagination.adapter import (
+    HISTORY_RULE,
     AdapterBase,
     AdapterDefinition,
     AdapterState,
@@ -41,16 +42,19 @@ class OffsetSource(Protocol):
 class OffsetAdapter(AdapterBase):
     definition = AdapterDefinition(
         pattern="offset",
-        cursor_validity_rule="Authenticated session cursor with an unchanged overlap boundary.",
+        cursor_validity_rule=(
+            "Authenticated session cursor bound to collection, query, configuration and traversal "
+            "with an unchanged overlap boundary."
+        ),
         ordering_guarantee=(
             "Strict total order on immutable, comparable (order_key, id_key), with unique ids. "
-            "The last accepted pair detects duplicates and regressions across resumes "
-            "without unbounded history."
+            "The last accepted pair detects regressions; session history detects repeated ids."
         ),
         resume_behaviour="Restart traversal if the overlap boundary cannot be found.",
         incompleteness_detection=(
             "Fetch offset-1 with limit+1; locate the unchanged last item and discard overlap. "
-            "Missing or changed boundary, duplicate ids, or order regression means page_shifted."
+            "Missing or changed boundary, duplicate ids, or order regression means page_shifted. "
+            + HISTORY_RULE
         ),
     )
     state_model = OffsetState
@@ -68,7 +72,7 @@ class OffsetAdapter(AdapterBase):
                 raise InvalidCursorError("invalid offset boundary item") from exc
         return state
 
-    def fetch_page(self, state: State) -> Page:
+    def _fetch_page(self, state: State) -> Page:
         state = self.validate_state(state)
         overlap = state["last_item"] is not None
         start = state["offset"] - int(overlap)

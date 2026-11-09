@@ -51,13 +51,22 @@ class BoundaryViolationSource:
 def test_incomplete_resume_rejects_boundary_violations(cls, item):
     source = BoundaryViolationSource(item)
     codec = CursorCodec(b"resume-boundary-test")
-    first = traverse(cls(source, codec=codec, page_size=2, order_key="order"), CONTRACT, 1)
+    first = traverse(
+        cls(source, codec=codec, source_id="rows", page_size=2, order_key="order"), CONTRACT, 1
+    )
     assert first.outcome.status == "incomplete"
     assert first.items == ROWS[:2]
     assert first.resume_cursor
     assert codec.decode(first.resume_cursor)["position"]["boundary"] == [1, 1]
     resumed = traverse(
-        cls(source, codec=codec, page_size=2, order_key="order", resume_cursor=first.resume_cursor),
+        cls(
+            source,
+            codec=codec,
+            source_id="rows",
+            page_size=2,
+            order_key="order",
+            resume_cursor=first.resume_cursor,
+        ),
         CONTRACT,
         10,
     )
