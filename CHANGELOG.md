@@ -7,7 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Generated pagination contract documentation, self-contained installable example
+  servers, and credential-free fixture checks through the additive
+  `mcpforge contracts` command group.
+
+
 ### Fixed
+
+- Generated failure-aware tool results signal failed outcomes with `isError` and
+  preserve their structured envelope; incomplete outcomes remain normal results.
 
 - `mcpforge doctor --json` now exits 1 when prerequisite checks fail and 0 when
   they succeed, matching ordinary `doctor` while preserving the complete JSON report.
