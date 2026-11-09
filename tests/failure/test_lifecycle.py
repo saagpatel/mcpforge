@@ -136,17 +136,20 @@ async def python_case(mode, call=call_operation):
     )
 
 
-def typescript_case(mode, runtime=None):
+def typescript_case(mode, runtime=None, *, shutdown=False, exceed_budget=False, budget_ms=None):
     node = shutil.which("node")
     assert node is not None, "Node.js 22.6+ is required for lifecycle checks"
     runtime = runtime or ROOT / "src/mcpforge/failure/runtime_ts.ts"
     harness = ROOT / "tests/failure/lifecycle_cases.ts"
+    probe = "shutdownCase" if shutdown else "lifecycleCase"
+    budget = "undefined" if budget_ms is None else json.dumps(budget_ms)
+    arguments = f", {json.dumps(exceed_budget)}, {budget}" if shutdown else ""
     program = (
         f"import {{ callOperation }} from {json.dumps(runtime.as_uri())};\n"
-        f"import {{ lifecycleCase }} from {json.dumps(harness.as_uri())};\n"
+        f"import {{ {probe} }} from {json.dumps(harness.as_uri())};\n"
         "const unhandled = [];\n"
         "process.on('unhandledRejection', (error) => unhandled.push(String(error)));\n"
-        f"const result = await lifecycleCase(callOperation, {json.dumps(mode)});\n"
+        f"const result = await {probe}(callOperation, {json.dumps(mode)}{arguments});\n"
         "await new Promise((resolve) => setTimeout(resolve, 5));\n"
         "process.stdout.write(JSON.stringify({ ...result, unhandled }));\n"
     )
@@ -161,6 +164,52 @@ def typescript_case(mode, runtime=None):
     result = json.loads(completed.stdout)
     assert result.pop("unhandled") == []
     return result
+
+
+@pytest.mark.parametrize("generated", (False, True))
+@pytest.mark.parametrize("mode", ("timeout", "cancel", "late_timeout", "late_cancel"))
+@pytest.mark.parametrize("exceed_budget", (False, True))
+def test_typescript_shutdown_order_and_budget(tmp_path, generated, mode, exceed_budget):
+    runtime = None
+    if generated:
+        plan = ServerPlan(
+            name="Shutdown",
+            description="Shutdown probes",
+            tools=[ToolDef(name="probe", description="Probe", params=[])],
+        )
+        generate_server(plan, tmp_path, "typescript")
+        runtime = tmp_path / "failureRuntime.ts"
+    result = typescript_case(
+        mode,
+        runtime,
+        shutdown=True,
+        exceed_budget=exceed_budget,
+        budget_ms=50 if exceed_budget else 500,
+    )
+    assert result["acquired"] == result["closed"] == 1
+    assert result["reads"] == (0 if mode.startswith("late_") else 1)
+    assert result["cleanedAtSettlement"] is not exceed_budget
+    assert result["cleaned"] is True
+    kind = "cancelled" if "cancel" in mode else "timeout"
+    detail = "upstream cancelled" if kind == "cancelled" else "upstream timed out"
+    if exceed_budget:
+        detail += "; cleanup_timed_out"
+    assert result["outcome"] == {
+        "status": "failed",
+        "failure": {
+            "kind": kind,
+            "retryable": kind == "timeout",
+            "partial_result": False,
+            "detail": detail,
+        },
+        "items": [],
+    }
+
+
+def test_typescript_default_cleanup_budget_is_bounded():
+    result = typescript_case("timeout", shutdown=True, exceed_budget=True)
+    assert result["cleanedAtSettlement"] is False
+    assert result["outcome"]["failure"]["detail"] == "upstream timed out; cleanup_timed_out"
 
 
 def assert_lifecycle(mode, result):

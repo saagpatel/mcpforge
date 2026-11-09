@@ -24,6 +24,13 @@ returns partial data: the cancelled request has no MCP response. Pagination's
 `cursor_expired` and `page_shifted` are failure kinds governed by the same
 contract and resolver.
 
+TypeScript operation calls wait for iterator shutdown before returning a timeout
+or propagating cancellation. `RuntimeOptions.cleanupTimeoutMs` bounds this wait
+(default: 1000 ms), including a factory that has not yet returned its iterable.
+If the budget expires, failure detail includes `cleanup_timed_out`; the runtime
+still attempts to close any late iterable and observes late cleanup errors.
+The budget cannot force an uncooperative JavaScript operation to stop.
+
 The examples below are generated from the packaged synthetic upstream fixtures
 and the Python runtime. Regenerate them with
 `python -c 'from mcpforge.failure.docs import regenerate_failure_docs; regenerate_failure_docs()'`.

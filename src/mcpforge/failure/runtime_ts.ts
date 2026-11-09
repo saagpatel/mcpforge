@@ -50,6 +50,8 @@ export type Upstream = {
 export type RuntimeOptions = {
   /** External caller cancellation. */
   signal?: AbortSignal;
+  /** Shutdown budget after timeout/cancellation, including late acquisition (default 1000ms). */
+  cleanupTimeoutMs?: number;
   /** Observe the normalized cancellation outcome before cancellation escapes. */
   onCancelled?: (outcome: Outcome) => void;
 };
@@ -189,7 +191,7 @@ export async function callOperation(
     let iterator: AsyncIterator<unknown> | undefined;
     try {
       if (controller.signal.aborted) throw abortReason();
-      // Retain ownership of the factory after the outer race settles: a late
+      // Retain ownership of the factory after interruption: a late
       // iterable must still be acquired and closed without consuming it.
       const result = typeof operation === "function"
         ? await operation(controller.signal)
@@ -217,7 +219,7 @@ export async function callOperation(
       return { status: "complete", failure: null, items };
     } finally {
       // A single owner awaits cleanup on every exit, including late acquisition.
-      // The outer race observes cleanup rejection even after it has settled.
+      // The retained run promise observes rejection even if shutdown exceeds its budget.
       if (iterator?.return) await iterator.return();
     }
   };
@@ -229,17 +231,37 @@ export async function callOperation(
       controller.abort("timeout");
     }, Math.max(0, timeoutMs));
   });
+  const running = run();
   try {
-    return await Promise.race([run(), timeout, cancelled, aborted]);
+    return await Promise.race([running, timeout, cancelled, aborted]);
   } catch (error) {
+    let cleanupTimedOut = false;
+    if (controller.signal.aborted) {
+      let cleanupTimeoutId: ReturnType<typeof setTimeout> | undefined;
+      try {
+        // Do not release the caller while run() is acquiring/closing its iterator.
+        // A non-cooperative factory or return() may outlive this finite budget;
+        // run() still owns late cleanup and its rejection remains observed.
+        cleanupTimedOut = await Promise.race([
+          running.then(() => false, () => false),
+          new Promise<boolean>((resolve) => {
+            cleanupTimeoutId = setTimeout(() => resolve(true),
+              Math.max(0, options.cleanupTimeoutMs ?? 1000));
+          }),
+        ]);
+      } finally {
+        if (cleanupTimeoutId !== undefined) clearTimeout(cleanupTimeoutId);
+      }
+    }
+    const cleanupDetail = cleanupTimedOut ? "; cleanup_timed_out" : "";
     // Caller cancellation takes priority while another outcome (including a
     // cleanup error or timeout) is settling, just as it does in Python.
     if (options.signal?.aborted || error === cancelledReason) {
-      const outcome = errorOutcome(contract, "cancelled", items, "upstream cancelled");
+      const outcome = errorOutcome(contract, "cancelled", items, "upstream cancelled" + cleanupDetail);
       options.onCancelled?.(outcome);
       throw new Error("cancelled");
     }
-    if (error === timeoutReason) return errorOutcome(contract, "timeout", items, "upstream timed out");
+    if (error === timeoutReason) return errorOutcome(contract, "timeout", items, "upstream timed out" + cleanupDetail);
     return errorOutcome(contract, "upstream_error", items, "upstream failed");
   } finally {
     if (timeoutId !== undefined) clearTimeout(timeoutId);

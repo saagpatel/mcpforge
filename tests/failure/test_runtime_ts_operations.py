@@ -108,7 +108,9 @@ def test_operation_outcomes_match_python(case):
             return stream()
 
         ts_operation = (
-            "async function* (_signal) { yield { value: 'first' }; await new Promise(() => {}); }"
+            "async function* (signal) { yield { value: 'first' }; "
+            "await new Promise((resolve) => signal.addEventListener('abort', resolve, "
+            "{ once: true })); }"
         )
         timeout_s = 0.02
         timeout_ms = 20
@@ -127,6 +129,29 @@ def test_operation_outcomes_match_python(case):
         "process.stdout.write(JSON.stringify(result));"
     )
     assert ts_result == py_result
+
+
+def test_uncooperative_generator_cleanup_is_bounded_and_preserves_partial():
+    # JavaScript cannot interrupt the await inside a generator: return() queues
+    # behind next(). The finite cleanup budget must report that limitation.
+    result = run_typescript(
+        "const operation = async function* () { yield { value: 'first' }; "
+        "await new Promise(() => {}); };\n"
+        "const result = await callOperation(operation, "
+        "{ retryable: true, partial_result_allowed: true }, 10, {}, "
+        "{ cleanupTimeoutMs: 20 });\n"
+        "process.stdout.write(JSON.stringify(result));"
+    )
+    assert result == {
+        "status": "incomplete",
+        "failure": {
+            "kind": "timeout",
+            "retryable": True,
+            "partial_result": True,
+            "detail": "upstream timed out; cleanup_timed_out",
+        },
+        "items": [{"value": "first"}],
+    }
 
 
 def test_call_operation_timeout_preserves_partial_and_aborts_signal():
