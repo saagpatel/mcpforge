@@ -1,10 +1,9 @@
 """Install each example in a fresh venv, then inspect real stdio JSON-RPC.
 
-Installation is offline, using the uv cache populated by make setup. Only when
-CI is set may a cold-cache install retry with network access. Local cache misses
-fail. No editable forge package or repository PYTHONPATH reaches the servers.
-The cache needs resolver metadata as well as wheels; a fresh locked sync can
-cache only wheels. Such a local cache must be primed before running this test.
+Installation is attempted offline first, pinned to the root lock's versions.
+A fresh locked sync caches wheels but not resolver metadata, so a cold cache
+retries once with network access; after that, installs resolve offline. No
+editable forge package or repository PYTHONPATH reaches the servers.
 """
 
 import json
@@ -52,7 +51,7 @@ def installed_example(request, tmp_path):
     )
     arguments = ["pip", "install", "--constraint", constraints, "--python", python, example]
     installed = run_uv(*arguments, "--offline")
-    if installed.returncode and os.environ.get("CI"):
+    if installed.returncode:
         installed = run_uv(*arguments)
     assert installed.returncode == 0, installed.stderr
     package = f"pagination_{request.param}"
