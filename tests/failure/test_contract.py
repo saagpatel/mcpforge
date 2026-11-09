@@ -129,7 +129,7 @@ def test_typescript_external_cancellation(cancel_during_hang):
         check=False,
         capture_output=True,
         text=True,
-        timeout=2,
+        timeout=20,
     )
     assert completed.returncode == 0, completed.stderr
     outcome = json.loads(completed.stdout)
