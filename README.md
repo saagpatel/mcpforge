@@ -156,13 +156,9 @@ protocol-level list pagination, and observed traversal outcomes. Pagination
 incompleteness follows the shared [failure contract](docs/FAILURE-SEMANTICS.md).
 Run `mcpforge contracts fixtures` to compare all pagination and upstream failure
 fixtures across the supported runtimes. Regenerate or check the examples in the
-docs with `mcpforge contracts pagination-docs [--out DIR] [--check]` and
-`mcpforge contracts failure-docs [--check]`.
-
-Generate a self-contained stdio server with `mcpforge contracts pagination-example
-cursor --output ./cursor-server` (also `offset` or `page_token`), or inspect the
-[committed examples](examples/pagination). They exercise `resources/list` protocol
-pagination and a separate `list_records` tool against synthetic local records.
+docs with `mcpforge contracts pagination-docs [--path DIR] [--check]` and
+`mcpforge contracts failure-docs [--path FILE] [--check]`. Paths default to
+`docs/pagination` and `docs/FAILURE-SEMANTICS.md` under the current directory.
 
 ## More commands
 

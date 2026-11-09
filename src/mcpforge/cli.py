@@ -592,13 +592,19 @@ def contracts_cli() -> None:
 
 
 @contracts_cli.command("pagination-docs")
-@click.option("--out", "output_dir", type=click.Path(path_type=Path), default=None)
+@click.option(
+    "--path",
+    "output_dir",
+    type=click.Path(path_type=Path),
+    default=Path("docs/pagination"),
+    show_default=True,
+)
 @click.option("--check", "check_only", is_flag=True, help="Check committed docs without writing.")
-def pagination_docs_command(output_dir: Path | None, check_only: bool) -> None:
+def pagination_docs_command(output_dir: Path, check_only: bool) -> None:
     """Generate or check pagination documentation."""
-    from mcpforge.pagination.docs_gen import DOCS_DIR, render_docs, write_docs
+    from mcpforge.pagination.docs_gen import render_docs, write_docs
 
-    out = output_dir or DOCS_DIR
+    out = output_dir
     expected = render_docs()
     if check_only:
         mismatches = [
@@ -614,31 +620,29 @@ def pagination_docs_command(output_dir: Path | None, check_only: bool) -> None:
     click.echo(f"wrote pagination docs to {out}")
 
 
-@contracts_cli.command("pagination-example")
-@click.argument("pattern", type=click.Choice(["cursor", "offset", "page_token"]))
-@click.option("--output", "output_dir", required=True, type=click.Path(path_type=Path))
-def pagination_example_command(pattern: str, output_dir: Path) -> None:
-    """Generate an installable example server for PATTERN."""
-    from mcpforge.pagination.examples_gen import generate_example
-
-    generate_example(pattern, output_dir)
-    click.echo(f"wrote {pattern} pagination example to {output_dir}")
-
-
 @contracts_cli.command("failure-docs")
+@click.option(
+    "--path",
+    "target",
+    type=click.Path(path_type=Path),
+    default=Path("docs/FAILURE-SEMANTICS.md"),
+    show_default=True,
+)
 @click.option("--check", "check_only", is_flag=True, help="Check committed docs without writing.")
-def failure_docs_command(check_only: bool) -> None:
+def failure_docs_command(target: Path, check_only: bool) -> None:
     """Generate or check the failure semantics documentation examples."""
-    from mcpforge.failure.docs import replace_marked_examples
+    from mcpforge.failure.docs import failure_docs_template, replace_marked_examples
 
-    target = Path(__file__).parents[2] / "docs" / "FAILURE-SEMANTICS.md"
-    current = target.read_text(encoding="utf-8")
+    if check_only and not target.is_file():
+        raise click.ClickException(f"failure docs not found: {target}")
+    current = target.read_text(encoding="utf-8") if target.exists() else failure_docs_template()
     expected = replace_marked_examples(current)
     if check_only:
         if current != expected:
             raise click.ClickException("failure docs differ; run mcpforge contracts failure-docs")
         click.echo("failure docs match")
         return
+    target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(expected, encoding="utf-8")
     click.echo(f"wrote failure docs to {target}")
 

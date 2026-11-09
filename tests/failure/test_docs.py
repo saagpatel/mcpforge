@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from mcpforge.failure.docs import (
+    failure_docs_template,
     failure_readme_section,
     marked_example,
     render_examples,
@@ -20,6 +21,7 @@ def test_docs_examples_match_runtime_output_byte_for_byte():
     examples = render_examples()
     assert examples
     assert all(marked_example(name, output) in actual for name, output in examples.items())
+    assert failure_docs_template() == actual
 
 
 def test_generated_readme_section_uses_runtime_examples():

@@ -12,8 +12,7 @@ from mcpforge.pagination.harness import MutatingUpstream
 from mcpforge.pagination.patterns import DEFINITIONS
 from mcpforge.pagination.traverse import TraversalResult, traverse
 
-ROOT = Path(__file__).parents[3]
-DOCS_DIR = ROOT / "docs" / "pagination"
+DOCS_DIR = Path("docs/pagination")
 CONTRACT = FailureContract(retryable=True, partial_result_allowed=True)
 _CURSOR_PLACEHOLDER = "<opaque session cursor omitted>"
 
@@ -99,9 +98,7 @@ def render_docs() -> dict[str, str]:
         "Pagination incompleteness is part of the shared failure contract; see "
         "[Failure Semantics](../FAILURE-SEMANTICS.md).\n\n"
         "The protocol-level claims here concern MCP list methods: `resources/list`, "
-        "`tools/list`, `prompts/list`, and `resources/templates/list`. The committed "
-        "examples test `resources/list` pagination. They make no conformance claim "
-        "for the other list methods.\n\n"
+        "`tools/list`, `prompts/list`, and `resources/templates/list`.\n\n"
         "Tool-level claims concern upstream traversal performed by `list_records`; "
         "tool calls do not inherit MCP list-method pagination semantics. The tools "
         "return a shared outcome envelope.\n\n"

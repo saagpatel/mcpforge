@@ -2,7 +2,7 @@
 
 Pagination incompleteness is part of the shared failure contract; see [Failure Semantics](../FAILURE-SEMANTICS.md).
 
-The protocol-level claims here concern MCP list methods: `resources/list`, `tools/list`, `prompts/list`, and `resources/templates/list`. The committed examples test `resources/list` pagination. They make no conformance claim for the other list methods.
+The protocol-level claims here concern MCP list methods: `resources/list`, `tools/list`, `prompts/list`, and `resources/templates/list`.
 
 Tool-level claims concern upstream traversal performed by `list_records`; tool calls do not inherit MCP list-method pagination semantics. The tools return a shared outcome envelope.
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from importlib.resources import files
 from pathlib import Path
 
 from mcpforge.failure.fixtures import load_upstreams, run_python_fixture
@@ -97,12 +98,15 @@ def failure_readme_section() -> str:
     return "\n".join(chunks) + "\n"
 
 
+def failure_docs_template() -> str:
+    """Load the packaged starting document for a new output path."""
+    return files("mcpforge.failure").joinpath("FAILURE-SEMANTICS.md").read_text(encoding="utf-8")
+
+
 def regenerate_failure_docs(path: str | Path | None = None) -> Path:
     """Refresh marked blocks in the committed failure-semantics document."""
-    target = (
-        Path(path)
-        if path is not None
-        else Path(__file__).parents[3] / "docs" / "FAILURE-SEMANTICS.md"
-    )
-    target.write_text(replace_marked_examples(target.read_text()), encoding="utf-8")
+    target = Path(path) if path is not None else Path("docs/FAILURE-SEMANTICS.md")
+    current = target.read_text(encoding="utf-8") if target.exists() else failure_docs_template()
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(replace_marked_examples(current), encoding="utf-8")
     return target

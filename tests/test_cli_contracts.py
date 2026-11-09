@@ -7,8 +7,6 @@ from click.testing import CliRunner
 
 from mcpforge.cli import cli
 
-cli_module = importlib.import_module("mcpforge.cli")
-
 
 def test_root_help_keeps_existing_commands_and_adds_contracts():
     result = CliRunner().invoke(cli, ["--help"])
@@ -31,8 +29,12 @@ def test_root_help_keeps_existing_commands_and_adds_contracts():
 def test_contracts_help_lists_new_commands():
     result = CliRunner().invoke(cli, ["contracts", "--help"])
     assert result.exit_code == 0
-    for command in ("pagination-docs", "pagination-example", "failure-docs", "fixtures"):
-        assert command in result.output
+    commands = result.output.split("Commands:\n", 1)[1]
+    assert {line.split()[0] for line in commands.splitlines() if line.strip()} == {
+        "pagination-docs",
+        "failure-docs",
+        "fixtures",
+    }
 
 
 def test_pagination_docs_check_passes():
@@ -44,14 +46,14 @@ def test_pagination_docs_check_passes():
 def test_pagination_docs_out_generates_then_detects_stale_files(tmp_path):
     runner = CliRunner()
     out = tmp_path / "pagination-docs"
-    generated = runner.invoke(cli, ["contracts", "pagination-docs", "--out", str(out)])
+    generated = runner.invoke(cli, ["contracts", "pagination-docs", "--path", str(out)])
     assert generated.exit_code == 0, generated.output
-    checked = runner.invoke(cli, ["contracts", "pagination-docs", "--out", str(out), "--check"])
+    checked = runner.invoke(cli, ["contracts", "pagination-docs", "--path", str(out), "--check"])
     assert checked.exit_code == 0, checked.output
     target = out / "cursor.md"
     original = target.read_text()
     target.write_text(original + "\nstale\n")
-    stale = runner.invoke(cli, ["contracts", "pagination-docs", "--out", str(out), "--check"])
+    stale = runner.invoke(cli, ["contracts", "pagination-docs", "--path", str(out), "--check"])
     assert stale.exit_code != 0
     assert "pagination docs differ" in stale.output
 
@@ -62,20 +64,27 @@ def test_failure_docs_check_passes():
     assert "failure docs match" in result.output
 
 
-def test_failure_docs_stale_check_does_not_write(tmp_path, monkeypatch):
-    source = tmp_path / "src" / "mcpforge"
-    source.mkdir(parents=True)
-    docs = tmp_path / "docs"
-    docs.mkdir()
-    target = docs / "FAILURE-SEMANTICS.md"
+def test_failure_docs_stale_check_does_not_write(tmp_path):
+    target = tmp_path / "FAILURE-SEMANTICS.md"
     real_docs = importlib.import_module("mcpforge.failure.docs")
     real_target = real_docs.Path(__file__).resolve().parents[1] / "docs" / "FAILURE-SEMANTICS.md"
     stale_content = real_target.read_text().replace('"status": "failed"', '"status": "stale"', 1)
     target.write_text(stale_content)
-    monkeypatch.setattr(cli_module, "__file__", str(source / "cli.py"))
-    result = CliRunner().invoke(cli, ["contracts", "failure-docs", "--check"])
+    result = CliRunner().invoke(
+        cli, ["contracts", "failure-docs", "--path", str(target), "--check"]
+    )
     assert result.exit_code != 0
     assert target.read_text() == stale_content
+
+
+def test_missing_default_docs_check_reports_error_without_writing(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    for command in ("pagination-docs", "failure-docs"):
+        result = CliRunner().invoke(cli, ["contracts", command, "--check"])
+        assert result.exit_code != 0
+        assert "docs" in result.output
+        assert "Traceback" not in result.output
+    assert not (tmp_path / "docs").exists()
 
 
 def test_fixtures_json_summary_and_mismatch_exit(monkeypatch):
