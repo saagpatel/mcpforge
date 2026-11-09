@@ -119,6 +119,10 @@ if __name__ == "__main__":
     `RateLimitingMiddleware` with values read from env vars. Attach middleware
     through `FastMCP(..., middleware=[...])` so local and HTTP runs behave the same.
 
+## Upstream Failure Outcomes
+
+For every tool that calls an upstream service, import the vendored `failure_runtime.py`, wrap the upstream operation with its `call_upstream` runtime, and return the normalized outcome envelope (`status`, `failure`, and `items`). Use the tool's declared failure contract; do not return raw upstream responses or invent failure kinds.
+
 ## Full Example
 
 Plan input: {"name": "Todo Manager", "transport": "streamable-http", "tools": [...]}

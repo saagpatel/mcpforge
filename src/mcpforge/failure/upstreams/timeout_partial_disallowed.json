@@ -1,0 +1,45 @@
+{
+  "name": "timeout_partial_disallowed",
+  "mode": "timeout",
+  "response_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "required": [
+      "id",
+      "value"
+    ],
+    "properties": {
+      "id": {
+        "type": "integer"
+      },
+      "value": {
+        "type": "string"
+      }
+    }
+  },
+  "script": [
+    {
+      "emit": {
+        "id": 1,
+        "value": "ok"
+      }
+    },
+    {
+      "hang": true
+    }
+  ],
+  "contract": {
+    "retryable": true,
+    "partial_result_allowed": false
+  },
+  "expect": {
+    "status": "failed",
+    "failure": {
+      "kind": "timeout",
+      "retryable": true,
+      "partial_result": false,
+      "detail": "upstream timed out"
+    },
+    "items": []
+  }
+}

@@ -47,6 +47,10 @@ Return a JSON object where keys are relative file paths and values are complete 
 - Never pass MCP client bearer tokens through to downstream APIs
 - Return ONLY the JSON object — no markdown fences, no explanation
 
+## Upstream Failure Outcomes
+
+For every tool that calls an upstream service, import the vendored `failure_runtime.py`, wrap the upstream operation with its `call_upstream` runtime, and return the normalized outcome envelope (`status`, `failure`, and `items`). Use the tool's declared failure contract; do not return raw upstream responses or invent failure kinds.
+
 ## Example server.py structure
 
 ```python

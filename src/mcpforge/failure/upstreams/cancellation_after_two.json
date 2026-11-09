@@ -1,0 +1,51 @@
+{
+  "name": "cancellation_after_two",
+  "mode": "cancellation",
+  "response_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "required": [
+      "id",
+      "value"
+    ],
+    "properties": {
+      "id": {
+        "type": "integer"
+      },
+      "value": {
+        "type": "string"
+      }
+    }
+  },
+  "script": [
+    {
+      "cancel_after_steps": 2
+    },
+    {
+      "emit": {
+        "id": 1,
+        "value": "ok"
+      }
+    },
+    {
+      "emit": {
+        "id": 2,
+        "value": "ok"
+      }
+    }
+  ],
+  "contract": {
+    "retryable": true,
+    "partial_result_allowed": true
+  },
+  "expect": {
+    "status": "failed",
+    "failure": {
+      "kind": "cancelled",
+      "retryable": false,
+      "partial_result": false,
+      "detail": "upstream cancelled"
+    },
+    "items": []
+  }
+}
