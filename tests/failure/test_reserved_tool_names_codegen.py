@@ -13,7 +13,20 @@ from mcpforge.failure.codegen import generate_server
 from mcpforge.failure.fixtures import _run_generated_typescript, load_upstreams
 from mcpforge.models import ServerPlan, ToolDef
 
-RESERVED_NAMES = ("mcp", "call_upstream", "handle_upstream", "call_operation")
+RESERVED_NAMES = (
+    "mcp",
+    "call_upstream",
+    "handle_upstream",
+    "call_operation",
+    "__proto__",
+    "constructor",
+    "prototype",
+    "hasOwnProperty",
+)
+
+
+def _python_identifier(name: str) -> str:
+    return name.strip("_") or "tool"
 
 
 def _plan(name: str) -> ServerPlan:
@@ -60,14 +73,22 @@ def test_python_reserved_tool_names_import_and_call(tmp_path, tool_name, server_
         if server_type == "python-single":
             handler = server_module.TOOL_HANDLERS[tool_name]
         else:
-            module = _load_module(f"generated_tool_{tool_name}", out / "tools" / f"{tool_name}.py")
-            handler = getattr(module, f"_tool_{tool_name}")
+            identifier = _python_identifier(tool_name)
+            module = _load_module(
+                f"generated_tool_{identifier}", out / "tools" / f"{identifier}.py"
+            )
+            handler = getattr(module, f"_tool_{identifier}")
         result = asyncio.run(handler(_success_descriptor()))
         assert result["status"] == "complete"
         assert result["items"] == [{"ok": True}]
     finally:
         sys.path.remove(str(out))
-        for module_name in (f"generated_{server_type}_{tool_name}", f"generated_tool_{tool_name}"):
+        identifier = _python_identifier(tool_name)
+        for module_name in (
+            f"generated_{server_type}_{tool_name}",
+            f"generated_tool_{tool_name}",
+            f"generated_tool_{identifier}",
+        ):
             sys.modules.pop(module_name, None)
         _clear_tools_modules()
 
@@ -80,13 +101,42 @@ def test_typescript_reserved_tool_names_are_callable(tmp_path, tool_name):
     descriptor["contract"] = _plan(tool_name).tools[0].failure_contract or descriptor["contract"]
     descriptor["response_schema"] = {"type": "object"}
     descriptor["script"] = [{"emit": {"ok": True}}]
+
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("Node.js is required for generated TypeScript checks")
+    server_uri = json.dumps((out / "server.ts").as_uri())
+    inspect_maps = (
+        "import { FAILURE_CONTRACTS, TOOL_HANDLERS } from "
+        f"{server_uri};\n"
+        f"const name = {json.dumps(tool_name)};\n"
+        "process.stdout.write(JSON.stringify({ contracts: Object.keys(FAILURE_CONTRACTS), "
+        "handlers: Object.keys(TOOL_HANDLERS), "
+        "hasContract: Object.hasOwn(FAILURE_CONTRACTS, name), "
+        "hasHandler: Object.hasOwn(TOOL_HANDLERS, name) }));"
+    )
+    completed = subprocess.run(
+        [node, "--input-type=module", "-e", inspect_maps],
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stderr
+    assert json.loads(completed.stdout) == {
+        "contracts": [tool_name],
+        "handlers": [tool_name],
+        "hasContract": True,
+        "hasHandler": True,
+    }
+
     assert _run_generated_typescript(out, descriptor) == {
         "status": "complete",
         "failure": None,
         "items": [{"ok": True}],
     }
     generated = (out / "server.ts").read_text(encoding="utf-8")
-    assert json.dumps(tool_name) + ": (" in generated
+    assert "Object.fromEntries([" in generated
 
 
 @pytest.mark.parametrize("server_type", ("python-single", "python-multi"))

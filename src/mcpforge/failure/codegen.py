@@ -149,19 +149,27 @@ def _write_python_multi(plan: ServerPlan, out: Path) -> None:
 
 def _write_typescript(plan: ServerPlan, out: Path) -> None:
     shutil.copyfile(_runtime_path("runtime_ts.ts"), out / "failureRuntime.ts")
-    contracts = json.dumps(_contracts(plan), sort_keys=True, separators=(",", ":"))
+    contracts = _contracts(plan)
     (out / "server.ts").write_text(
         "// Generated handler shell; MCP SDK wiring may import these handlers.\n"
         "import { callOperation, callUpstream, type Operation, type Upstream, "
-        "type FailureContract, type RuntimeOptions } "
+        "type FailureContract, type Outcome, type RuntimeOptions } "
         "from './failureRuntime.ts';\n\n"
-        f"export const FAILURE_CONTRACTS = {contracts} as const;\n"
+        "export const FAILURE_CONTRACTS = Object.fromEntries([\n"
+        + "\n".join(
+            f"  [{json.dumps(tool.name)}, {json.dumps(contracts[tool.name], sort_keys=True)}],"
+            for tool in plan.tools
+        )
+        + "\n]) as Record<string, FailureContract>;\n"
         "const isOperation = (value: Upstream | Operation): value is Operation =>\n"
         "  typeof value === 'function' || (typeof value === 'object' &&\n"
         "    Symbol.asyncIterator in value);\n\n"
-        "export const TOOL_HANDLERS = {\n"
+        "type ToolHandler = (operation: Upstream | Operation, timeoutMs?: number,\n"
+        "  responseSchema?: Record<string, unknown>, options?: RuntimeOptions) "
+        "=> Promise<Outcome>;\n\n"
+        "export const TOOL_HANDLERS = Object.fromEntries([\n"
         + "\n".join(
-            f"  {json.dumps(tool.name)}: (\n"
+            f"  [{json.dumps(tool.name)}, (\n"
             "    operation: Upstream | Operation,\n"
             "    timeoutMs = 50,\n"
             "    responseSchema: Record<string, unknown> = {},\n"
@@ -172,10 +180,10 @@ def _write_typescript(plan: ServerPlan, out: Path) -> None:
             "as FailureContract, timeoutMs, responseSchema, options)\n"
             "    : callUpstream(operation as Upstream, "
             f"FAILURE_CONTRACTS[{json.dumps(tool.name)}] "
-            "as FailureContract, timeoutMs, options),"
+            "as FailureContract, timeoutMs, options)],"
             for tool in plan.tools
         )
-        + "\n};\n",
+        + "\n]) as Record<string, ToolHandler>;\n",
         encoding="utf-8",
     )
     (out / "run_fixture.ts").write_text(
