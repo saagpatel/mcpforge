@@ -1,0 +1,8 @@
+{
+  "id": "25-cursor-empty",
+  "pattern": "cursor",
+  "items": [],
+  "page_size": 3,
+  "mutations": [],
+  "expect": "complete"
+}
