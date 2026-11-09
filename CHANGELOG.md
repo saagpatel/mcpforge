@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Pagination contract documentation and generated installable example servers,
+  with fixture checks through `mcpforge contracts`.
+
 ### Fixed
 
 - `mcpforge doctor --json` now exits 1 when prerequisite checks fail and 0 when
