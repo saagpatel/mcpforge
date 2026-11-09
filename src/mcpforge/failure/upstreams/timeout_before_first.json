@@ -1,0 +1,39 @@
+{
+  "name": "timeout_before_first",
+  "mode": "timeout",
+  "response_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "required": [
+      "id",
+      "value"
+    ],
+    "properties": {
+      "id": {
+        "type": "integer"
+      },
+      "value": {
+        "type": "string"
+      }
+    }
+  },
+  "script": [
+    {
+      "hang": true
+    }
+  ],
+  "contract": {
+    "retryable": true,
+    "partial_result_allowed": true
+  },
+  "expect": {
+    "status": "failed",
+    "failure": {
+      "kind": "timeout",
+      "retryable": true,
+      "partial_result": false,
+      "detail": "upstream timed out"
+    },
+    "items": []
+  }
+}

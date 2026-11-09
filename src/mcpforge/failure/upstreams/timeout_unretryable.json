@@ -1,0 +1,39 @@
+{
+  "name": "timeout_unretryable",
+  "mode": "timeout",
+  "response_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "required": [
+      "id",
+      "value"
+    ],
+    "properties": {
+      "id": {
+        "type": "integer"
+      },
+      "value": {
+        "type": "string"
+      }
+    }
+  },
+  "script": [
+    {
+      "hang": true
+    }
+  ],
+  "contract": {
+    "retryable": false,
+    "partial_result_allowed": false
+  },
+  "expect": {
+    "status": "failed",
+    "failure": {
+      "kind": "timeout",
+      "retryable": false,
+      "partial_result": false,
+      "detail": "upstream timed out"
+    },
+    "items": []
+  }
+}

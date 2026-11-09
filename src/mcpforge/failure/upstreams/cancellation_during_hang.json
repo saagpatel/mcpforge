@@ -1,0 +1,42 @@
+{
+  "name": "cancellation_during_hang",
+  "mode": "cancellation",
+  "response_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "required": [
+      "id",
+      "value"
+    ],
+    "properties": {
+      "id": {
+        "type": "integer"
+      },
+      "value": {
+        "type": "string"
+      }
+    }
+  },
+  "script": [
+    {
+      "cancel_after_steps": 1
+    },
+    {
+      "hang": true
+    }
+  ],
+  "contract": {
+    "retryable": true,
+    "partial_result_allowed": false
+  },
+  "expect": {
+    "status": "failed",
+    "failure": {
+      "kind": "cancelled",
+      "retryable": false,
+      "partial_result": false,
+      "detail": "upstream cancelled"
+    },
+    "items": []
+  }
+}
