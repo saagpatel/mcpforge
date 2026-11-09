@@ -72,3 +72,26 @@ async def test_operation_exception_is_normalized():
     result = await call_operation(operation, CONTRACT, 1)
     assert result["failure"]["kind"] == "upstream_error"
     assert result["failure"]["detail"] == "upstream failed"
+
+
+@pytest.mark.asyncio
+async def test_generator_cleanup_error_cannot_replace_caller_cancellation():
+    started = asyncio.Event()
+    finalized = 0
+
+    async def stream():
+        nonlocal finalized
+        try:
+            yield {"value": 1}
+            started.set()
+            await asyncio.Event().wait()
+        finally:
+            finalized += 1
+            raise RuntimeError("cleanup failed")
+
+    task = asyncio.create_task(call_operation(stream(), CONTRACT, 10, SCHEMA))
+    await started.wait()
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert finalized == 1

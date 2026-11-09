@@ -78,6 +78,7 @@ def _valid(value, schema):
 async def call_operation(operation, contract, timeout_s, response_schema=None):
     """Run an async callable or iterator; cancellation propagates after cleanup."""
     items = []
+    stopped = False
 
     def outcome(kind, detail):
         result = resolve_failure(contract, kind, bool(items), detail)
@@ -91,28 +92,72 @@ async def call_operation(operation, contract, timeout_s, response_schema=None):
         if hasattr(value, "__aiter__"):
             iterator = value.__aiter__()
             try:
-                async for item in iterator:
+                while not stopped:
+                    try:
+                        item = await anext(iterator)
+                    except StopAsyncIteration:
+                        break
+                    if stopped:
+                        break
                     if response_schema is not None and not _valid(item, response_schema):
                         return outcome("malformed", "upstream returned malformed data")
                     items.append(item)
             finally:
                 close = getattr(iterator, "aclose", None)
                 if close is not None:
-                    await close()
-        else:
+                    closing = asyncio.ensure_future(close())
+                    try:
+                        await asyncio.shield(closing)
+                    except asyncio.CancelledError:
+                        # Cancellation during an already-running finalizer must
+                        # not abandon or restart that finalizer.
+                        await closing
+                        raise
+        elif not stopped:
             if response_schema is not None and not _valid(value, response_schema):
                 return outcome("malformed", "upstream returned malformed data")
             items.append(value)
         return {"status": "complete", "failure": None, "items": items}
 
+    # Own the task separately: wait_for can replace caller cancellation with an
+    # exception raised by the operation's finalizer, or accept a late result if
+    # the operation suppresses cancellation.
+    timeout = None if timeout_s is None else max(0, timeout_s)
+    task = asyncio.create_task(run())
+    caller = asyncio.current_task()
+    cancellation_requests = caller.cancelling()
+    caller_cancelled = False
+    timed_out = False
     try:
-        return await asyncio.wait_for(run(), timeout=timeout_s)
-    except TimeoutError:
-        return outcome("timeout", "upstream timed out")
+        done, _ = await asyncio.wait({task}, timeout=timeout)
+        timed_out = not done
     except asyncio.CancelledError:
-        raise
+        caller_cancelled = True
+    if timed_out or caller_cancelled:
+        stopped = True
+        task.cancel()
+
+    # Shield cleanup from repeated caller cancellation, but remember every
+    # cancellation independently of how the operation eventually terminates.
+    while not task.done():
+        try:
+            await asyncio.shield(task)
+        except asyncio.CancelledError:
+            caller_cancelled = caller_cancelled or caller.cancelling() > cancellation_requests
+        except Exception:
+            break
+    try:
+        result = task.result()
+    except asyncio.CancelledError:
+        if not timed_out:
+            raise
     except Exception:
-        return outcome("upstream_error", "upstream failed")
+        result = outcome("upstream_error", "upstream failed")
+    if caller_cancelled:
+        raise asyncio.CancelledError
+    if timed_out:
+        return outcome("timeout", "upstream timed out")
+    return result
 
 
 async def call_upstream(upstream, contract, timeout_s, response_schema=None):
