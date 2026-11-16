@@ -11,6 +11,10 @@ import json
 import math
 
 _TRANSIENT = {"timeout", "upstream_error", "cursor_expired", "page_shifted"}
+# How long a stopped stream's in-flight step may settle before it is cancelled, so a
+# generator already running its own finalizer is not interrupted (TypeScript's
+# cleanupTimeoutMs default).
+CLEANUP_GRACE_S = 1.0
 
 
 def resolve_failure(contract, kind, have_partial, detail):
@@ -80,6 +84,7 @@ async def call_operation(operation, contract, timeout_s, response_schema=None):
     items = []
     stopped = False
     finalizing = False
+    stepping = False
 
     def outcome(kind, detail):
         result = resolve_failure(contract, kind, bool(items), detail)
@@ -87,7 +92,7 @@ async def call_operation(operation, contract, timeout_s, response_schema=None):
         return result
 
     async def run():
-        nonlocal finalizing
+        nonlocal finalizing, stepping
         value = operation() if callable(operation) else operation
         if inspect.isawaitable(value):
             value = await value
@@ -95,10 +100,13 @@ async def call_operation(operation, contract, timeout_s, response_schema=None):
             iterator = value.__aiter__()
             try:
                 while not stopped:
+                    stepping = True
                     try:
                         item = await anext(iterator)
                     except StopAsyncIteration:
                         break
+                    finally:
+                        stepping = False
                     if stopped:
                         break
                     if response_schema is not None and not _valid(item, response_schema):
@@ -133,9 +141,19 @@ async def call_operation(operation, contract, timeout_s, response_schema=None):
         caller_cancelled = True
     if timed_out or caller_cancelled:
         stopped = True
+        if stepping and not finalizing:
+            # A generator step may already be running its own finalizer (natural
+            # exhaustion or an error inside anext); cancelling now would interrupt
+            # that cleanup. Give the step a bounded grace to settle first.
+            grace = asyncio.ensure_future(asyncio.wait({task}, timeout=CLEANUP_GRACE_S))
+            while not grace.done():
+                try:
+                    await asyncio.shield(grace)
+                except asyncio.CancelledError:
+                    caller_cancelled = True
         # Let an active finalizer finish in its owning task. The shield below
         # protects that task from repeated caller cancellation as well.
-        if not finalizing:
+        if not finalizing and not task.done():
             task.cancel()
 
     # Shield cleanup from repeated caller cancellation, but remember every

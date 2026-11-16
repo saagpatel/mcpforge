@@ -95,3 +95,48 @@ async def test_generator_cleanup_error_cannot_replace_caller_cancellation():
     with pytest.raises(asyncio.CancelledError):
         await task
     assert finalized == 1
+
+
+def _finalizing_stream(events, context):
+    """Yield once, then run an awaiting finalizer on natural exhaustion."""
+
+    async def stream():
+        token = context.set("inside")
+        try:
+            yield {"value": 1}
+            events["finalizing"].set()
+        finally:
+            await asyncio.sleep(0.03)
+            context.reset(token)
+            events["cleaned"] = True
+
+    return stream()
+
+
+@pytest.mark.asyncio
+async def test_timeout_does_not_interrupt_a_natural_exhaustion_finalizer():
+    import contextvars
+
+    context = contextvars.ContextVar("finalizer_context", default="outside")
+    events = {"finalizing": asyncio.Event(), "cleaned": False}
+    result = await call_operation(_finalizing_stream(events, context), CONTRACT, 0.01, SCHEMA)
+    assert events["finalizing"].is_set()
+    assert events["cleaned"], "the generator's own finalizer was interrupted"
+    assert result["failure"]["kind"] == "timeout"
+    assert result["items"] == [{"value": 1}]
+
+
+@pytest.mark.asyncio
+async def test_cancellation_does_not_interrupt_a_natural_exhaustion_finalizer():
+    import contextvars
+
+    context = contextvars.ContextVar("finalizer_context", default="outside")
+    events = {"finalizing": asyncio.Event(), "cleaned": False}
+    task = asyncio.create_task(
+        call_operation(_finalizing_stream(events, context), CONTRACT, 10, SCHEMA)
+    )
+    await events["finalizing"].wait()
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert events["cleaned"], "the generator's own finalizer was interrupted"
