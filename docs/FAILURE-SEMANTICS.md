@@ -38,6 +38,12 @@ If the budget expires, failure detail includes `cleanup_timed_out`; the runtime
 still attempts to close any late iterable and observes late cleanup errors.
 The budget cannot force an uncooperative JavaScript operation to stop.
 
+Python operation calls await iterator shutdown in the operation's own task and
+context. When a timeout or cancellation lands while a stream step is in flight,
+that step gets `CLEANUP_GRACE_S` (1 s, matching the TypeScript default) to settle
+before it is cancelled, so a generator already running its own finalizer is not
+interrupted. A step that is still running after the grace is cancelled.
+
 The examples below are generated from the packaged synthetic upstream fixtures
 and the Python runtime. Regenerate them with
 `python -c 'from mcpforge.failure.docs import regenerate_failure_docs; regenerate_failure_docs()'`.
