@@ -14,9 +14,9 @@
 ## Setup
 
 - Python is pinned by `.python-version` to 3.12.15.
-- uv 0.13.0 or later is required by `pyproject.toml` and pinned in CI.
+- uv 0.13.9 or any later 0.13.x is required by `pyproject.toml`; CI pins exactly 0.13.9.
 - Run `make setup` to install the locked dependencies.
-- The `.cursor/environment.json` setup uses `.cursor/install.sh`, which pins Python 3.12.15 and uv 0.13.0, syncs from `uv.lock`, and runs credential-free checks. Do not copy local credentials or configuration into Cloud. Hosted generation checks remain opt-in.
+- The `.cursor/environment.json` setup uses `.cursor/install.sh`, which pins Python 3.12.15 and uv 0.13.9, syncs from `uv.lock`, and runs credential-free checks. Do not copy local credentials or configuration into Cloud. Hosted generation checks remain opt-in.
 - For Codex Cloud, use the portable [MCP Forge Cloud workflow skill](.agents/skills/mcpforge-cloud-workflow/SKILL.md). Follow supplied startup instructions and use the existing isolated task checkout. Prepared startup permits authorized source edits and commits. Refresh installation only when the supplied procedure requires it; do not upgrade dependencies or change locks to bypass startup failures.
 
 ## Checks
