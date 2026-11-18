@@ -50,14 +50,42 @@ If publishing fails with `invalid-publisher`, confirm PyPI still has the
 trusted publisher above before rerunning the failed `Publish to PyPI` workflow
 for the tag.
 
-## Manual publish (without CI)
+## What the publish workflow does
+
+`publish.yml` runs on a `v*` tag in three jobs:
+
+1. `build` (read-only): checks the tag against `pyproject.toml` and
+   `__version__`, runs the tests, builds the wheel and sdist with the pinned uv,
+   rebuilds both from a fresh clone and fails unless the SHA-256 digests match
+   (`scripts/check_reproducible_build.py`), and writes a CycloneDX SBOM of the
+   locked runtime dependencies with `uv export --format cyclonedx1.5`.
+2. `attest`: signs a SLSA build provenance attestation and an SBOM attestation
+   for both files with `actions/attest` (Sigstore, stored on this repository).
+3. `publish` (`pypi` environment): uploads the exact bytes from `build` with
+   trusted publishing; `gh-action-pypi-publish` adds PEP 740 attestations.
+
+There is no token-based or manual upload path. Do not use `twine upload` with
+an API token; if CI is unavailable, wait for it rather than publishing by hand.
+
+## Verifying a release
 
 ```bash
-uv build
-ls dist/
-pip install twine
-twine upload dist/*
+# PEP 740 publish attestation on PyPI
+uvx pypi-attestations verify pypi --repository https://github.com/saagpatel/mcpforge \
+  pypi:fastmcp_builder-X.Y.Z-py3-none-any.whl
+
+# GitHub build provenance and SBOM attestations (releases after this workflow)
+gh attestation verify fastmcp_builder-X.Y.Z-py3-none-any.whl --repo saagpatel/mcpforge
+gh attestation verify fastmcp_builder-X.Y.Z-py3-none-any.whl --repo saagpatel/mcpforge \
+  --predicate-type https://cyclonedx.org/bom
+
+# Local reproducibility check of the committed source
+make repro-check
 ```
+
+To reproduce an older release byte for byte, build its tag with the uv version
+that built it (the `Generator:` line in the wheel's `WHEEL` file), for example
+`uvx --from uv==0.11.25 uv build` for 0.3.4.
 
 ## Verifying the wheel
 
