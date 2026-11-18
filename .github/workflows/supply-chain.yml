@@ -1,0 +1,47 @@
+name: Supply chain
+
+# Runs the release job's reproducibility and SBOM steps on every change, with
+# read-only permissions and no publishing authority.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  reproducible-build:
+    name: Reproducible build and SBOM
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          version: "0.13.0"
+          python-version: "3.12"
+          enable-cache: false
+
+      - name: Build twice from fresh clones and compare SHA-256
+        run: |
+          mkdir -p supply-chain
+          python3 scripts/check_reproducible_build.py \
+            --report supply-chain/reproducible-build.json \
+            --build 'uv build --no-create-gitignore --out-dir {out}'
+
+      - name: Generate CycloneDX SBOM
+        run: |
+          uv export --preview-features sbom-export --format cyclonedx1.5 --locked --no-dev --all-extras \
+            --output-file supply-chain/fastmcp-builder.cdx.json
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: supply-chain
+          path: supply-chain/
+          if-no-files-found: error
+          retention-days: 14

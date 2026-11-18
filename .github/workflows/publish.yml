@@ -1,4 +1,7 @@
 name: Publish to PyPI
+
+# The PyPI trusted publisher for fastmcp-builder is bound to this file name
+# (publish.yml) and the `pypi` environment. Renaming either breaks publishing.
 on:
   push:
     tags: ["v*"]
@@ -6,17 +9,132 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: pypi-publish
+  cancel-in-progress: false
+
+env:
+  # Same uv as CI. uv's built-in build backend stamps its own version into the
+  # wheel, so an unpinned uv makes the release bytes depend on the release day.
+  UV_VERSION: "0.13.0"
+
 jobs:
+  build:
+    name: Build, reproduce and inventory
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: "3.12"
+          enable-cache: false
+
+      - name: Require the tag to match the package version
+        id: version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="$(uv version --short)"
+          module_version="$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' src/mcpforge/__init__.py)"
+          test "$TAG" = "v$version" || { echo "::error::tag $TAG does not match project version $version"; exit 1; }
+          test "$module_version" = "$version" || { echo "::error::__version__ $module_version does not match $version"; exit 1; }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Test
+        run: |
+          uv sync --locked
+          uv run --no-sync pytest tests/ -v
+
+      - name: Build wheel and sdist
+        run: uv build --no-create-gitignore --out-dir dist
+
+      - name: Reproducible-build check (rebuild from a fresh clone, compare SHA-256)
+        run: |
+          mkdir -p supply-chain
+          python3 scripts/check_reproducible_build.py --reference dist \
+            --report supply-chain/reproducible-build.json \
+            --build 'uv build --no-create-gitignore --out-dir {out}'
+
+      - name: Generate CycloneDX SBOM from the locked runtime dependencies
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          uv export --preview-features sbom-export --format cyclonedx1.5 --locked --no-dev --all-extras \
+            --output-file "supply-chain/fastmcp-builder-$VERSION.cdx.json"
+          (cd dist && sha256sum ./*) | tee supply-chain/SHA256SUMS
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+          retention-days: 90
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: supply-chain
+          path: supply-chain/
+          if-no-files-found: error
+          retention-days: 90
+
+  attest:
+    name: Attest build provenance and SBOM
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write      # Sigstore signing certificate
+      attestations: write  # store attestations on this repository
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: dist
+          path: dist/
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: supply-chain
+          path: supply-chain/
+
+      - name: Attest SLSA build provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: dist/*
+          # Storage records need an organization-owned repository.
+          create-storage-record: false
+
+      - name: Locate SBOM
+        id: sbom
+        run: echo "path=$(ls supply-chain/*.cdx.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Attest SBOM
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: dist/*
+          sbom-path: ${{ steps.sbom.outputs.path }}
+          create-storage-record: false
+
   publish:
+    name: Publish to PyPI
+    needs: [build, attest]
     runs-on: ubuntu-24.04
     environment: pypi
     permissions:
       contents: read
-      id-token: write
+      id-token: write  # PyPI trusted publishing and PEP 740 attestations
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
-      - run: uv sync
-      - run: uv run pytest tests/ -v
-      - run: uv build
-      - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # release/v1 (2026-10-05)
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: dist
+          path: dist/
+
+      - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
+        with:
+          packages-dir: dist/
+          attestations: true

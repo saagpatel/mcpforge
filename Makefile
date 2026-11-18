@@ -1,4 +1,4 @@
-.PHONY: setup check install test lint format clean
+.PHONY: setup check install test lint format clean repro-check sbom
 
 setup:
 	uv sync --locked
@@ -37,3 +37,11 @@ clean:
 	find . -type d -name "*.egg-info" -exec rm -rf {} +
 	find . -type f -name "*.pyc" -delete
 	rm -rf dist/
+
+# Build the committed source twice in fresh clones and compare SHA-256 of every artifact.
+repro-check:
+	python3 scripts/check_reproducible_build.py --build 'uv build --no-create-gitignore --out-dir {out}'
+
+# CycloneDX SBOM of the locked runtime dependencies (what the release job attests).
+sbom:
+	uv export --preview-features sbom-export --format cyclonedx1.5 --locked --no-dev --all-extras --output-file fastmcp-builder.cdx.json
