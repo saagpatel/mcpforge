@@ -4,7 +4,7 @@ setup:
 	uv sync --locked
 
 check:
-	@command -v uv >/dev/null 2>&1 || { echo "uv is required; install the pinned version (>=0.13.0) and run 'make setup'." >&2; exit 127; }
+	@command -v uv >/dev/null 2>&1 || { echo "uv is required; install uv 0.13.9 or any later 0.13.x and run 'make setup'." >&2; exit 127; }
 	uv lock --check
 	uv run --no-sync ruff check .
 	uv run --no-sync ruff format --check .

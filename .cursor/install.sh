@@ -5,7 +5,7 @@ set -euo pipefail
 # install uv into the cloud user's home only when the image does not already
 # provide the required version.
 readonly PYTHON_VERSION="3.12.15"
-readonly UV_VERSION="0.13.0"
+readonly UV_VERSION="0.13.9"
 readonly UV_BIN_DIR="${HOME}/.local/bin"
 
 export PATH="${UV_BIN_DIR}:${PATH}"

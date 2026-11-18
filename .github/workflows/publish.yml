@@ -16,7 +16,7 @@ concurrency:
 env:
   # Same uv as CI. uv's built-in build backend stamps its own version into the
   # wheel, so an unpinned uv makes the release bytes depend on the release day.
-  UV_VERSION: "0.13.0"
+  UV_VERSION: "0.13.9"
 
 jobs:
   build:

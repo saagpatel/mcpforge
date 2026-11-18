@@ -231,7 +231,7 @@ is blocked, with remote history and tested contents verified before delivery.
 
 ## Development setup
 
-The repository pins Python 3.12.15 in `.python-version` and requires uv 0.13.0 or later. Set up the locked environment and run the full local check with:
+The repository pins Python 3.12.15 in `.python-version` and requires uv 0.13.9 or any later 0.13.x (CI pins exactly 0.13.9). Set up the locked environment and run the full local check with:
 
 ```bash
 make setup
@@ -248,7 +248,7 @@ The `generate` command sends the user's description to Claude with a structured 
 
 ### Stack
 
-The current package version is 0.3.4, published to PyPI as `fastmcp-builder`. It adds a `fastmcp-builder` console-script alias and corrects the registry metadata. Version 0.3.3 added `mcpforge demo`, the OpenRouter provider, and MCP Registry metadata. The project targets Python 3.12+ and FastMCP 3.x. The repository toolchain pins Python 3.12.15 and requires uv 0.13.0 or later.
+The current package version is 0.3.4, published to PyPI as `fastmcp-builder`. It adds a `fastmcp-builder` console-script alias and corrects the registry metadata. Version 0.3.3 added `mcpforge demo`, the OpenRouter provider, and MCP Registry metadata. The project targets Python 3.12+ and FastMCP 3.x. The repository toolchain pins Python 3.12.15 and requires uv 0.13.9 or any later 0.13.x.
 
 ### Known risks
 
