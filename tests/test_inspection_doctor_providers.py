@@ -13,6 +13,7 @@ from mcpforge.inspection import inspect_server
 from mcpforge.models import ServerPlan
 from mcpforge.profiles import apply_generation_profiles
 from mcpforge.providers import create_provider_client, provider_capabilities
+from mcpforge.writer import write_server
 
 
 def test_inspect_python_server_counts_components_and_env(tmp_path: Path) -> None:
@@ -256,6 +257,42 @@ def test_inspect_safeforge_tool():
 def test_inspect_registered_tool_name(tmp_path):
     (tmp_path / "server.py").write_text('@mcp.tool(name="alias")\ndef internal(): pass\n')
     assert inspect_server(tmp_path)["tools"] == {"names": ["alias"], "count": 1}
+
+
+def test_inspect_utf8_bom_server(tmp_path):
+    (tmp_path / "server.py").write_text(
+        'from fastmcp import FastMCP\nmcp = FastMCP("example")\n@mcp.tool\ndef ping(): pass\n',
+        encoding="utf-8-sig",
+    )
+    assert inspect_server(tmp_path)["tools"] == {"names": ["ping"], "count": 1}
+
+
+@pytest.mark.parametrize(
+    ("binding", "name"),
+    [
+        ("from sys import platform as TOOL_NAME", "TOOL_NAME"),
+        ("from sys import platform", "platform"),
+        ("import sys as TOOL_NAME", "TOOL_NAME"),
+        ("import xml.etree", "xml"),
+        ("from sys import *", "platform"),
+    ],
+)
+def test_inspect_invalidates_imported_tool_name(tmp_path, binding, name):
+    (tmp_path / "server.py").write_text(
+        f'{name} = "old"\n{binding}\n@mcp.tool(name={name})\ndef tool(): pass\n'
+    )
+    assert inspect_server(tmp_path)["tools"] == {"names": ["<unresolved>"], "count": 1}
+
+
+@pytest.mark.parametrize(("transport", "remote"), [("sse", True), ("stdio", False)])
+def test_inspect_rendered_transport(tmp_path, transport, remote):
+    plan = ServerPlan(
+        name="Example", slug="example", description="Example", transport=transport, tools=[]
+    )
+    write_server(plan, "", "", tmp_path)
+    result = inspect_server(tmp_path)["remote_mcp"]
+    assert result["has_http_config"] is remote
+    assert result["ready"] is remote
 
 
 def test_inspect_resolves_module_constant_tool_name(tmp_path):

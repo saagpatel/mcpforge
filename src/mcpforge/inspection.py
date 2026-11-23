@@ -27,6 +27,8 @@ def _module_bindings(node: ast.AST) -> set[str]:
             return set()
         if isinstance(current, ast.Name) and isinstance(current.ctx, (ast.Store, ast.Del)):
             return {current.id}
+        if isinstance(current, ast.alias):
+            return {current.asname or current.name.split(".", 1)[0]}
         return set().union(*(bound_names(child) for child in ast.iter_child_nodes(current)))
 
     return bound_names(node)
@@ -43,6 +45,9 @@ def _python_tool_names(code: str) -> list[str]:
     for node in module.body:
         if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             for bound_name in _module_bindings(node):
+                if bound_name == "*":
+                    constants.clear()
+                    break
                 constants.pop(bound_name, None)
             if (
                 isinstance(node, (ast.Assign, ast.AnnAssign))
@@ -155,7 +160,7 @@ def inspect_server(path: Path) -> dict[str, Any]:
 
     if server_py.exists():
         language = "python"
-        code = _read_text(server_py)
+        code = _read_text(server_py).removeprefix("\ufeff")
         required_files = [
             "server.py",
             "test_server.py",
@@ -214,7 +219,7 @@ def inspect_server(path: Path) -> dict[str, Any]:
     deployment = fastmcp_config.get("deployment", {})
     has_http_config = bool(
         isinstance(deployment, dict)
-        and deployment.get("transport") in {"http", "streamable-http"}
+        and deployment.get("transport") in {"http", "streamable-http", "sse"}
         and deployment.get("path")
     )
     has_security_notes = "## Security Notes" in readme
