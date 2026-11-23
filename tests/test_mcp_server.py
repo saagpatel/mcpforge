@@ -739,6 +739,19 @@ async def test_generate_rejects_unsupported_option_before_planning(option, value
     parse.assert_not_called()
 
 
+async def test_generate_keeps_explicit_transport_from_request():
+    from mcpforge.mcp_server import generate
+
+    provider_plan = _mock_plan()
+    provider_plan.transport = "sse"
+    with (
+        patch("mcpforge.mcp_server._get_client"),
+        patch("mcpforge.mcp_server.extract_plan", new=AsyncMock(return_value=provider_plan)),
+    ):
+        result = await generate("example", transport="stdio", dry_run=True)
+    assert result["plan"]["transport"] == "stdio"
+
+
 async def test_openapi_generate_honors_stdio():
     from mcpforge.mcp_server import generate
 

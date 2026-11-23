@@ -448,20 +448,20 @@ def test_openapi_typescript_defaults_to_stdio():
     assert display.call_args.args[0].transport == "stdio"
 
 
-def test_typescript_provider_plan_uses_stdio():
+@pytest.mark.parametrize("options", [["--language", "typescript"], ["--transport", "stdio"]])
+def test_provider_plan_uses_stdio(options):
     with (
         patch("mcpforge.cli._display_plan") as display,
         patch("mcpforge.cli._create_cli_client"),
         patch("mcpforge.cli.extract_plan", new=AsyncMock(return_value=_mock_plan())),
     ):
-        result = CliRunner().invoke(
-            cli, ["generate", "example", "--language", "typescript", "--dry-run"]
-        )
+        result = CliRunner().invoke(cli, ["generate", "example", *options, "--dry-run"])
     assert result.exit_code == 0, result.output
     assert display.call_args.args[0].transport == "stdio"
 
 
-def test_typescript_refined_openapi_plan_keeps_stdio():
+@pytest.mark.parametrize("options", [["--language", "typescript"], ["--transport", "stdio"]])
+def test_refined_openapi_plan_keeps_stdio(options):
     with (
         patch("mcpforge.cli._display_plan") as display,
         patch("mcpforge.cli._create_cli_client"),
@@ -475,12 +475,11 @@ def test_typescript_refined_openapi_plan_keeps_stdio():
                 "example",
                 "--from-openapi",
                 "tests/fixtures/openapi-auth-tickets.json",
-                "--language",
-                "typescript",
+                *options,
                 "--interactive",
                 "--dry-run",
             ],
             input="Add a tool\n\n",
         )
     assert result.exit_code == 0, result.output
-    assert all(call.args[0].transport == "stdio" for call in display.call_args_list)
+    assert [call.args[0].transport for call in display.call_args_list] == ["stdio", "stdio"]

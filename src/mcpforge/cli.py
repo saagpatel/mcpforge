@@ -201,6 +201,7 @@ async def _run_generate(
     middleware_profiles: tuple[str, ...] = (),
 ) -> None:
     """Async orchestration for the generate command."""
+    keep_transport = transport is not None or language == "typescript"
     if transport is None:
         transport = "stdio" if language == "typescript" else "streamable-http"
     if language == "typescript" and transport != "stdio":
@@ -224,7 +225,7 @@ async def _run_generate(
             task = progress.add_task("Planning server structure...", total=None)
             plan = await extract_plan(description, client, transport)
             progress.remove_task(task)
-    if openapi_path or language == "typescript":
+    if openapi_path or keep_transport:
         plan.transport = transport
 
     if language == "typescript" and (auth_profile != "none" or middleware_profiles):
@@ -252,7 +253,7 @@ async def _run_generate(
                 task = progress.add_task("Refining plan...", total=None)
                 plan = await refine_plan(plan, feedback, client)
                 progress.remove_task(task)
-            if language == "typescript":
+            if keep_transport:
                 plan.transport = transport
             _display_plan(plan)
 

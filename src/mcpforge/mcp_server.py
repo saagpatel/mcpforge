@@ -119,6 +119,7 @@ async def generate(
     TypeScript no_execute also reports write-only generation and checks not run.
     """
     language = _choice("language", language, LANGUAGES)
+    keep_transport = transport is not None or language == "typescript"
     if transport is None:
         transport = "stdio" if language == "typescript" else "streamable-http"
     transport = _choice("transport", transport, TRANSPORTS)
@@ -139,7 +140,7 @@ async def generate(
     else:
         client = _get_client(model, provider)
         server_plan = await extract_plan(description, client, transport)
-    if from_openapi or language == "typescript":
+    if from_openapi or keep_transport:
         server_plan.transport = transport
 
     if language == "python":
