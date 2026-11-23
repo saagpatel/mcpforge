@@ -98,7 +98,7 @@ def _choice(option: str, value: str, choices: Collection[str]) -> str:
 @mcp.tool
 async def generate(
     description: str,
-    transport: str = "streamable-http",
+    transport: str | None = None,
     output_path: str = "",
     model: str = _DEFAULT_MODEL,
     provider: str = DEFAULT_PROVIDER,
@@ -119,7 +119,11 @@ async def generate(
     TypeScript no_execute also reports write-only generation and checks not run.
     """
     language = _choice("language", language, LANGUAGES)
+    if transport is None:
+        transport = "stdio" if language == "typescript" else "streamable-http"
     transport = _choice("transport", transport, TRANSPORTS)
+    if language == "typescript" and transport != "stdio":
+        raise ToolError("TypeScript supports stdio transport only.")
     if template:
         template = _choice("template", template, TEMPLATE_HINTS)
     auth_profile = _choice("auth_profile", auth_profile, AUTH_PROFILES)
@@ -132,10 +136,11 @@ async def generate(
     if from_openapi:
         spec_path = _resolve_workspace_path(from_openapi, must_exist=True)
         server_plan = parse_openapi(load_spec(spec_path))
-        server_plan.transport = transport
     else:
         client = _get_client(model, provider)
         server_plan = await extract_plan(description, client, transport)
+    if from_openapi or language == "typescript":
+        server_plan.transport = transport
 
     if language == "python":
         server_plan = apply_generation_profiles(

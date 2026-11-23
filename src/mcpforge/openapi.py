@@ -7,6 +7,8 @@ from pathlib import Path
 from mcpforge.contracts import PaginationSpec
 from mcpforge.models import ServerPlan, ToolDef, ToolParam
 
+_OPERATION_METHODS = {"get", "post", "put", "patch", "delete", "head", "options", "trace"}
+
 _TYPE_MAP: dict[str, str] = {
     "string": "str",
     "integer": "int",
@@ -231,6 +233,9 @@ def parse_openapi(
     operation_limit: int | None = None,
 ) -> ServerPlan:
     """Convert an OpenAPI 3.x spec dict to a ServerPlan."""
+    if operation_limit is not None and operation_limit <= 0:
+        raise ValueError("operation_limit must be a positive integer")
+
     openapi_version = spec.get("openapi", "")
     if not openapi_version.startswith("3."):
         raise ValueError(f"Only OpenAPI 3.x is supported, got: {openapi_version!r}")
@@ -258,17 +263,24 @@ def parse_openapi(
                 env_vars.append(auth_info["env_var"])
 
     for path_str, path_item in paths.items():
+        if not isinstance(path_str, str):
+            raise ValueError(f"paths.{path_str} must be a string")
         if path_str.startswith("x-"):
             continue  # Specification extensions are not path items.
         if not isinstance(path_item, dict):
             raise ValueError(f"paths.{path_str} must be an object")
         for method, operation in path_item.items():
-            if method.lower() not in {"get", "post", "put", "patch", "delete", "head", "options"}:
+            if not isinstance(method, str):
+                raise ValueError(f"paths.{path_str}.{method} must be a string")
+            method_name = method.lower()
+            if method_name not in _OPERATION_METHODS:
                 continue
             if not isinstance(operation, dict):
                 raise ValueError(f"paths.{path_str}.{method} must be an object")
+            if method_name == "trace":
+                continue
             # Keep checking path and operation shapes after emitting the limited plan.
-            if tools and operation_limit is not None and len(tools) >= operation_limit:
+            if operation_limit is not None and len(tools) >= operation_limit:
                 continue
 
             # Tool name from operationId or fallback

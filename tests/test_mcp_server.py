@@ -81,7 +81,9 @@ class TestMcpGenerationProtocol:
         assert (output / "package.json").is_file()
         assert not (output / "node_modules").exists()
         assert payload["path"] == str(output.resolve())
-        assert payload["plan"] == _mock_plan().model_dump()
+        expected_plan = _mock_plan()
+        expected_plan.transport = "stdio"
+        assert payload["plan"] == expected_plan.model_dump()
         assert payload["tests_ok"] is True  # Legacy no-output flag, not executed-test evidence.
         assert payload["tests_run"] == 0
         ordinary_keys = {"path", "plan", "valid", "structurally_valid", "tests_ok", "tests_run"}
@@ -742,6 +744,70 @@ async def test_openapi_generate_honors_stdio():
 
     result = await generate(**_OPENAPI_DRY_RUN, transport="stdio")
     assert result["plan"]["transport"] == "stdio"
+
+
+@pytest.mark.parametrize("transport", ["sse", "streamable-http"])
+async def test_openapi_typescript_rejects_http_transport(transport):
+    from fastmcp.exceptions import ToolError
+
+    from mcpforge.mcp_server import generate, parse_openapi
+
+    with (
+        patch("mcpforge.mcp_server.parse_openapi", wraps=parse_openapi) as parse,
+        patch("mcpforge.mcp_server._get_client") as client_factory,
+        pytest.raises(ToolError, match="TypeScript supports stdio transport only"),
+    ):
+        await generate(**_OPENAPI_DRY_RUN, language="typescript", transport=transport)
+    parse.assert_not_called()
+    client_factory.assert_not_called()
+
+
+async def test_openapi_typescript_defaults_to_stdio(tmp_path):
+    import json
+
+    from mcpforge.mcp_server import generate
+    from mcpforge.writer import write_server_ts
+
+    result = await generate(**_OPENAPI_DRY_RUN, language="typescript")
+    assert result["plan"]["transport"] == "stdio"
+    plan = ServerPlan.model_validate(result["plan"])
+    output = tmp_path / "typescript"
+    write_server_ts(plan, "", "", output)
+    config = json.loads((output / "config.json").read_text())
+    client = config["mcpServers"][plan.slug]
+    assert client["command"] == "npm"
+    assert client["args"] == ["--prefix", ".", "run", "start"]
+
+
+@pytest.mark.parametrize(("transport", "endpoint"), [("sse", "/sse"), ("streamable-http", "/mcp")])
+async def test_python_client_and_deployment_use_transport_endpoint(tmp_path, transport, endpoint):
+    import json
+    from urllib.parse import urlparse
+
+    from fastmcp import FastMCP
+
+    from mcpforge.mcp_server import generate
+    from mcpforge.writer import write_server
+
+    result = await generate(**_OPENAPI_DRY_RUN, transport=transport)
+    plan = ServerPlan.model_validate(result["plan"])
+    output = tmp_path / transport
+    write_server(plan, "", "", output)
+    client = json.loads((output / "config.json").read_text())
+    deployment = json.loads((output / "fastmcp.json").read_text())["deployment"]
+    client_url = client["mcpServers"][plan.slug]["url"]
+    app = FastMCP("route-check").http_app(transport=plan.transport)
+    assert urlparse(client_url).path == endpoint
+    assert endpoint in {route.path for route in app.routes}
+    assert deployment["path"] == ("/sse" if transport == "sse" else "/mcp/")
+    for profile_name in ("local_http", "production_http"):
+        profile = deployment["profiles"][profile_name]
+        assert urlparse(profile["url"]).path == deployment["path"]
+        assert (
+            profile["transport"]
+            == deployment["transport"]
+            == ("sse" if transport == "sse" else "http")
+        )
 
 
 async def test_inspect_relative_to_configured_workspace(monkeypatch):

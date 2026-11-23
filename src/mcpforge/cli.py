@@ -181,7 +181,7 @@ async def _run_generate(
     output: str | None,
     model: str,
     provider: str,
-    transport: str,
+    transport: str | None,
     dry_run: bool,
     yes: bool,
     force: bool,
@@ -201,6 +201,10 @@ async def _run_generate(
     middleware_profiles: tuple[str, ...] = (),
 ) -> None:
     """Async orchestration for the generate command."""
+    if transport is None:
+        transport = "stdio" if language == "typescript" else "streamable-http"
+    if language == "typescript" and transport != "stdio":
+        raise ValueError("TypeScript supports stdio transport only.")
     client = None
 
     # Stage 1: Plan
@@ -212,7 +216,6 @@ async def _run_generate(
             operations=set(openapi_operations) or None,
             operation_limit=openapi_limit,
         )
-        plan.transport = transport
     else:
         client = _create_cli_client(provider, model)
         with Progress(
@@ -221,6 +224,8 @@ async def _run_generate(
             task = progress.add_task("Planning server structure...", total=None)
             plan = await extract_plan(description, client, transport)
             progress.remove_task(task)
+    if openapi_path or language == "typescript":
+        plan.transport = transport
 
     if language == "typescript" and (auth_profile != "none" or middleware_profiles):
         raise ValueError("Auth and middleware generation profiles are Python-only for now.")
@@ -247,6 +252,8 @@ async def _run_generate(
                 task = progress.add_task("Refining plan...", total=None)
                 plan = await refine_plan(plan, feedback, client)
                 progress.remove_task(task)
+            if language == "typescript":
+                plan.transport = transport
             _display_plan(plan)
 
     if dry_run:
@@ -782,10 +789,9 @@ def contracts_fixtures_command(json_output: bool) -> None:
 @click.option(
     "--transport",
     "-t",
-    default="streamable-http",
-    show_default=True,
+    default=None,
     type=click.Choice(TRANSPORTS, case_sensitive=False),
-    help="MCP transport type for the generated server.",
+    help="MCP transport type. Defaults to stdio for TypeScript and streamable-http for Python.",
 )
 @click.option(
     "--dry-run",
@@ -841,7 +847,7 @@ def contracts_fixtures_command(json_output: bool) -> None:
 )
 @click.option(
     "--openapi-limit",
-    type=int,
+    type=click.IntRange(min=1),
     default=None,
     help="Maximum number of OpenAPI operations to convert.",
 )
@@ -908,7 +914,7 @@ def generate(
     output: str | None,
     model: str,
     provider: str,
-    transport: str,
+    transport: str | None,
     dry_run: bool,
     yes: bool,
     force: bool,

@@ -347,3 +347,38 @@ def test_parse_openapi_rejects_malformed_path_with_valid_sibling(item, location)
     spec = {**SAMPLE_SPEC, "paths": {**SAMPLE_SPEC["paths"], "/bad": item}}
     with pytest.raises(ValueError, match=location):
         parse_openapi(spec)
+
+
+def test_parse_openapi_rejects_non_string_path_key():
+    spec = {**SAMPLE_SPEC, "paths": {**SAMPLE_SPEC["paths"], 7: {"get": {}}}}
+
+    with pytest.raises(ValueError, match=r"paths\.7.*string"):
+        parse_openapi(spec)
+
+
+def test_parse_openapi_validates_trace_operation_shape():
+    spec = {
+        **SAMPLE_SPEC,
+        "paths": {
+            "/items": {
+                "get": {"operationId": "get_items", "responses": {"200": {}}},
+                "trace": [],
+            }
+        },
+    }
+
+    with pytest.raises(ValueError, match=r"paths\./items\.trace.*object"):
+        parse_openapi(spec)
+
+
+def test_parse_openapi_rejects_non_string_method_key():
+    spec = {**SAMPLE_SPEC, "paths": {"/items": {1: {}}}}
+
+    with pytest.raises(ValueError, match=r"paths\./items\.1.*string"):
+        parse_openapi(spec)
+
+
+@pytest.mark.parametrize("limit", [0, -1])
+def test_parse_openapi_rejects_non_positive_operation_limit(limit):
+    with pytest.raises(ValueError, match="operation_limit must be a positive integer"):
+        parse_openapi(SAMPLE_SPEC, operation_limit=limit)
