@@ -345,10 +345,11 @@ def test_parse_openapi_oauth_placeholder_uses_env_token_and_guidance() -> None:
 @pytest.mark.parametrize(
     ("item", "location"), [(0, r"paths\./bad"), ({"get": []}, r"paths\./bad\.get")]
 )
-def test_parse_openapi_rejects_malformed_path_with_valid_sibling(item, location):
+@pytest.mark.parametrize("operation_limit", [None, 1])
+def test_parse_openapi_rejects_malformed_path_with_valid_sibling(item, location, operation_limit):
     spec = {**SAMPLE_SPEC, "paths": {**SAMPLE_SPEC["paths"], "/bad": item}}
     with pytest.raises(ValueError, match=location):
-        parse_openapi(spec)
+        parse_openapi(spec, operation_limit=operation_limit)
 
 
 def test_parse_openapi_rejects_non_string_path_key():
