@@ -752,6 +752,22 @@ async def test_generate_keeps_explicit_transport_from_request():
     assert result["plan"]["transport"] == "stdio"
 
 
+@pytest.mark.parametrize(
+    ("offered", "expected"), [("websocket", "streamable-http"), ("sse", "sse")]
+)
+async def test_generate_effective_provider_transport(offered, expected):
+    from mcpforge.mcp_server import generate
+
+    provider_plan = _mock_plan()
+    provider_plan.transport = offered
+    with (
+        patch("mcpforge.mcp_server._get_client"),
+        patch("mcpforge.mcp_server.extract_plan", return_value=provider_plan),
+    ):
+        result = await generate("example", dry_run=True)
+    assert result["plan"]["transport"] == expected
+
+
 async def test_openapi_generate_honors_stdio():
     from mcpforge.mcp_server import generate
 

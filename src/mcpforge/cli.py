@@ -225,7 +225,7 @@ async def _run_generate(
             task = progress.add_task("Planning server structure...", total=None)
             plan = await extract_plan(description, client, transport)
             progress.remove_task(task)
-    if openapi_path or keep_transport:
+    if openapi_path or keep_transport or plan.transport not in TRANSPORTS:
         plan.transport = transport
 
     if language == "typescript" and (auth_profile != "none" or middleware_profiles):
@@ -253,7 +253,7 @@ async def _run_generate(
                 task = progress.add_task("Refining plan...", total=None)
                 plan = await refine_plan(plan, feedback, client)
                 progress.remove_task(task)
-            if keep_transport:
+            if keep_transport or plan.transport not in TRANSPORTS:
                 plan.transport = transport
             _display_plan(plan)
 

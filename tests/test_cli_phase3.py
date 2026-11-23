@@ -460,6 +460,24 @@ def test_provider_plan_uses_stdio(options):
     assert display.call_args.args[0].transport == "stdio"
 
 
+@pytest.mark.parametrize("refined", [False, True])
+def test_invalid_provider_transport_uses_default(refined):
+    invalid_plan = _mock_plan()
+    invalid_plan.transport = "websocket"
+    args = ["generate", "example", "--dry-run"]
+    if refined:
+        args.append("--interactive")
+    with (
+        patch("mcpforge.cli._display_plan") as display,
+        patch("mcpforge.cli._create_cli_client"),
+        patch("mcpforge.cli.extract_plan", return_value=_mock_plan() if refined else invalid_plan),
+        patch("mcpforge.cli.refine_plan", return_value=invalid_plan),
+    ):
+        result = CliRunner().invoke(cli, args, input="Add a tool\n\n" if refined else None)
+    assert result.exit_code == 0, result.output
+    assert display.call_args.args[0].transport == "streamable-http"
+
+
 @pytest.mark.parametrize("options", [["--language", "typescript"], ["--transport", "stdio"]])
 def test_refined_openapi_plan_keeps_stdio(options):
     with (

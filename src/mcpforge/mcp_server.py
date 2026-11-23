@@ -140,7 +140,7 @@ async def generate(
     else:
         client = _get_client(model, provider)
         server_plan = await extract_plan(description, client, transport)
-    if from_openapi or keep_transport:
+    if from_openapi or keep_transport or server_plan.transport not in TRANSPORTS:
         server_plan.transport = transport
 
     if language == "python":
