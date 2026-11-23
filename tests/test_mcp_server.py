@@ -81,7 +81,9 @@ class TestMcpGenerationProtocol:
         assert (output / "package.json").is_file()
         assert not (output / "node_modules").exists()
         assert payload["path"] == str(output.resolve())
-        assert payload["plan"] == _mock_plan().model_dump()
+        expected_plan = _mock_plan()
+        expected_plan.transport = "stdio"
+        assert payload["plan"] == expected_plan.model_dump()
         assert payload["tests_ok"] is True  # Legacy no-output flag, not executed-test evidence.
         assert payload["tests_run"] == 0
         ordinary_keys = {"path", "plan", "valid", "structurally_valid", "tests_ok", "tests_run"}
@@ -705,3 +707,163 @@ class TestWorkspaceBoundary:
         subdir.mkdir()
         result = _resolve_workspace_path(str(subdir))
         assert result == subdir.resolve()
+
+
+@pytest.fixture
+def openapi_dry_run(monkeypatch):
+    monkeypatch.setenv("MCPFORGE_WORKSPACE", str(Path(__file__).parent.resolve() / "fixtures"))
+    return {"description": "", "from_openapi": "openapi-auth-tickets.json", "dry_run": True}
+
+
+@pytest.mark.parametrize(
+    ("option", "value"),
+    [
+        ("language", "rust"),
+        ("template", "typo"),
+        ("auth_profile", "typo"),
+        ("middleware_profiles", ["logging", "typo"]),
+        ("transport", "typo"),
+    ],
+)
+async def test_generate_rejects_unsupported_option_before_planning(openapi_dry_run, option, value):
+    from mcpforge.mcp_server import mcp, parse_openapi
+
+    with patch("mcpforge.mcp_server.parse_openapi", wraps=parse_openapi) as parse:
+        async with Client(mcp) as client:
+            result = await client.call_tool(
+                "generate", {**openapi_dry_run, option: value}, raise_on_error=False
+            )
+    assert result.is_error
+    assert option in result.content[0].text
+    parse.assert_not_called()
+
+
+async def test_generate_keeps_explicit_transport_from_request():
+    from mcpforge.mcp_server import generate
+
+    provider_plan = _mock_plan()
+    provider_plan.transport = "sse"
+    with (
+        patch("mcpforge.mcp_server._get_client"),
+        patch("mcpforge.mcp_server.extract_plan", new=AsyncMock(return_value=provider_plan)),
+    ):
+        result = await generate("example", transport="stdio", dry_run=True)
+    assert result["plan"]["transport"] == "stdio"
+
+
+@pytest.mark.parametrize(
+    ("offered", "expected"), [("websocket", "streamable-http"), ("sse", "sse")]
+)
+async def test_generate_effective_provider_transport(offered, expected):
+    from mcpforge.mcp_server import generate
+
+    provider_plan = _mock_plan()
+    provider_plan.transport = offered
+    with (
+        patch("mcpforge.mcp_server._get_client"),
+        patch("mcpforge.mcp_server.extract_plan", return_value=provider_plan),
+    ):
+        result = await generate("example", dry_run=True)
+    assert result["plan"]["transport"] == expected
+
+
+async def test_openapi_generate_honors_stdio(openapi_dry_run):
+    from mcpforge.mcp_server import generate
+
+    result = await generate(**openapi_dry_run, transport="stdio")
+    assert result["plan"]["transport"] == "stdio"
+
+
+@pytest.mark.parametrize("transport", ["sse", "streamable-http"])
+async def test_openapi_typescript_rejects_http_transport(openapi_dry_run, transport):
+    from fastmcp.exceptions import ToolError
+
+    from mcpforge.mcp_server import generate, parse_openapi
+
+    with (
+        patch("mcpforge.mcp_server.parse_openapi", wraps=parse_openapi) as parse,
+        patch("mcpforge.mcp_server._get_client") as client_factory,
+        pytest.raises(ToolError, match="TypeScript supports stdio transport only"),
+    ):
+        await generate(**openapi_dry_run, language="typescript", transport=transport)
+    parse.assert_not_called()
+    client_factory.assert_not_called()
+
+
+async def test_openapi_typescript_defaults_to_stdio(tmp_path, openapi_dry_run):
+    import json
+
+    from mcpforge.mcp_server import generate
+    from mcpforge.writer import write_server_ts
+
+    result = await generate(**openapi_dry_run, language="typescript")
+    assert result["plan"]["transport"] == "stdio"
+    plan = ServerPlan.model_validate(result["plan"])
+    output = tmp_path / "typescript"
+    write_server_ts(plan, "", "", output)
+    config = json.loads((output / "config.json").read_text())
+    client = config["mcpServers"][plan.slug]
+    assert client["command"] == "npm"
+    assert client["args"] == ["--prefix", ".", "run", "start"]
+
+
+@pytest.mark.parametrize(("transport", "endpoint"), [("sse", "/sse"), ("streamable-http", "/mcp")])
+async def test_python_client_and_deployment_use_transport_endpoint(
+    tmp_path, openapi_dry_run, transport, endpoint
+):
+    import json
+    from urllib.parse import urlparse
+
+    from fastmcp import FastMCP
+
+    from mcpforge.mcp_server import generate
+    from mcpforge.writer import write_server
+
+    result = await generate(**openapi_dry_run, transport=transport)
+    plan = ServerPlan.model_validate(result["plan"])
+    output = tmp_path / transport
+    write_server(plan, "", "", output)
+    client = json.loads((output / "config.json").read_text())
+    deployment = json.loads((output / "fastmcp.json").read_text())["deployment"]
+    client_url = client["mcpServers"][plan.slug]["url"]
+    app = FastMCP("route-check").http_app(transport=plan.transport)
+    assert urlparse(client_url).path == endpoint
+    assert endpoint in {route.path for route in app.routes}
+    assert deployment["path"] == endpoint
+    for profile_name in ("local_http", "production_http"):
+        profile = deployment["profiles"][profile_name]
+        assert urlparse(profile["url"]).path == deployment["path"]
+        assert (
+            profile["transport"]
+            == deployment["transport"]
+            == ("sse" if transport == "sse" else "http")
+        )
+
+
+async def test_inspect_relative_to_configured_workspace(monkeypatch):
+    from mcpforge.mcp_server import inspect
+
+    monkeypatch.setenv("MCPFORGE_WORKSPACE", str(Path("examples").resolve()))
+    result = await inspect("todo-server")
+    assert Path(result["path"]) == Path("examples/todo-server").resolve()
+
+
+@pytest.mark.parametrize("from_environment", [False, True])
+async def test_discovery_requires_directory(tmp_path, monkeypatch, from_environment):
+    from fastmcp.exceptions import ToolError
+
+    from mcpforge.mcp_server import list_generated_servers
+
+    file = tmp_path / "readme.txt"
+    file.touch()
+    monkeypatch.setenv("MCPFORGE_WORKSPACE", str(file if from_environment else tmp_path))
+    with pytest.raises(ToolError, match="must be a directory"):
+        await list_generated_servers("" if from_environment else str(file))
+
+
+async def test_generate_description_documents_dry_run():
+    from mcpforge.mcp_server import mcp
+
+    async with Client(mcp) as client:
+        generate = next(tool for tool in await client.list_tools() if tool.name == "generate")
+    assert any("dry_run" in line and "plan" in line for line in generate.description.splitlines())

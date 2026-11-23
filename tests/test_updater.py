@@ -102,3 +102,40 @@ async def test_update_server_strips_fences_from_response(
 
     assert server_code == "code here"
     assert test_code == "test here"
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "{}",
+        "invalid JSON",
+        '["code"]',
+        '{"server_code":"ok","test_code":0}',
+        pytest.param(json.dumps({"server_code": " \n", "test_code": "\t"}), id="both-blank"),
+        pytest.param(
+            json.dumps({"server_code": "```python\n```", "test_code": "ok"}), id="server-fence"
+        ),
+        pytest.param(json.dumps({"server_code": "ok", "test_code": " \n"}), id="blank-tests"),
+        pytest.param(json.dumps({"server_code": "\ud800", "test_code": "ok"}), id="server-utf8"),
+        pytest.param(json.dumps({"server_code": "ok", "test_code": "\ud800"}), id="tests-utf8"),
+        pytest.param(json.dumps({"server_code": "ok", "test_code": "```\n```"}), id="test-fence"),
+    ],
+)
+async def test_update_rejects_invalid_response_before_writing(tmp_path, monkeypatch, raw):
+    from unittest.mock import patch
+
+    from mcpforge.mcp_server import update
+
+    monkeypatch.setenv("MCPFORGE_WORKSPACE", str(tmp_path))
+    (tmp_path / "server.py").write_text("# original")
+    (tmp_path / "test_server.py").write_text("# original tests")
+    client = AsyncMock()
+    client.generate.return_value = raw
+    with (
+        patch("mcpforge.mcp_server._get_client", return_value=client),
+        patch.object(Path, "write_text") as write,
+        patch("mcpforge.mcp_server.uv_sync", return_value="skip execution"),
+    ):
+        with pytest.raises(ValueError, match="provider response"):
+            await update(str(tmp_path), "edit")
+        write.assert_not_called()

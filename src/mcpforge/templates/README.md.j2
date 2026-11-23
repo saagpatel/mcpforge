@@ -113,26 +113,21 @@ Direct Python:
 uv run python server.py
 ```
 
-FastMCP stdio:
+FastMCP ({{ plan.transport }}):
 
 ```bash
-fastmcp run server.py
+fastmcp run fastmcp.json
 ```
 
-FastMCP HTTP:
-
-```bash
-fastmcp run fastmcp.json --transport http --host 127.0.0.1 --port 8000
-```
-
+{% if plan.transport != "stdio" %}
+{% set endpoint = "/sse" if plan.transport == "sse" else "/mcp" %}
 ## Remote MCP Readiness
 
 Deployment profiles:
 
-- Local stdio: use the `config.json` command for desktop clients.
 - Local HTTP: run `fastmcp.json` on `127.0.0.1` for connector testing.
 - Production HTTP: put the server behind TLS, logging, and an explicit auth boundary.
-- Remote connector: expose only the `/mcp/` endpoint and review shared data before connecting clients.
+- Remote connector: expose only `{{ endpoint }}`{% if plan.transport == "sse" %} and the `/messages/` POST route{% endif %} through the proxy and review shared data before connecting clients.
 
 Readiness checklist:
 
@@ -141,30 +136,21 @@ Readiness checklist:
 - Keep downstream API keys separate from MCP client tokens; do not pass client bearer tokens downstream.
 - Require human approval for sensitive write, delete, external-send, or cross-account actions.
 - Log request timing and tool names, but avoid logging raw secrets or full private payloads.
+{% endif %}
 
 ## MCP Client Configuration
 
-Local stdio client config:
-
 ```json
 {
   "mcpServers": {
     "{{ plan.slug }}": {
+{% if plan.transport == "stdio" %}
       "command": "uv",
       "args": ["--directory", ".", "run", "python", "server.py"]
-    }
-  }
-}
-```
-
-HTTP client config:
-
-```json
-{
-  "mcpServers": {
-    "{{ plan.slug }}": {
-      "url": "http://localhost:8000/mcp/",
-      "transport": "streamable-http"
+{% else %}
+      "url": "http://localhost:8000{{ endpoint }}",
+      "transport": "{{ plan.transport }}"
+{% endif %}
     }
   }
 }

@@ -27,7 +27,13 @@ from mcpforge.models import ServerPlan, ToolDef, ValidationNotRunResult, Validat
 from mcpforge.openapi import load_spec, parse_openapi
 from mcpforge.openrouter_client import OPENROUTER_DISCLAIMER
 from mcpforge.planner import extract_plan, refine_plan
-from mcpforge.profiles import apply_generation_profiles
+from mcpforge.profiles import (
+    AUTH_PROFILES,
+    LANGUAGES,
+    MIDDLEWARE_PROFILE_ENV_VARS,
+    TRANSPORTS,
+    apply_generation_profiles,
+)
 from mcpforge.prompts import load_prompt
 from mcpforge.providers import DEFAULT_PROVIDER, create_provider_client
 from mcpforge.replay_client import ReplayClient
@@ -175,7 +181,7 @@ async def _run_generate(
     output: str | None,
     model: str,
     provider: str,
-    transport: str,
+    transport: str | None,
     dry_run: bool,
     yes: bool,
     force: bool,
@@ -195,6 +201,11 @@ async def _run_generate(
     middleware_profiles: tuple[str, ...] = (),
 ) -> None:
     """Async orchestration for the generate command."""
+    keep_transport = transport is not None or language == "typescript"
+    if transport is None:
+        transport = "stdio" if language == "typescript" else "streamable-http"
+    if language == "typescript" and transport != "stdio":
+        raise ValueError("TypeScript supports stdio transport only.")
     client = None
 
     # Stage 1: Plan
@@ -214,6 +225,8 @@ async def _run_generate(
             task = progress.add_task("Planning server structure...", total=None)
             plan = await extract_plan(description, client, transport)
             progress.remove_task(task)
+    if openapi_path or keep_transport or plan.transport not in TRANSPORTS:
+        plan.transport = transport
 
     if language == "typescript" and (auth_profile != "none" or middleware_profiles):
         raise ValueError("Auth and middleware generation profiles are Python-only for now.")
@@ -240,6 +253,8 @@ async def _run_generate(
                 task = progress.add_task("Refining plan...", total=None)
                 plan = await refine_plan(plan, feedback, client)
                 progress.remove_task(task)
+            if keep_transport or plan.transport not in TRANSPORTS:
+                plan.transport = transport
             _display_plan(plan)
 
     if dry_run:
@@ -775,10 +790,9 @@ def contracts_fixtures_command(json_output: bool) -> None:
 @click.option(
     "--transport",
     "-t",
-    default="streamable-http",
-    show_default=True,
-    type=click.Choice(["streamable-http", "stdio", "sse"], case_sensitive=False),
-    help="MCP transport type for the generated server.",
+    default=None,
+    type=click.Choice(TRANSPORTS, case_sensitive=False),
+    help="MCP transport type. Defaults to stdio for TypeScript and streamable-http for Python.",
 )
 @click.option(
     "--dry-run",
@@ -834,7 +848,7 @@ def contracts_fixtures_command(json_output: bool) -> None:
 )
 @click.option(
     "--openapi-limit",
-    type=int,
+    type=click.IntRange(min=1),
     default=None,
     help="Maximum number of OpenAPI operations to convert.",
 )
@@ -843,7 +857,7 @@ def contracts_fixtures_command(json_output: bool) -> None:
     "-l",
     default="python",
     show_default=True,
-    type=click.Choice(["python", "typescript"], case_sensitive=False),
+    type=click.Choice(LANGUAGES, case_sensitive=False),
     help="Target language for generated server.",
 )
 @click.option(
@@ -886,14 +900,14 @@ def contracts_fixtures_command(json_output: bool) -> None:
     "--auth-profile",
     default="none",
     show_default=True,
-    type=click.Choice(["none", "api-key", "jwt"], case_sensitive=False),
+    type=click.Choice(AUTH_PROFILES, case_sensitive=False),
     help="Add optional Python auth profile metadata and env docs.",
 )
 @click.option(
     "--middleware-profile",
     "middleware_profiles",
     multiple=True,
-    type=click.Choice(["logging", "timing", "rate-limit"], case_sensitive=False),
+    type=click.Choice(MIDDLEWARE_PROFILE_ENV_VARS, case_sensitive=False),
     help="Add optional Python middleware profile. Repeatable.",
 )
 def generate(
@@ -901,7 +915,7 @@ def generate(
     output: str | None,
     model: str,
     provider: str,
-    transport: str,
+    transport: str | None,
     dry_run: bool,
     yes: bool,
     force: bool,
@@ -1080,7 +1094,10 @@ def version_cmd(json_output: bool) -> None:
 def list_servers(path: str, recursive: bool, json_output: bool) -> None:
     """List mcpforge-generated servers found at PATH (default: current directory)."""
     root = Path(path).resolve()
-    servers = find_servers(root, recursive=recursive)
+    try:
+        servers = find_servers(root, recursive=recursive)
+    except ValueError as exc:
+        raise click.ClickException(str(exc)) from exc
     if json_output:
         _print_json(
             {
@@ -1123,7 +1140,10 @@ def list_servers(path: str, recursive: bool, json_output: bool) -> None:
 @click.option("--json", "json_output", is_flag=True, help="Print machine-readable JSON.")
 def inspect_cmd(path: str, json_output: bool) -> None:
     """Inspect a generated MCP server without running it."""
-    info = inspect_server(Path(path))
+    try:
+        info = inspect_server(Path(path))
+    except ValueError as exc:
+        raise click.ClickException(str(exc)) from exc
     if json_output:
         _print_json(info)
         return
@@ -1194,7 +1214,7 @@ def doctor_cmd(workspace: str, json_output: bool) -> None:
     "-t",
     default="streamable-http",
     show_default=True,
-    type=click.Choice(["streamable-http", "stdio", "sse"], case_sensitive=False),
+    type=click.Choice(TRANSPORTS, case_sensitive=False),
 )
 @click.option(
     "--force",
@@ -1207,14 +1227,14 @@ def doctor_cmd(workspace: str, json_output: bool) -> None:
     "--auth-profile",
     default="none",
     show_default=True,
-    type=click.Choice(["none", "api-key", "jwt"], case_sensitive=False),
+    type=click.Choice(AUTH_PROFILES, case_sensitive=False),
     help="Add optional Python auth profile metadata and env docs.",
 )
 @click.option(
     "--middleware-profile",
     "middleware_profiles",
     multiple=True,
-    type=click.Choice(["logging", "timing", "rate-limit"], case_sensitive=False),
+    type=click.Choice(MIDDLEWARE_PROFILE_ENV_VARS, case_sensitive=False),
     help="Add optional Python middleware profile. Repeatable.",
 )
 def init(

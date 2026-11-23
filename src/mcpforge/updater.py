@@ -43,14 +43,24 @@ async def update_server(
         temperature=0.1,
     )
 
-    # Response should be JSON with server_code and test_code keys
     try:
-        data = json.loads(raw.strip())
-        updated_server = strip_code_fences(data["server_code"])
-        updated_test = strip_code_fences(data["test_code"])
-    except (json.JSONDecodeError, KeyError):
-        # Fallback: treat entire response as server code
-        updated_server = strip_code_fences(raw)
-        updated_test = test_code
+        data = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ValueError("Invalid provider response: expected a JSON object") from exc
+    if not isinstance(data, dict) or not all(
+        isinstance(data.get(key), str) for key in ("server_code", "test_code")
+    ):
+        raise ValueError("Invalid provider response: server_code and test_code must be strings")
 
-    return updated_server, updated_test
+    updated_server = strip_code_fences(data["server_code"])
+    updated_tests = strip_code_fences(data["test_code"])
+    if not updated_server:
+        raise ValueError("Invalid provider response: server_code is empty")
+    if test_code and not updated_tests:
+        raise ValueError("Invalid provider response: empty test_code would erase existing tests")
+    try:
+        updated_server.encode("utf-8")
+        updated_tests.encode("utf-8")
+    except UnicodeEncodeError as exc:
+        raise ValueError("Invalid provider response: code must be valid UTF-8") from exc
+    return updated_server, updated_tests

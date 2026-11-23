@@ -162,8 +162,13 @@ async def run_tests(output_dir: Path) -> tuple[bool, int, int, str]:
     try:
         stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=120.0)
         output = stdout.decode(errors="replace")
-        passed_match = re.search(r"(\d+) passed", output)
-        failed_match = re.search(r"(\d+) failed", output)
+        if proc.returncode and not output.strip():
+            output = f"pytest exited with status {proc.returncode}"
+        plain_output = re.sub(r"\x1b\[[\d;]*m", "", output)
+        summaries = re.findall(r"^(?:=+ )?(\d+ [^\n]+?) in [\d.]+s\b", plain_output, re.MULTILINE)
+        summary = summaries[-1] if summaries else ""
+        passed_match = re.search(r"(\d+) passed\b", summary)
+        failed_match = re.search(r"(\d+) failed\b", summary)
         tests_passed_count = int(passed_match.group(1)) if passed_match else 0
         tests_failed_count = int(failed_match.group(1)) if failed_match else 0
         tests_run = tests_passed_count + tests_failed_count

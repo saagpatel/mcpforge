@@ -1,3 +1,4 @@
+{% set endpoint_path = "/sse" if plan.transport == "sse" else "/mcp" %}
 {
   "$schema": "https://gofastmcp.com/public/schemas/fastmcp.json/v1.json",
   "source": {
@@ -17,7 +18,7 @@
     "transport": "{% if plan.transport == 'streamable-http' %}http{% else %}{{ plan.transport }}{% endif %}",
     "host": "127.0.0.1",
     "port": 8000,
-    "path": "/mcp/",
+    "path": "{{ endpoint_path }}",
     "log_level": "INFO",
     "profiles": {
       "local_stdio": {
@@ -25,12 +26,12 @@
         "command": "fastmcp run server.py"
       },
       "local_http": {
-        "transport": "http",
-        "url": "http://127.0.0.1:8000/mcp/"
+        "transport": "{% if plan.transport == 'sse' %}sse{% else %}http{% endif %}",
+        "url": "http://127.0.0.1:8000{{ endpoint_path }}"
       },
       "production_http": {
-        "transport": "http",
-        "url": "https://your-domain.example/mcp/",
+        "transport": "{% if plan.transport == 'sse' %}sse{% else %}http{% endif %}",
+        "url": "https://your-domain.example{{ endpoint_path }}",
         "requires_auth": {% if plan.auth_profile %}true{% else %}false{% endif %}
       }
     }

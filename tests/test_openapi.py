@@ -5,7 +5,9 @@ from pathlib import Path
 
 import pytest
 import yaml
+from click.testing import CliRunner
 
+from mcpforge.cli import cli
 from mcpforge.openapi import load_spec, parse_openapi
 
 SAMPLE_SPEC: dict = {
@@ -338,3 +340,64 @@ def test_parse_openapi_oauth_placeholder_uses_env_token_and_guidance() -> None:
     assert tool.auth_env_var == "OAUTH_ACCESS_TOKEN"
     assert "OAUTH_ACCESS_TOKEN" in plan.env_vars
     assert "never proxy MCP client tokens" in tool.description
+
+
+@pytest.mark.parametrize(
+    ("item", "location"), [(0, r"paths\./bad"), ({"get": []}, r"paths\./bad\.get")]
+)
+@pytest.mark.parametrize("operation_limit", [None, 1])
+def test_parse_openapi_rejects_malformed_path_with_valid_sibling(item, location, operation_limit):
+    spec = {**SAMPLE_SPEC, "paths": {**SAMPLE_SPEC["paths"], "/bad": item}}
+    with pytest.raises(ValueError, match=location):
+        parse_openapi(spec, operation_limit=operation_limit)
+
+
+def test_parse_openapi_rejects_non_string_path_key():
+    spec = {**SAMPLE_SPEC, "paths": {**SAMPLE_SPEC["paths"], 7: {"get": {}}}}
+
+    with pytest.raises(ValueError, match=r"paths\.7.*string"):
+        parse_openapi(spec)
+
+
+def test_cli_reports_non_object_paths(tmp_path: Path) -> None:
+    spec_file = tmp_path / "array-paths.json"
+    spec_file.write_text(
+        json.dumps({"openapi": "3.0.0", "info": {}, "paths": ["/items"]}),
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(
+        cli,
+        ["generate", "ignored", "--from-openapi", str(spec_file), "--dry-run", "--yes"],
+    )
+
+    assert result.exit_code != 0
+    assert "paths must be an object" in result.output
+
+
+def test_parse_openapi_validates_trace_operation_shape():
+    spec = {
+        **SAMPLE_SPEC,
+        "paths": {
+            "/items": {
+                "get": {"operationId": "get_items", "responses": {"200": {}}},
+                "trace": [],
+            }
+        },
+    }
+
+    with pytest.raises(ValueError, match=r"paths\./items\.trace.*object"):
+        parse_openapi(spec)
+
+
+def test_parse_openapi_rejects_non_string_method_key():
+    spec = {**SAMPLE_SPEC, "paths": {"/items": {1: {}}}}
+
+    with pytest.raises(ValueError, match=r"paths\./items\.1.*string"):
+        parse_openapi(spec)
+
+
+@pytest.mark.parametrize("limit", [0, -1])
+def test_parse_openapi_rejects_non_positive_operation_limit(limit):
+    with pytest.raises(ValueError, match="operation_limit must be a positive integer"):
+        parse_openapi(SAMPLE_SPEC, operation_limit=limit)

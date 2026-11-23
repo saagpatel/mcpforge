@@ -3,6 +3,8 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from mcpforge.discovery import find_servers
 
 
@@ -61,6 +63,16 @@ class TestFindServers:
         (d / "server.py").write_text("code")
         servers = find_servers(tmp_path)
         assert servers == []
+
+    def test_rejects_non_object_mcp_servers_with_config_path(self, tmp_path):
+        server_dir = _make_python_server(tmp_path, "malformed")
+        config_path = server_dir / "config.json"
+        config_path.write_text('{"mcpServers": []}')
+
+        with pytest.raises(ValueError) as exc_info:
+            find_servers(tmp_path)
+        assert str(config_path) in str(exc_info.value)
+        assert "mcpServers" in str(exc_info.value)
 
     def test_ignores_dir_without_server_file(self, tmp_path):
         d = tmp_path / "incomplete"
@@ -123,3 +135,23 @@ class TestFindServers:
         _make_ts_server(tmp_path, "server-c")
         servers = find_servers(tmp_path)
         assert len(servers) == 3
+
+
+@pytest.mark.parametrize("raw", ["{", "[]"])
+@pytest.mark.parametrize(
+    "tool,argument", [("inspect", "server_path"), ("list_generated_servers", "workspace_path")]
+)
+async def test_invalid_config_reports_file(tmp_path, monkeypatch, raw, tool, argument):
+    from fastmcp import Client
+
+    from mcpforge.mcp_server import mcp
+
+    server = _make_python_server(tmp_path, "example")
+    (server / "pyproject.toml").touch()
+    (server / "README.md").touch()
+    (server / "config.json").write_text(raw)
+    monkeypatch.setenv("MCPFORGE_WORKSPACE", str(tmp_path))
+    async with Client(mcp) as client:
+        result = await client.call_tool(tool, {argument: str(server)}, raise_on_error=False)
+    assert result.is_error
+    assert "config.json" in result.content[0].text

@@ -1,11 +1,13 @@
 """mcpforge MCP server — expose generation capabilities as MCP tools."""
 
 import os
+from collections.abc import Collection
 from pathlib import Path
 
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 
+from mcpforge import __version__
 from mcpforge.api_client import DEFAULT_MODEL, AnthropicClient
 from mcpforge.discovery import find_servers
 from mcpforge.doctor import run_doctor
@@ -15,7 +17,13 @@ from mcpforge.inspection import inspect_server
 from mcpforge.models import ValidationNotRunResult
 from mcpforge.openapi import load_spec, parse_openapi
 from mcpforge.planner import extract_plan
-from mcpforge.profiles import apply_generation_profiles
+from mcpforge.profiles import (
+    AUTH_PROFILES,
+    LANGUAGES,
+    MIDDLEWARE_PROFILE_ENV_VARS,
+    TRANSPORTS,
+    apply_generation_profiles,
+)
 from mcpforge.providers import DEFAULT_PROVIDER, create_provider_client
 from mcpforge.template_hints import TEMPLATE_HINTS
 from mcpforge.test_generator import generate_tests
@@ -32,6 +40,7 @@ from mcpforge.writer import (
 
 mcp = FastMCP(
     "mcpforge",
+    version=__version__,
     instructions=(
         "Generate, update, and validate FastMCP 3.x MCP servers. "
         "Use generate() to create a new server from a description, "
@@ -50,7 +59,7 @@ def _resolve_workspace_path(raw_path: str, *, must_exist: bool = False) -> Path:
     resolved path escapes the workspace boundary.
     """
     workspace = Path(os.environ.get("MCPFORGE_WORKSPACE", ".")).resolve()
-    resolved = Path(raw_path).resolve()
+    resolved = (workspace / raw_path).resolve()
     if not resolved.is_relative_to(workspace):
         raise ToolError(
             f"Path '{raw_path}' resolves outside workspace '{workspace}'. "
@@ -79,10 +88,17 @@ def _validation_passed(result) -> bool:
     return result.is_valid and result.tests_ok
 
 
+def _choice(option: str, value: str, choices: Collection[str]) -> str:
+    normalized = value.lower()
+    if normalized not in choices:
+        raise ToolError(f"Invalid {option} {value!r}. Choose from {', '.join(choices)}.")
+    return normalized
+
+
 @mcp.tool
 async def generate(
     description: str,
-    transport: str = "streamable-http",
+    transport: str | None = None,
     output_path: str = "",
     model: str = _DEFAULT_MODEL,
     provider: str = DEFAULT_PROVIDER,
@@ -98,19 +114,35 @@ async def generate(
 ) -> dict:
     """Generate a complete FastMCP 3.x server from a plain-English description.
 
-    Returns a dict with keys: path, plan (dict), valid (bool), tests_run (int).
+    A dry run returns only plan (dict) and dry_run (true).
+    Generation returns path, plan, valid, structurally_valid, tests_ok, and tests_run.
     TypeScript no_execute also reports write-only generation and checks not run.
     """
+    language = _choice("language", language, LANGUAGES)
+    keep_transport = transport is not None or language == "typescript"
+    if transport is None:
+        transport = "stdio" if language == "typescript" else "streamable-http"
+    transport = _choice("transport", transport, TRANSPORTS)
+    if language == "typescript" and transport != "stdio":
+        raise ToolError("TypeScript supports stdio transport only.")
+    if template:
+        template = _choice("template", template, TEMPLATE_HINTS)
+    auth_profile = _choice("auth_profile", auth_profile, AUTH_PROFILES)
+    middleware_tuple = tuple(
+        _choice("middleware_profiles", profile, MIDDLEWARE_PROFILE_ENV_VARS)
+        for profile in middleware_profiles or ()
+    )
+    if language == "typescript" and (auth_profile != "none" or middleware_tuple):
+        raise ToolError("Auth and middleware generation profiles are Python-only for now.")
     if from_openapi:
         spec_path = _resolve_workspace_path(from_openapi, must_exist=True)
         server_plan = parse_openapi(load_spec(spec_path))
     else:
         client = _get_client(model, provider)
         server_plan = await extract_plan(description, client, transport)
+    if from_openapi or keep_transport or server_plan.transport not in TRANSPORTS:
+        server_plan.transport = transport
 
-    middleware_tuple = tuple(middleware_profiles or [])
-    if language == "typescript" and (auth_profile != "none" or middleware_tuple):
-        raise ToolError("Auth and middleware generation profiles are Python-only for now.")
     if language == "python":
         server_plan = apply_generation_profiles(
             server_plan,
@@ -282,10 +314,9 @@ async def doctor(workspace_path: str = "") -> dict:
 @mcp.tool
 async def list_generated_servers(workspace_path: str = "", recursive: bool = True) -> dict:
     """List generated mcpforge servers in a workspace."""
-    if workspace_path:
-        workspace = _resolve_workspace_path(workspace_path, must_exist=True)
-    else:
-        workspace = Path(os.environ.get("MCPFORGE_WORKSPACE", ".")).resolve()
+    workspace = _resolve_workspace_path(workspace_path, must_exist=True)
+    if not workspace.is_dir():
+        raise ToolError(f"Discovery workspace must be a directory: {workspace}")
     servers = find_servers(workspace, recursive=recursive)
     return {
         "root": str(workspace),

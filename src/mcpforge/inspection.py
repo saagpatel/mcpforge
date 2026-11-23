@@ -1,28 +1,60 @@
 """Read-only inspection helpers for generated mcpforge servers."""
 
-import json
 import re
+import tokenize
+from ast import literal_eval
+from io import StringIO
 from pathlib import Path
 from typing import Any
+
+from mcpforge.utils import read_optional_json_object
 
 
 def _read_text(path: Path) -> str:
     try:
-        return path.read_text(encoding="utf-8")
+        return path.read_text(encoding="utf-8-sig")
     except OSError:
         return ""
 
 
-def _load_json(path: Path) -> dict[str, Any]:
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return {}
-    return data if isinstance(data, dict) else {}
-
-
 def _match_names(pattern: str, text: str) -> list[str]:
     return sorted(set(re.findall(pattern, text, flags=re.MULTILINE)))
+
+
+def _tool_name(arguments: str, function: str) -> str:
+    """Read a literal name keyword from just this decorator's argument list."""
+    depth = 0
+    argument: list[tokenize.TokenInfo] = []
+    try:
+        for token in tokenize.generate_tokens(StringIO(arguments).readline):
+            if depth == 1:
+                if token.type == tokenize.OP and token.string in {",", ")"}:
+                    match argument:
+                        case [(_, "name", *_), (_, "=", *_), (tokenize.STRING, literal, *_)]:
+                            value = literal_eval(literal)
+                            if isinstance(value, str):
+                                return value
+                    argument.clear()
+                elif token.type not in {tokenize.NL, tokenize.COMMENT}:
+                    argument.append(token)
+            if token.type == tokenize.OP:
+                if token.string in {"(", "[", "{"}:
+                    depth += 1
+                elif token.string in {")", "]", "}"}:
+                    depth -= 1
+    except (SyntaxError, tokenize.TokenError, ValueError):
+        pass
+    return function
+
+
+def _python_tool_names(code: str) -> list[str]:
+    # A called decorator may continue over indented lines before its closing parenthesis.
+    pattern = (
+        r"^@mcp\.tool[ \t]*(\((?:.*\n(?=[ \t)\n]))*.*\))?[ \t]*(?:#.*)?\s*\n"
+        r"(?:async\s+)?def\s+([a-zA-Z_][a-zA-Z0-9_]*)"
+    )
+    matches = re.findall(pattern, code, re.MULTILINE)
+    return sorted({_tool_name(args, function) if args else function for args, function in matches})
 
 
 def _env_vars_from_text(text: str) -> list[str]:
@@ -54,8 +86,8 @@ def _env_vars_from_env_example(path: Path) -> list[str]:
 def inspect_server(path: Path) -> dict[str, Any]:
     """Return a read-only summary of a generated server directory."""
     root = path.resolve()
-    config = _load_json(root / "config.json")
-    fastmcp_config = _load_json(root / "fastmcp.json")
+    config = read_optional_json_object(root / "config.json", validate_mcp_servers=True)
+    fastmcp_config = read_optional_json_object(root / "fastmcp.json")
     server_py = root / "server.py"
     server_ts = root / "src" / "server.ts"
     package_json = root / "package.json"
@@ -98,7 +130,7 @@ def inspect_server(path: Path) -> dict[str, Any]:
         missing_files = [rel for rel in missing_files if rel != "server.py or src/server.ts"]
 
     if language == "python":
-        tools = _match_names(r"^@mcp\.tool\s*\n(?:async\s+)?def\s+([a-zA-Z_][a-zA-Z0-9_]*)", code)
+        tools = _python_tool_names(code)
         resources = _match_names(
             r"^@mcp\.resource\([^\n]*\)\s*\n(?:async\s+)?def\s+([a-zA-Z_][a-zA-Z0-9_]*)",
             code,
@@ -124,7 +156,7 @@ def inspect_server(path: Path) -> dict[str, Any]:
     deployment = fastmcp_config.get("deployment", {})
     has_http_config = bool(
         isinstance(deployment, dict)
-        and deployment.get("transport") in {"http", "streamable-http"}
+        and deployment.get("transport") in {"http", "streamable-http", "sse"}
         and deployment.get("path")
     )
     has_security_notes = "## Security Notes" in readme
