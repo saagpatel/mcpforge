@@ -164,7 +164,8 @@ async def run_tests(output_dir: Path) -> tuple[bool, int, int, str]:
         output = stdout.decode(errors="replace")
         if proc.returncode and not output.strip():
             output = f"pytest exited with status {proc.returncode}"
-        summaries = re.findall(r"^(?:=+ )?(\d+ [^\n]+?) in [\d.]+s\b", output, re.MULTILINE)
+        plain_output = re.sub(r"\x1b\[[\d;]*m", "", output)
+        summaries = re.findall(r"^(?:=+ )?(\d+ [^\n]+?) in [\d.]+s\b", plain_output, re.MULTILINE)
         summary = summaries[-1] if summaries else ""
         passed_match = re.search(r"(\d+) passed\b", summary)
         failed_match = re.search(r"(\d+) failed\b", summary)

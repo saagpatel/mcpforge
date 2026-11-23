@@ -318,6 +318,12 @@ class TestCheckImport:
 
 
 class TestRunTests:
+    async def test_parses_colorized_summary_and_preserves_output(self, tmp_path):
+        output = b"\x1b[32m=== \x1b[1m1 passed\x1b[0m\x1b[32m in 0.01s ===\x1b[0m\n"
+        proc = FakeProcess(returncode=0, stdout=output)
+        with patch("asyncio.create_subprocess_exec", return_value=proc):
+            assert await run_tests(tmp_path) == (True, 1, 0, output.decode())
+
     async def test_parses_passed_and_failed_counts(self, tmp_path):
         output = b"test_a PASSED\ntest_b FAILED\n=== 3 passed, 2 failed in 0.04s ==="
         proc = FakeProcess(returncode=1, stdout=output)
