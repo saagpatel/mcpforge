@@ -18,6 +18,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Python validation reports a failed pytest process even with empty output and
+  counts passed and failed tests from the final pytest summary.
+- Updates require a JSON provider response with string `server_code` and
+  `test_code` fields before replacing either file.
+- Inspection and discovery report malformed project configuration with the file
+  path. Inspection recognizes Python tools with decorator arguments and literal names.
+- OpenAPI generation identifies malformed path items and HTTP operations and
+  honors the requested transport in the CLI and MCP server.
+- MCP generation checks language, template, transport, and profile choices
+  before planning. Relative MCP paths resolve from the configured workspace,
+  and discovery requires a directory.
+- MCP initialization reports the mcpforge package version. The registered
+  generation description and README now describe dry runs and tool side effects.
+
 - Generated failure-aware tool results signal failed outcomes with `isError` and
   preserve their structured envelope; incomplete outcomes remain normal results.
 
