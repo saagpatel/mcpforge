@@ -1,9 +1,11 @@
 """Read-only inspection helpers for generated mcpforge servers."""
 
-import json
+import ast
 import re
 from pathlib import Path
 from typing import Any
+
+from mcpforge.utils import read_optional_json_object
 
 
 def _read_text(path: Path) -> str:
@@ -13,12 +15,34 @@ def _read_text(path: Path) -> str:
         return ""
 
 
-def _load_json(path: Path) -> dict[str, Any]:
+def _python_tool_names(code: str) -> list[str]:
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return {}
-    return data if isinstance(data, dict) else {}
+        module = ast.parse(code)
+    except SyntaxError:
+        return []
+    names = set()
+    for node in module.body:
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        for decorator in node.decorator_list:
+            target = decorator.func if isinstance(decorator, ast.Call) else decorator
+            if not (
+                isinstance(target, ast.Attribute)
+                and target.attr == "tool"
+                and isinstance(target.value, ast.Name)
+                and target.value.id == "mcp"
+            ):
+                continue
+            name = node.name
+            if isinstance(decorator, ast.Call):
+                positional = decorator.args[0] if decorator.args else None
+                explicit = next(
+                    (kw.value for kw in decorator.keywords if kw.arg == "name"), positional
+                )
+                if isinstance(explicit, ast.Constant) and isinstance(explicit.value, str):
+                    name = explicit.value
+            names.add(name)
+    return sorted(names)
 
 
 def _match_names(pattern: str, text: str) -> list[str]:
@@ -54,8 +78,8 @@ def _env_vars_from_env_example(path: Path) -> list[str]:
 def inspect_server(path: Path) -> dict[str, Any]:
     """Return a read-only summary of a generated server directory."""
     root = path.resolve()
-    config = _load_json(root / "config.json")
-    fastmcp_config = _load_json(root / "fastmcp.json")
+    config = read_optional_json_object(root / "config.json")
+    fastmcp_config = read_optional_json_object(root / "fastmcp.json")
     server_py = root / "server.py"
     server_ts = root / "src" / "server.ts"
     package_json = root / "package.json"
@@ -98,7 +122,7 @@ def inspect_server(path: Path) -> dict[str, Any]:
         missing_files = [rel for rel in missing_files if rel != "server.py or src/server.ts"]
 
     if language == "python":
-        tools = _match_names(r"^@mcp\.tool\s*\n(?:async\s+)?def\s+([a-zA-Z_][a-zA-Z0-9_]*)", code)
+        tools = _python_tool_names(code)
         resources = _match_names(
             r"^@mcp\.resource\([^\n]*\)\s*\n(?:async\s+)?def\s+([a-zA-Z_][a-zA-Z0-9_]*)",
             code,

@@ -1,9 +1,10 @@
 """Discovery: scan filesystem for mcpforge-generated server directories."""
 
-import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
+
+from mcpforge.utils import read_optional_json_object
 
 
 @dataclass
@@ -30,25 +31,25 @@ def find_servers(root: Path, recursive: bool = False) -> list[ServerInfo]:
 
     results: list[ServerInfo] = []
     for cfg_path in candidates:
+        dir_path = cfg_path.parent
+        server_py = dir_path / "server.py"
+        server_ts = dir_path / "src" / "server.ts"
+        if not (server_py.is_file() or server_ts.is_file()):
+            continue
+        data = read_optional_json_object(cfg_path)
+        if "mcpServers" not in data:
+            continue
         try:
-            data = json.loads(cfg_path.read_text(encoding="utf-8"))
-            if "mcpServers" not in data:
-                continue
-            dir_path = cfg_path.parent
-            server_py = dir_path / "server.py"
-            server_ts = dir_path / "src" / "server.ts"
-            if server_py.exists():
+            if server_py.is_file():
                 lang = "python"
                 text = server_py.read_text(encoding="utf-8")
                 tool_count = len(re.findall(r"@mcp\.tool", text))
                 has_tests = (dir_path / "test_server.py").exists()
-            elif server_ts.exists():
+            else:
                 lang = "typescript"
                 text = server_ts.read_text(encoding="utf-8")
                 tool_count = len(re.findall(r"server\.tool\(", text))
                 has_tests = (dir_path / "src" / "server.test.ts").exists()
-            else:
-                continue
             name = next(iter(data["mcpServers"].keys()), dir_path.name)
             results.append(
                 ServerInfo(
@@ -59,6 +60,6 @@ def find_servers(root: Path, recursive: bool = False) -> list[ServerInfo]:
                     language=lang,
                 )
             )
-        except (json.JSONDecodeError, OSError):
+        except OSError:
             continue
     return sorted(results, key=lambda s: s.name)

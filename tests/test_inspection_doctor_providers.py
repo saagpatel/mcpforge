@@ -244,3 +244,15 @@ def test_apply_generation_profiles_adds_env_and_metadata() -> None:
     assert "JWT_ISSUER" in updated.env_vars
     assert "JWT_AUDIENCE" in updated.env_vars
     assert "RATE_LIMIT_RPS" in updated.env_vars
+
+
+def test_inspect_safeforge_tool():
+    assert inspect_server(Path("src/mcpforge/safeforge_assets"))["tools"] == {
+        "names": ["echo"],
+        "count": 1,
+    }
+
+
+def test_inspect_registered_tool_name(tmp_path):
+    (tmp_path / "server.py").write_text('@mcp.tool(name="alias")\ndef internal(): pass\n')
+    assert inspect_server(tmp_path)["tools"] == {"names": ["alias"], "count": 1}
