@@ -2,6 +2,9 @@
 
 from mcpforge.models import ServerPlan
 
+LANGUAGES = ("python", "typescript")
+TRANSPORTS = ("streamable-http", "stdio", "sse")
+
 AUTH_PROFILE_ENV_VARS: dict[str, tuple[str, ...]] = {
     "api-key": ("MCPFORGE_SERVER_API_KEY",),
     "jwt": ("JWT_JWKS_URI", "JWT_ISSUER", "JWT_AUDIENCE"),
@@ -12,6 +15,8 @@ MIDDLEWARE_PROFILE_ENV_VARS: dict[str, tuple[str, ...]] = {
     "timing": (),
     "rate-limit": ("RATE_LIMIT_RPS", "RATE_LIMIT_BURST"),
 }
+
+AUTH_PROFILES = ("none", *AUTH_PROFILE_ENV_VARS)
 
 
 def apply_generation_profiles(

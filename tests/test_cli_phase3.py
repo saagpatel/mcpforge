@@ -370,3 +370,21 @@ class TestInteractiveFlag:
             )
 
         mock_refine.assert_not_called()
+
+
+def test_openapi_cli_honors_stdio():
+    with patch("mcpforge.cli._display_plan") as display:
+        result = CliRunner().invoke(
+            cli,
+            [
+                "generate",
+                "example",
+                "--from-openapi",
+                "tests/fixtures/openapi-auth-tickets.json",
+                "--transport",
+                "stdio",
+                "--dry-run",
+            ],
+        )
+    assert result.exit_code == 0, result.output
+    assert display.call_args.args[0].transport == "stdio"

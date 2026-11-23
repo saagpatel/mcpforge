@@ -705,3 +705,69 @@ class TestWorkspaceBoundary:
         subdir.mkdir()
         result = _resolve_workspace_path(str(subdir))
         assert result == subdir.resolve()
+
+
+_OPENAPI_DRY_RUN = {
+    "description": "",
+    "from_openapi": "tests/fixtures/openapi-auth-tickets.json",
+    "dry_run": True,
+}
+
+
+@pytest.mark.parametrize(
+    ("option", "value"),
+    [
+        ("language", "rust"),
+        ("template", "typo"),
+        ("auth_profile", "typo"),
+        ("middleware_profiles", ["logging", "typo"]),
+        ("transport", "typo"),
+    ],
+)
+async def test_generate_rejects_unsupported_option_before_planning(option, value):
+    from mcpforge.mcp_server import mcp, parse_openapi
+
+    with patch("mcpforge.mcp_server.parse_openapi", wraps=parse_openapi) as parse:
+        async with Client(mcp) as client:
+            result = await client.call_tool(
+                "generate", {**_OPENAPI_DRY_RUN, option: value}, raise_on_error=False
+            )
+    assert result.is_error
+    assert option in result.content[0].text
+    parse.assert_not_called()
+
+
+async def test_openapi_generate_honors_stdio():
+    from mcpforge.mcp_server import generate
+
+    result = await generate(**_OPENAPI_DRY_RUN, transport="stdio")
+    assert result["plan"]["transport"] == "stdio"
+
+
+async def test_inspect_relative_to_configured_workspace(monkeypatch):
+    from mcpforge.mcp_server import inspect
+
+    monkeypatch.setenv("MCPFORGE_WORKSPACE", str(Path("examples").resolve()))
+    result = await inspect("todo-server")
+    assert Path(result["path"]) == Path("examples/todo-server").resolve()
+
+
+@pytest.mark.parametrize("from_environment", [False, True])
+async def test_discovery_requires_directory(tmp_path, monkeypatch, from_environment):
+    from fastmcp.exceptions import ToolError
+
+    from mcpforge.mcp_server import list_generated_servers
+
+    file = tmp_path / "readme.txt"
+    file.touch()
+    monkeypatch.setenv("MCPFORGE_WORKSPACE", str(file if from_environment else tmp_path))
+    with pytest.raises(ToolError, match="must be a directory"):
+        await list_generated_servers("" if from_environment else str(file))
+
+
+async def test_generate_description_documents_dry_run():
+    from mcpforge.mcp_server import mcp
+
+    async with Client(mcp) as client:
+        generate = next(tool for tool in await client.list_tools() if tool.name == "generate")
+    assert any("dry_run" in line and "plan" in line for line in generate.description.splitlines())

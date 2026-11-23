@@ -123,16 +123,16 @@ Add it to a client config (Claude Code shown). `generate`, `update`, and `plan` 
 }
 ```
 
-Workspace paths are resolved against `MCPFORGE_WORKSPACE` and confined to it. Note that `generate` and `update` write files and incur model-provider cost (roughly $0.05 to $0.30 per call on your key).
+Workspace paths are resolved against `MCPFORGE_WORKSPACE` and confined to it. Provider-backed generation and updates cost roughly $0.05 to $0.30 per call on your key. OpenAPI dry runs use the local spec and return the plan without writing files or calling a provider.
 
-| Tool | What it does | Writes | Cost | Key args |
+| Tool | What it does | Writes | Cost | Arguments |
 |---|---|---|---|---|
-| `generate` | Generate a complete, tested FastMCP 3.x server from a description | yes (workspace) | API call | `description`, `language`, `transport`, `output_path`, `dry_run` |
-| `update` | Apply a natural-language change to an existing generated server | yes (workspace) | API call | `server_path`, `request` |
-| `plan` | Extract the structured server plan without generating code | no | API call | `description`, `transport` |
-| `validate` | Run syntax, lint, import, and pytest checks on a generated server | no (executes tests) | none | `server_path` |
+| `generate` | Generate a FastMCP server, or return `plan` and `dry_run` in a dry run | workspace files unless dry run | API call except OpenAPI dry runs | `description`, `transport`, `output_path`, `model`, `provider`, `language`, `template`, `from_openapi`, `multi_file`, `no_execute`, `strict`, `dry_run`, `auth_profile`, `middleware_profiles` |
+| `update` | Apply a natural-language change to an existing generated server | yes (workspace) | API call | `server_path`, `request`, `model`, `provider` |
+| `plan` | Extract the structured server plan without generating code | no | API call | `description`, `transport`, `model`, `provider` |
+| `validate` | Python runs syntax, security, lint, import, and pytest checks. TypeScript runs `tsc --noEmit` and Vitest. | installs dependencies with `uv sync` or `npm install` and executes generated code | none | `server_path` |
 | `inspect` | Summarize a generated server without executing it | no | none | `server_path` |
-| `doctor` | Check local prerequisites and provider readiness | no | none | `workspace_path` |
+| `doctor` | Check local prerequisites and provider readiness | creates and removes a temporary workspace file | none | `workspace_path` |
 | `list_generated_servers` | List mcpforge-generated servers in a workspace | no | none | `workspace_path`, `recursive` |
 
 ## Features
