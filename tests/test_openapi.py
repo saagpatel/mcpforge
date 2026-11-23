@@ -338,3 +338,12 @@ def test_parse_openapi_oauth_placeholder_uses_env_token_and_guidance() -> None:
     assert tool.auth_env_var == "OAUTH_ACCESS_TOKEN"
     assert "OAUTH_ACCESS_TOKEN" in plan.env_vars
     assert "never proxy MCP client tokens" in tool.description
+
+
+@pytest.mark.parametrize(
+    ("item", "location"), [(0, r"paths\./bad"), ({"get": []}, r"paths\./bad\.get")]
+)
+def test_parse_openapi_rejects_malformed_path_with_valid_sibling(item, location):
+    spec = {**SAMPLE_SPEC, "paths": {**SAMPLE_SPEC["paths"], "/bad": item}}
+    with pytest.raises(ValueError, match=location):
+        parse_openapi(spec)

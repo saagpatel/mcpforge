@@ -258,12 +258,17 @@ def parse_openapi(
                 env_vars.append(auth_info["env_var"])
 
     for path_str, path_item in paths.items():
+        if path_str.startswith("x-"):
+            continue  # Specification extensions are not path items.
         if not isinstance(path_item, dict):
-            continue
+            raise ValueError(f"paths.{path_str} must be an object")
         for method, operation in path_item.items():
             if method.lower() not in {"get", "post", "put", "patch", "delete", "head", "options"}:
                 continue
             if not isinstance(operation, dict):
+                raise ValueError(f"paths.{path_str}.{method} must be an object")
+            # Keep checking path and operation shapes after emitting the limited plan.
+            if tools and operation_limit is not None and len(tools) >= operation_limit:
                 continue
 
             # Tool name from operationId or fallback
@@ -380,10 +385,6 @@ def parse_openapi(
                     pagination=_pagination_spec(pagination),
                 )
             )
-            if operation_limit is not None and len(tools) >= operation_limit:
-                break
-        if operation_limit is not None and len(tools) >= operation_limit:
-            break
 
     if not tools:
         raise ValueError("OpenAPI spec has no operations")
