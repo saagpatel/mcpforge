@@ -105,7 +105,19 @@ async def test_update_server_strips_fences_from_response(
 
 
 @pytest.mark.parametrize(
-    "raw", ["{}", "invalid JSON", '["code"]', '{"server_code":"ok","test_code":0}']
+    "raw",
+    [
+        "{}",
+        "invalid JSON",
+        '["code"]',
+        '{"server_code":"ok","test_code":0}',
+        pytest.param(json.dumps({"server_code": " \n", "test_code": "\t"}), id="both-blank"),
+        pytest.param(
+            json.dumps({"server_code": "```python\n```", "test_code": "ok"}), id="server-fence"
+        ),
+        pytest.param(json.dumps({"server_code": "ok", "test_code": " \n"}), id="blank-tests"),
+        pytest.param(json.dumps({"server_code": "ok", "test_code": "```\n```"}), id="test-fence"),
+    ],
 )
 async def test_update_rejects_invalid_response_before_writing(tmp_path, monkeypatch, raw):
     from unittest.mock import patch
@@ -114,6 +126,7 @@ async def test_update_rejects_invalid_response_before_writing(tmp_path, monkeypa
 
     monkeypatch.setenv("MCPFORGE_WORKSPACE", str(tmp_path))
     (tmp_path / "server.py").write_text("# original")
+    (tmp_path / "test_server.py").write_text("# original tests")
     client = AsyncMock()
     client.generate.return_value = raw
     with (

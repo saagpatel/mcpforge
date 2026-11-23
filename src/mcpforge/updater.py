@@ -52,4 +52,10 @@ async def update_server(
     ):
         raise ValueError("Invalid provider response: server_code and test_code must be strings")
 
-    return strip_code_fences(data["server_code"]), strip_code_fences(data["test_code"])
+    updated_server = strip_code_fences(data["server_code"])
+    updated_tests = strip_code_fences(data["test_code"])
+    if not updated_server:
+        raise ValueError("Invalid provider response: server_code is empty")
+    if test_code and not updated_tests:
+        raise ValueError("Invalid provider response: empty test_code would erase existing tests")
+    return updated_server, updated_tests
