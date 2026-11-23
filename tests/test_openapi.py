@@ -5,7 +5,9 @@ from pathlib import Path
 
 import pytest
 import yaml
+from click.testing import CliRunner
 
+from mcpforge.cli import cli
 from mcpforge.openapi import load_spec, parse_openapi
 
 SAMPLE_SPEC: dict = {
@@ -354,6 +356,22 @@ def test_parse_openapi_rejects_non_string_path_key():
 
     with pytest.raises(ValueError, match=r"paths\.7.*string"):
         parse_openapi(spec)
+
+
+def test_cli_reports_non_object_paths(tmp_path: Path) -> None:
+    spec_file = tmp_path / "array-paths.json"
+    spec_file.write_text(
+        json.dumps({"openapi": "3.0.0", "info": {}, "paths": ["/items"]}),
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(
+        cli,
+        ["generate", "ignored", "--from-openapi", str(spec_file), "--dry-run", "--yes"],
+    )
+
+    assert result.exit_code != 0
+    assert "paths must be an object" in result.output
 
 
 def test_parse_openapi_validates_trace_operation_shape():

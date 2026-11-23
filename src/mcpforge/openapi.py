@@ -241,6 +241,8 @@ def parse_openapi(
         raise ValueError(f"Only OpenAPI 3.x is supported, got: {openapi_version!r}")
 
     paths = spec.get("paths", {})
+    if not isinstance(paths, dict):
+        raise ValueError("OpenAPI paths must be an object")
     if not paths:
         raise ValueError("OpenAPI spec has no paths defined")
 
