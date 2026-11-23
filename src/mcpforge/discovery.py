@@ -36,7 +36,7 @@ def find_servers(root: Path, recursive: bool = False) -> list[ServerInfo]:
         server_ts = dir_path / "src" / "server.ts"
         if not (server_py.is_file() or server_ts.is_file()):
             continue
-        data = read_optional_json_object(cfg_path)
+        data = read_optional_json_object(cfg_path, validate_mcp_servers=True)
         if "mcpServers" not in data:
             continue
         try:

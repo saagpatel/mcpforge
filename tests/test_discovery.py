@@ -64,6 +64,16 @@ class TestFindServers:
         servers = find_servers(tmp_path)
         assert servers == []
 
+    def test_rejects_non_object_mcp_servers_with_config_path(self, tmp_path):
+        server_dir = _make_python_server(tmp_path, "malformed")
+        config_path = server_dir / "config.json"
+        config_path.write_text('{"mcpServers": []}')
+
+        with pytest.raises(ValueError) as exc_info:
+            find_servers(tmp_path)
+        assert str(config_path) in str(exc_info.value)
+        assert "mcpServers" in str(exc_info.value)
+
     def test_ignores_dir_without_server_file(self, tmp_path):
         d = tmp_path / "incomplete"
         d.mkdir()

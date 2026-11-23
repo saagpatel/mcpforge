@@ -256,3 +256,62 @@ def test_inspect_safeforge_tool():
 def test_inspect_registered_tool_name(tmp_path):
     (tmp_path / "server.py").write_text('@mcp.tool(name="alias")\ndef internal(): pass\n')
     assert inspect_server(tmp_path)["tools"] == {"names": ["alias"], "count": 1}
+
+
+def test_inspect_resolves_module_constant_tool_name(tmp_path):
+    (tmp_path / "server.py").write_text(
+        'PUBLIC_NAME = "external"\n@mcp.tool(name=PUBLIC_NAME)\ndef internal(): pass\n'
+    )
+
+    assert inspect_server(tmp_path)["tools"] == {"names": ["external"], "count": 1}
+
+
+def test_inspect_marks_dynamic_explicit_tool_name_unresolved(tmp_path):
+    (tmp_path / "server.py").write_text("@mcp.tool(name=make_name())\ndef internal(): pass\n")
+
+    assert inspect_server(tmp_path)["tools"] == {"names": ["<unresolved>"], "count": 1}
+
+
+def test_inspect_resolves_only_preceding_module_string_constants(tmp_path):
+    (tmp_path / "server.py").write_text(
+        "@mcp.tool(name=TOOL_NAME)\ndef before_assignment(): pass\n"
+        'TOOL_NAME = "external"\n'
+        "@mcp.tool(name=TOOL_NAME)\ndef after_assignment(): pass\n"
+        "TOOL_NAME = make_name()\n"
+        "@mcp.tool(name=TOOL_NAME)\ndef after_reassignment(): pass\n"
+    )
+
+    assert inspect_server(tmp_path)["tools"] == {
+        "names": ["<unresolved>", "<unresolved>", "external"],
+        "count": 3,
+    }
+
+
+def test_inspect_counts_distinct_unresolved_tool_registrations(tmp_path):
+    (tmp_path / "server.py").write_text(
+        "@mcp.tool(name=make_first_name())\ndef first(): pass\n"
+        "@mcp.tool(name=make_second_name())\ndef second(): pass\n"
+    )
+
+    assert inspect_server(tmp_path)["tools"] == {
+        "names": ["<unresolved>", "<unresolved>"],
+        "count": 2,
+    }
+
+
+def test_inspect_does_not_apply_mcpservers_check_to_fastmcp_json(tmp_path):
+    (tmp_path / "fastmcp.json").write_text('{"mcpServers": []}')
+    (tmp_path / "server.py").write_text("@mcp.tool\ndef tool(): pass\n")
+
+    assert inspect_server(tmp_path)["tools"] == {"names": ["tool"], "count": 1}
+
+
+def test_inspect_rejects_non_object_mcp_servers_with_config_path(tmp_path):
+    config_path = tmp_path / "config.json"
+    config_path.write_text('{"mcpServers": []}')
+    (tmp_path / "server.py").write_text("mcp = object()\n")
+
+    with pytest.raises(ValueError) as exc_info:
+        inspect_server(tmp_path)
+    assert str(config_path) in str(exc_info.value)
+    assert "mcpServers" in str(exc_info.value)

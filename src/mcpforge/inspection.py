@@ -20,9 +20,24 @@ def _python_tool_names(code: str) -> list[str]:
         module = ast.parse(code)
     except SyntaxError:
         return []
-    names = set()
+    constants: dict[str, str] = {}
+    names: set[str] = set()
+    unresolved = 0
     for node in module.body:
         if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            # Only a direct assignment of a string literal gives a known name.
+            for child in ast.walk(node):
+                if isinstance(child, ast.Name) and isinstance(child.ctx, (ast.Store, ast.Del)):
+                    constants.pop(child.id, None)
+            if (
+                isinstance(node, (ast.Assign, ast.AnnAssign))
+                and isinstance(node.value, ast.Constant)
+                and isinstance(node.value.value, str)
+            ):
+                targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+                for target in targets:
+                    if isinstance(target, ast.Name):
+                        constants[target.id] = node.value.value
             continue
         for decorator in node.decorator_list:
             target = decorator.func if isinstance(decorator, ast.Call) else decorator
@@ -39,10 +54,16 @@ def _python_tool_names(code: str) -> list[str]:
                 explicit = next(
                     (kw.value for kw in decorator.keywords if kw.arg == "name"), positional
                 )
-                if isinstance(explicit, ast.Constant) and isinstance(explicit.value, str):
-                    name = explicit.value
+                if explicit is not None:
+                    if isinstance(explicit, ast.Constant) and isinstance(explicit.value, str):
+                        name = explicit.value
+                    elif isinstance(explicit, ast.Name) and explicit.id in constants:
+                        name = constants[explicit.id]
+                    else:
+                        unresolved += 1
+                        continue
             names.add(name)
-    return sorted(names)
+    return sorted(list(names) + ["<unresolved>"] * unresolved)
 
 
 def _match_names(pattern: str, text: str) -> list[str]:
@@ -78,7 +99,7 @@ def _env_vars_from_env_example(path: Path) -> list[str]:
 def inspect_server(path: Path) -> dict[str, Any]:
     """Return a read-only summary of a generated server directory."""
     root = path.resolve()
-    config = read_optional_json_object(root / "config.json")
+    config = read_optional_json_object(root / "config.json", validate_mcp_servers=True)
     fastmcp_config = read_optional_json_object(root / "fastmcp.json")
     server_py = root / "server.py"
     server_ts = root / "src" / "server.ts"
