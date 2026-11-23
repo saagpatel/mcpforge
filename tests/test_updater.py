@@ -116,6 +116,8 @@ async def test_update_server_strips_fences_from_response(
             json.dumps({"server_code": "```python\n```", "test_code": "ok"}), id="server-fence"
         ),
         pytest.param(json.dumps({"server_code": "ok", "test_code": " \n"}), id="blank-tests"),
+        pytest.param(json.dumps({"server_code": "\ud800", "test_code": "ok"}), id="server-utf8"),
+        pytest.param(json.dumps({"server_code": "ok", "test_code": "\ud800"}), id="tests-utf8"),
         pytest.param(json.dumps({"server_code": "ok", "test_code": "```\n```"}), id="test-fence"),
     ],
 )

@@ -58,4 +58,9 @@ async def update_server(
         raise ValueError("Invalid provider response: server_code is empty")
     if test_code and not updated_tests:
         raise ValueError("Invalid provider response: empty test_code would erase existing tests")
+    try:
+        updated_server.encode("utf-8")
+        updated_tests.encode("utf-8")
+    except UnicodeEncodeError as exc:
+        raise ValueError("Invalid provider response: code must be valid UTF-8") from exc
     return updated_server, updated_tests
