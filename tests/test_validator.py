@@ -318,6 +318,12 @@ class TestCheckImport:
 
 
 class TestRunTests:
+    async def test_parses_colorized_summary_and_preserves_output(self, tmp_path):
+        output = b"\x1b[32m=== \x1b[1m1 passed\x1b[0m\x1b[32m in 0.01s ===\x1b[0m\n"
+        proc = FakeProcess(returncode=0, stdout=output)
+        with patch("asyncio.create_subprocess_exec", return_value=proc):
+            assert await run_tests(tmp_path) == (True, 1, 0, output.decode())
+
     async def test_parses_passed_and_failed_counts(self, tmp_path):
         output = b"test_a PASSED\ntest_b FAILED\n=== 3 passed, 2 failed in 0.04s ==="
         proc = FakeProcess(returncode=1, stdout=output)
@@ -646,3 +652,36 @@ class TestCheckPackagesAllowlist:
         assert result is not None
         assert "pwntools" in result
         assert "httpx" not in result
+
+
+@pytest.mark.parametrize(
+    ("output", "expected"),
+    [
+        pytest.param(b"", (False, False, 0, 0), id="silent-exit"),
+        pytest.param(
+            b"E   AssertionError: 1 passed\n============ 1 failed, 2 passed in 0.01s ============",
+            (False, False, 3, 1),
+            id="summary-counts",
+        ),
+        pytest.param(
+            b"E   AssertionError: 1 passed\n1 failed, 2 passed in 0.01s\nplugin cleanup\n",
+            (False, False, 3, 1),
+            id="summary-before-cleanup",
+        ),
+    ],
+)
+async def test_validate_failed_pytest_verdict(tmp_path, monkeypatch, output, expected):
+    from mcpforge.mcp_server import validate
+
+    monkeypatch.setenv("MCPFORGE_WORKSPACE", str(tmp_path))
+    (tmp_path / "server.py").write_text(VALID_SERVER)
+    proc = FakeProcess(returncode=1, stdout=output)
+    with (
+        patch("mcpforge.mcp_server.uv_sync", return_value=None),
+        patch("mcpforge.validator.check_lint", return_value=[]),
+        patch("mcpforge.validator.check_import", return_value=(True, "")),
+        patch("asyncio.create_subprocess_exec", return_value=proc),
+    ):
+        result = await validate(str(tmp_path))
+
+    assert tuple(result[k] for k in ("valid", "tests_ok", "tests_run", "tests_failed")) == expected
