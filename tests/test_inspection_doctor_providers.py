@@ -13,6 +13,7 @@ from mcpforge.inspection import inspect_server
 from mcpforge.models import ServerPlan
 from mcpforge.profiles import apply_generation_profiles
 from mcpforge.providers import create_provider_client, provider_capabilities
+from mcpforge.writer import write_server
 
 
 def test_inspect_python_server_counts_components_and_env(tmp_path: Path) -> None:
@@ -244,3 +245,72 @@ def test_apply_generation_profiles_adds_env_and_metadata() -> None:
     assert "JWT_ISSUER" in updated.env_vars
     assert "JWT_AUDIENCE" in updated.env_vars
     assert "RATE_LIMIT_RPS" in updated.env_vars
+
+
+def test_inspect_safeforge_tool():
+    assert inspect_server(Path("src/mcpforge/safeforge_assets"))["tools"] == {
+        "names": ["echo"],
+        "count": 1,
+    }
+
+
+@pytest.mark.parametrize(
+    ("arguments", "expected"),
+    [
+        ('name="alias"', "alias"),
+        ("\n    tags={'public'},\n    name='alias',\n", "alias"),
+        ("", "internal"),
+        ("name=PUBLIC_NAME", "internal"),
+        ('name="prefix" + suffix', "internal"),
+        ('**{"name": "alias"}', "internal"),
+        ('annotations=dict(name="nested")', "internal"),
+    ],
+)
+def test_inspect_registered_tool_name(tmp_path, arguments, expected):
+    (tmp_path / "server.py").write_text(f"@mcp.tool({arguments})\ndef internal(): pass\n")
+    assert inspect_server(tmp_path)["tools"] == {"names": [expected], "count": 1}
+
+
+def test_inspect_tool_with_newer_python_syntax(tmp_path):
+    # Type parameter defaults require Python 3.13. Inspection also runs on Python 3.12.
+    (tmp_path / "server.py").write_text(
+        "type Rows[T = int] = list[T]\n@mcp.tool()\nasync def rows() -> Rows: pass\n"
+    )
+    assert inspect_server(tmp_path)["tools"] == {"names": ["rows"], "count": 1}
+
+
+def test_inspect_utf8_bom_server(tmp_path):
+    (tmp_path / "server.py").write_text(
+        "@mcp.tool\ndef ping(): pass\n",
+        encoding="utf-8-sig",
+    )
+    assert inspect_server(tmp_path)["tools"] == {"names": ["ping"], "count": 1}
+
+
+@pytest.mark.parametrize(("transport", "remote"), [("sse", True), ("stdio", False)])
+def test_inspect_rendered_transport(tmp_path, transport, remote):
+    plan = ServerPlan(
+        name="Example", slug="example", description="Example", transport=transport, tools=[]
+    )
+    write_server(plan, "", "", tmp_path)
+    result = inspect_server(tmp_path)["remote_mcp"]
+    assert result["has_http_config"] is remote
+    assert result["ready"] is remote
+
+
+def test_inspect_does_not_apply_mcpservers_check_to_fastmcp_json(tmp_path):
+    (tmp_path / "fastmcp.json").write_text('{"mcpServers": []}')
+    (tmp_path / "server.py").write_text("@mcp.tool\ndef tool(): pass\n")
+
+    assert inspect_server(tmp_path)["tools"] == {"names": ["tool"], "count": 1}
+
+
+def test_inspect_rejects_non_object_mcp_servers_with_config_path(tmp_path):
+    config_path = tmp_path / "config.json"
+    config_path.write_text('{"mcpServers": []}')
+    (tmp_path / "server.py").write_text("mcp = object()\n")
+
+    with pytest.raises(ValueError) as exc_info:
+        inspect_server(tmp_path)
+    assert str(config_path) in str(exc_info.value)
+    assert "mcpServers" in str(exc_info.value)
