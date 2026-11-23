@@ -272,6 +272,29 @@ def test_inspect_marks_dynamic_explicit_tool_name_unresolved(tmp_path):
     assert inspect_server(tmp_path)["tools"] == {"names": ["<unresolved>"], "count": 1}
 
 
+def test_inspect_resolves_fastmcp_tool_name_arguments(tmp_path):
+    (tmp_path / "server.py").write_text(
+        "@mcp.tool(name=None)\ndef default_name(): pass\n"
+        '@mcp.tool(name_or_fn="third_alias")\ndef third(): pass\n'
+        '@mcp.tool(**{"name": "public"})\ndef first(): pass\n'
+        "@mcp.tool(**options)\ndef dynamic_mapping(): pass\n"
+        '@mcp.tool(**{key: "dynamic_key"})\ndef dynamic_key(): pass\n'
+        "@mcp.tool(**{**options})\ndef nested_mapping(): pass\n"
+    )
+
+    assert inspect_server(tmp_path)["tools"] == {
+        "names": [
+            "<unresolved>",
+            "<unresolved>",
+            "<unresolved>",
+            "default_name",
+            "public",
+            "third_alias",
+        ],
+        "count": 6,
+    }
+
+
 def test_inspect_resolves_only_preceding_module_string_constants(tmp_path):
     (tmp_path / "server.py").write_text(
         "@mcp.tool(name=TOOL_NAME)\ndef before_assignment(): pass\n"
@@ -284,6 +307,30 @@ def test_inspect_resolves_only_preceding_module_string_constants(tmp_path):
     assert inspect_server(tmp_path)["tools"] == {
         "names": ["<unresolved>", "<unresolved>", "external"],
         "count": 3,
+    }
+
+
+def test_inspect_ignores_class_local_assignments_when_resolving_names(tmp_path):
+    (tmp_path / "server.py").write_text(
+        'TOOL_NAME = "from_module"\n'
+        "class Config:\n"
+        '    TOOL_NAME = "from_class"\n'
+        "@mcp.tool(name=TOOL_NAME)\ndef tool(): pass\n"
+    )
+
+    assert inspect_server(tmp_path)["tools"] == {"names": ["from_module"], "count": 1}
+
+
+def test_inspect_invalidates_module_constant_after_function_binding(tmp_path):
+    (tmp_path / "server.py").write_text(
+        'TOOL_NAME = "from_module"\n'
+        "@mcp.tool(name=TOOL_NAME)\ndef TOOL_NAME(): pass\n"
+        "@mcp.tool(name=TOOL_NAME)\ndef next_tool(): pass\n"
+    )
+
+    assert inspect_server(tmp_path)["tools"] == {
+        "names": ["<unresolved>", "from_module"],
+        "count": 2,
     }
 
 

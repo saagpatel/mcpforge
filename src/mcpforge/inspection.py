@@ -15,6 +15,23 @@ def _read_text(path: Path) -> str:
         return ""
 
 
+def _module_bindings(node: ast.AST) -> set[str]:
+    """Return names assigned by a statement in module scope."""
+
+    def bound_names(current: ast.AST) -> set[str]:
+        if isinstance(current, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            return {current.name}
+        if isinstance(
+            current, (ast.Lambda, ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)
+        ):
+            return set()
+        if isinstance(current, ast.Name) and isinstance(current.ctx, (ast.Store, ast.Del)):
+            return {current.id}
+        return set().union(*(bound_names(child) for child in ast.iter_child_nodes(current)))
+
+    return bound_names(node)
+
+
 def _python_tool_names(code: str) -> list[str]:
     try:
         module = ast.parse(code)
@@ -25,10 +42,8 @@ def _python_tool_names(code: str) -> list[str]:
     unresolved = 0
     for node in module.body:
         if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            # Only a direct assignment of a string literal gives a known name.
-            for child in ast.walk(node):
-                if isinstance(child, ast.Name) and isinstance(child.ctx, (ast.Store, ast.Del)):
-                    constants.pop(child.id, None)
+            for bound_name in _module_bindings(node):
+                constants.pop(bound_name, None)
             if (
                 isinstance(node, (ast.Assign, ast.AnnAssign))
                 and isinstance(node.value, ast.Constant)
@@ -50,10 +65,39 @@ def _python_tool_names(code: str) -> list[str]:
                 continue
             name = node.name
             if isinstance(decorator, ast.Call):
-                positional = decorator.args[0] if decorator.args else None
-                explicit = next(
-                    (kw.value for kw in decorator.keywords if kw.arg == "name"), positional
-                )
+                arguments: dict[str, ast.expr] = {}
+                has_unknown_unpack = False
+                if decorator.args:
+                    arguments["name_or_fn"] = decorator.args[0]
+                for keyword in decorator.keywords:
+                    if keyword.arg is None:
+                        if isinstance(keyword.value, ast.Dict):
+                            for key, value in zip(keyword.value.keys, keyword.value.values):
+                                if isinstance(key, ast.Constant) and isinstance(key.value, str):
+                                    arguments[key.value] = value
+                                else:
+                                    has_unknown_unpack = True
+                        else:
+                            has_unknown_unpack = True
+                    else:
+                        arguments[keyword.arg] = keyword.value
+
+                explicit_name = arguments.get("name")
+                name_or_fn = arguments.get("name_or_fn")
+                if explicit_name is not None and not (
+                    isinstance(explicit_name, ast.Constant) and explicit_name.value is None
+                ):
+                    explicit = explicit_name
+                elif name_or_fn is not None and not (
+                    isinstance(name_or_fn, ast.Constant) and name_or_fn.value is None
+                ):
+                    explicit = name_or_fn
+                else:
+                    explicit = None
+
+                if has_unknown_unpack:
+                    unresolved += 1
+                    continue
                 if explicit is not None:
                     if isinstance(explicit, ast.Constant) and isinstance(explicit.value, str):
                         name = explicit.value
@@ -63,6 +107,7 @@ def _python_tool_names(code: str) -> list[str]:
                         unresolved += 1
                         continue
             names.add(name)
+        constants.pop(node.name, None)
     return sorted(list(names) + ["<unresolved>"] * unresolved)
 
 
