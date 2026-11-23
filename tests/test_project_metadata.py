@@ -68,3 +68,8 @@ async def test_readme_tool_inventory_matches_registration():
     assert "uv sync" in rows["validate"][2] and "npm install" in rows["validate"][2]
     assert "Vitest" in rows["validate"][1] and "pytest" in rows["validate"][1]
     assert "temporary" in rows["doctor"][2]
+    generate, update = rows["generate"][2], rows["update"][2]
+    for effects in (generate, update):
+        assert "installs dependencies" in effects and "executes generated code" in effects
+    assert "dry_run" in generate and "no_execute" in generate
+    assert "after replacement" in update

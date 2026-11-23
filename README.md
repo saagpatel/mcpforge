@@ -127,8 +127,8 @@ Workspace paths are resolved against `MCPFORGE_WORKSPACE` and confined to it. Pr
 
 | Tool | What it does | Writes | Cost | Arguments |
 |---|---|---|---|---|
-| `generate` | Generate a FastMCP server, or return `plan` and `dry_run` in a dry run | workspace files unless dry run | API call except OpenAPI dry runs | `description`, `transport`, `output_path`, `model`, `provider`, `language`, `template`, `from_openapi`, `multi_file`, `no_execute`, `strict`, `dry_run`, `auth_profile`, `middleware_profiles` |
-| `update` | Apply a natural-language change to an existing generated server | yes (workspace) | API call | `server_path`, `request`, `model`, `provider` |
+| `generate` | Generate a FastMCP server | By default, writes files, installs dependencies, and executes generated code during validation. `dry_run` returns the plan and dry-run flag without writing files. `no_execute` writes files and skips installation and execution. | API call except OpenAPI dry runs | `description`, `transport`, `output_path`, `model`, `provider`, `language`, `template`, `from_openapi`, `multi_file`, `no_execute`, `strict`, `dry_run`, `auth_profile`, `middleware_profiles` |
+| `update` | Apply a natural-language change to an existing Python server | Replaces the server and test files. Validation after replacement installs dependencies and executes generated code. | API call | `server_path`, `request`, `model`, `provider` |
 | `plan` | Extract the structured server plan without generating code | no | API call | `description`, `transport`, `model`, `provider` |
 | `validate` | Python runs syntax, security, lint, import, and pytest checks. TypeScript runs `tsc --noEmit` and Vitest. | installs dependencies with `uv sync` or `npm install` and executes generated code | none | `server_path` |
 | `inspect` | Summarize a generated server without executing it | no | none | `server_path` |
