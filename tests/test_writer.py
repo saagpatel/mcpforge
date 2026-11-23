@@ -233,7 +233,7 @@ class TestWriteServer:
         assert config["source"]["entrypoint"] == "mcp"
         assert "httpx" in config["environment"]["dependencies"]
         assert "mcp>=1.30.0" in config["environment"]["dependencies"]
-        assert config["deployment"]["profiles"]["local_http"]["url"] == "http://127.0.0.1:8000/mcp/"
+        assert config["deployment"]["profiles"]["local_http"]["url"] == "http://127.0.0.1:8000/mcp"
         assert config["deployment"]["profiles"]["production_http"]["requires_auth"] is False
         assert "env" not in config["deployment"]
 
@@ -246,6 +246,26 @@ class TestWriteServer:
         assert "## Remote MCP Readiness" in content
         assert "Production HTTP" in content
         assert "MCPFORGE_SERVER_API_KEY" in content
+
+    @pytest.mark.parametrize("transport", ["stdio", "sse", "streamable-http"])
+    def test_readme_uses_configured_transport(self, tmp_path, transport):
+        plan = _sample_plan(transport=transport)
+        out = tmp_path / "output"
+        write_server(plan, "s", "t", out)
+        deployment = json.loads((out / "fastmcp.json").read_text())["deployment"]
+        readme = (out / "README.md").read_text()
+        assert "fastmcp run fastmcp.json\n" in readme
+        config = json.loads(readme.split("```json\n")[1].split("```")[0])["mcpServers"][plan.slug]
+        if transport == "stdio":
+            assert config["command"] == "uv"
+            assert "server.py" in config["args"]
+        else:
+            path = deployment["path"]
+            assert config == {"transport": transport, "url": f"http://localhost:8000{path}"}
+            assert f"`{path}`" in readme
+            if transport == "sse":
+                assert "`/messages/`" in readme
+                assert "/mcp/" not in readme
 
     def test_readme_lists_resources_and_prompts(self, tmp_path):
         plan = _sample_plan(
